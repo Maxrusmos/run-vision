@@ -112,12 +112,8 @@ onBeforeUnmount(() => {
         <v-window-item value="2d">
           <ActivityMap ref="activityMap" :activity="activity" />
 
-          <ActivityElevationProfile
-            :activity="activity"
-            :current-time-seconds="currentTimeSeconds"
-          />
-
           <ActivityPlaybackControls
+            :activity="activity"
             :current-time-seconds="currentTimeSeconds"
             :duration-seconds="durationSeconds"
             :is-playing="isPlaying"

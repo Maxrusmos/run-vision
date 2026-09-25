@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ICONS } from '../../../shared/constants/icons.ts';
+
+import ActivityElevationProfile from './ActivityElevationProfile.vue';
+import type { IActivity } from '@/entities/activity/model/activity.types';
+import { ICONS } from '@/shared/constants/icons';
+import { formatDuration } from '@/shared/lib/formatters/formatters';
 
 type Props = {
+  activity: IActivity;
   currentTimeSeconds: number;
   durationSeconds: number;
   isPlaying: boolean;
@@ -26,34 +31,40 @@ const progress = computed(() => {
 
 function handleSeek(value: number | number[]) {
   const progress = Array.isArray(value) ? value[0] : value;
+
   if (progress === undefined) {
     return;
   }
+
   emit('seek', progress * props.durationSeconds);
-}
-
-function formatTime(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.floor(seconds % 60);
-
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 </script>
 
 <template>
   <div class="playback-controls">
-    <v-btn icon variant="text" size="small" @click="isPlaying ? emit('pause') : emit('play')">
-      <v-icon>
-        {{ isPlaying ? ICONS.pause : ICONS.play }}
-      </v-icon>
-    </v-btn>
+    <div class="playback-controls__grid">
+      <div class="playback-controls__elevation">
+        <ActivityElevationProfile :activity="activity" :current-time-seconds="currentTimeSeconds" />
+      </div>
 
-    <div class="playback-controls__timeline">
-      <span class="time">
-        {{ formatTime(currentTimeSeconds) }}
+      <v-btn
+        class="playback-controls__play"
+        icon
+        variant="text"
+        size="small"
+        @click="isPlaying ? emit('pause') : emit('play')"
+      >
+        <v-icon>
+          {{ isPlaying ? ICONS.pause : ICONS.play }}
+        </v-icon>
+      </v-btn>
+
+      <span class="playback-controls__current-time time">
+        {{ formatDuration(currentTimeSeconds) }}
       </span>
 
       <v-slider
+        class="playback-controls__slider"
         :model-value="progress"
         :min="0"
         :max="1"
@@ -62,8 +73,8 @@ function formatTime(seconds: number): string {
         @update:model-value="handleSeek"
       />
 
-      <span class="time">
-        {{ formatTime(durationSeconds) }}
+      <span class="playback-controls__duration time">
+        {{ formatDuration(durationSeconds) }}
       </span>
     </div>
   </div>
@@ -71,29 +82,47 @@ function formatTime(seconds: number): string {
 
 <style scoped>
 .playback-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  width: 100%;
   padding: 12px 0;
 }
 
-.playback-controls__timeline {
+.playback-controls__grid {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  grid-template-columns: auto 42px minmax(0, 1fr) 42px;
+  grid-template-rows: auto auto;
   align-items: center;
-  flex: 1;
+  column-gap: 12px;
+}
+
+.playback-controls__elevation {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.playback-controls__play {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.playback-controls__current-time {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.playback-controls__slider {
+  grid-column: 3;
+  grid-row: 2;
+  width: 100%;
+}
+
+.playback-controls__duration {
+  grid-column: 4;
+  grid-row: 2;
+  text-align: right;
 }
 
 .time {
   font-size: 14px;
   font-variant-numeric: tabular-nums;
-}
-
-.playback-controls__timeline .time:last-child {
-  text-align: right;
-}
-
-.playback-controls__timeline :deep(.v-slider) {
-  width: 100%;
 }
 </style>

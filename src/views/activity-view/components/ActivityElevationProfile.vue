@@ -21,7 +21,7 @@ const props = defineProps<Props>();
 
 const width = 1000;
 const height = 180;
-const padding = 16;
+const padding = 5;
 
 const elevationPoints = computed(() => buildElevationPoints(props.activity.track));
 
@@ -77,7 +77,6 @@ function formatElevation(value: number): string {
   <div class="elevation-profile">
     <div class="elevation-profile__header">
       <span class="text-subtitle-2"> Рельеф </span>
-
       <span class="text-caption">
         {{ formatElevation(elevationRange.min) }}
         —
@@ -85,30 +84,31 @@ function formatElevation(value: number): string {
       </span>
     </div>
 
-    <svg
-      class="elevation-profile__chart"
-      :viewBox="`0 0 ${width} ${height}`"
-      preserveAspectRatio="none"
-    >
-      <path v-if="areaPath" :d="areaPath" class="elevation-profile__area" />
+    <div class="elevation-profile__chart-wrapper">
+      <svg
+        class="elevation-profile__chart"
+        :viewBox="`0 0 ${width} ${height}`"
+        preserveAspectRatio="none"
+      >
+        <path v-if="areaPath" :d="areaPath" class="elevation-profile__area" />
+        <path v-if="linePath" :d="linePath" class="elevation-profile__line" fill="none" />
+      </svg>
 
-      <path v-if="linePath" :d="linePath" class="elevation-profile__line" fill="none" />
-
-      <circle
+      <div
         v-if="currentPoint"
-        :cx="currentPoint.x"
-        :cy="currentPoint.y"
-        r="7"
         class="elevation-profile__marker"
+        :style="{
+          left: `${(currentPoint.x / width) * 100}%`,
+          top: `${(currentPoint.y / height) * 100}%`,
+        }"
       />
-    </svg>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .elevation-profile {
   width: 100%;
-  padding: 16px 0;
 }
 
 .elevation-profile__header {
@@ -118,10 +118,16 @@ function formatElevation(value: number): string {
   margin-bottom: 8px;
 }
 
+.elevation-profile__chart-wrapper {
+  position: relative;
+  width: 100%;
+  height: 180px;
+}
+
 .elevation-profile__chart {
   display: block;
   width: 100%;
-  height: 180px;
+  height: 100%;
   overflow: visible;
 }
 
@@ -131,14 +137,20 @@ function formatElevation(value: number): string {
 
 .elevation-profile__line {
   stroke: #1976d2;
-  stroke-width: 3;
+  stroke-width: 1;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .elevation-profile__marker {
-  fill: #ffffff;
-  stroke: #1976d2;
-  stroke-width: 3;
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  transform: translate(-50%, -50%);
+  border: 2px solid #1976d2;
+  border-radius: 50%;
+  background: #ffffff;
+  box-sizing: border-box;
+  pointer-events: none;
 }
 </style>

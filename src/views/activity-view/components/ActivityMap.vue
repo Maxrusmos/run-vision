@@ -110,8 +110,13 @@ onMounted(() => {
       padding: 40,
     });
 
+    const markerElement = document.createElement('div');
+    markerElement.className = 'mdi mdi-run';
+    markerElement.style.fontSize = '32px';
+    markerElement.style.color = '#1976D2';
     marker = new maplibregl.Marker({
-      color: '#E53935',
+      element: markerElement,
+      anchor: 'center',
     })
       .setLngLat(firstCoordinate)
       .addTo(map);
