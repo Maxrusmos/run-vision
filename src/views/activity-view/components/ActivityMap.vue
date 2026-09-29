@@ -17,7 +17,6 @@ type Props = {
 };
 
 const props = defineProps<Props>();
-
 const mapContainer = ref<HTMLDivElement | null>(null);
 
 let map: maplibregl.Map | null = null;
@@ -27,13 +26,10 @@ onMounted(() => {
   if (!mapContainer.value || props.activity.track.length === 0) {
     return;
   }
-
   const firstPoint = props.activity.track[0];
-
   if (!firstPoint) {
     return;
   }
-
   map = new maplibregl.Map({
     container: mapContainer.value,
     style: 'https://tiles.openfreemap.org/styles/bright',
@@ -45,11 +41,8 @@ onMounted(() => {
     if (!map) {
       return;
     }
-
     const coordinates = trackToCoordinates(props.activity.track);
-
     const firstCoordinate = coordinates[0];
-
     if (!firstCoordinate) {
       return;
     }
@@ -127,11 +120,8 @@ function setPlaybackTime(seconds: number) {
   if (!map || !marker) {
     return;
   }
-
   const coordinates = getElapsedTrackCoordinates(props.activity.track, seconds);
-
   const currentCoordinate = coordinates[coordinates.length - 1];
-
   if (!currentCoordinate) {
     return;
   }
@@ -173,9 +163,9 @@ onBeforeUnmount(() => {
 <style scoped>
 .activity-map {
   width: 100%;
-  height: 500px;
+  height: 561px;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 :deep(.maplibregl-ctrl) {

@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-
-import ActivityElevationProfile from './ActivityElevationProfile.vue';
+import { computed, ref } from 'vue';
+import ActivityElevationProfile from './activity-elevation/ActivityElevationProfile.vue';
 import type { IActivity } from '@/entities/activity/model/activity.types';
+import {
+  buildElevationPoints,
+  getElevationStats,
+  smoothElevationPoints,
+  type IElevationDisplayMode,
+} from '@/entities/activity/model/elevation-profile';
+import { getActivityMetrics } from '@/entities/activity/model/activity-metrics';
 import { ICONS } from '@/shared/constants/icons';
 import { formatDuration } from '@/shared/lib/formatters/formatters';
+import MetricsControl from '@/views/activity-view/components/activity-metrics/MetricsControl.vue';
 
 type Props = {
   activity: IActivity;
@@ -20,6 +27,20 @@ const emit = defineEmits<{
   pause: [];
   seek: [seconds: number];
 }>();
+
+const displayMode = ref<IElevationDisplayMode>('elevation');
+const elevationPoints = computed(() => buildElevationPoints(props.activity.track));
+const smoothedElevationPoints = computed(() => smoothElevationPoints(elevationPoints.value, 7));
+const elevationStats = computed(() => getElevationStats(smoothedElevationPoints.value));
+
+const activityMetrics = computed(() =>
+  getActivityMetrics(props.activity.track, props.currentTimeSeconds),
+);
+
+const elevationRange = computed(() => ({
+  min: elevationStats.value.minElevation,
+  max: elevationStats.value.maxElevation,
+}));
 
 const progress = computed(() => {
   if (props.durationSeconds <= 0) {
@@ -42,9 +63,22 @@ function handleSeek(value: number | number[]) {
 
 <template>
   <div class="playback-controls">
+    <MetricsControl
+      class="playback-controls__elevation-controls"
+      :stats="elevationStats"
+      :metrics="activityMetrics"
+      :min-elevation="elevationRange.min"
+      :max-elevation="elevationRange.max"
+      v-model="displayMode"
+    />
+
     <div class="playback-controls__grid">
       <div class="playback-controls__elevation">
-        <ActivityElevationProfile :activity="activity" :current-time-seconds="currentTimeSeconds" />
+        <ActivityElevationProfile
+          v-model="displayMode"
+          :activity="activity"
+          :current-time-seconds="currentTimeSeconds"
+        />
       </div>
 
       <v-btn
@@ -86,10 +120,17 @@ function handleSeek(value: number | number[]) {
   padding: 12px 0;
 }
 
+.playback-controls__elevation-controls {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
 .playback-controls__grid {
   display: grid;
+
   grid-template-columns: auto 42px minmax(0, 1fr) 42px;
   grid-template-rows: auto auto;
+
   align-items: center;
   column-gap: 12px;
 }
@@ -118,6 +159,7 @@ function handleSeek(value: number | number[]) {
 .playback-controls__duration {
   grid-column: 4;
   grid-row: 2;
+
   text-align: right;
 }
 
