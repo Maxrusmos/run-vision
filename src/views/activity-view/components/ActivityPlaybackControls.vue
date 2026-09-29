@@ -26,9 +26,13 @@ const emit = defineEmits<{
   play: [];
   pause: [];
   seek: [seconds: number];
+  speed: [speed: number];
 }>();
 
 const displayMode = ref<IElevationDisplayMode>('elevation');
+const playbackSpeed = ref(2);
+const playbackSpeeds = [1, 2, 4, 8, 16, 32, 64, 128];
+
 const elevationPoints = computed(() => buildElevationPoints(props.activity.track));
 const smoothedElevationPoints = computed(() => smoothElevationPoints(elevationPoints.value, 7));
 const elevationStats = computed(() => getElevationStats(smoothedElevationPoints.value));
@@ -59,6 +63,11 @@ function handleSeek(value: number | number[]) {
 
   emit('seek', progress * props.durationSeconds);
 }
+
+function handleSpeedChange(speed: number) {
+  playbackSpeed.value = speed;
+  emit('speed', speed);
+}
 </script>
 
 <template>
@@ -80,6 +89,25 @@ function handleSeek(value: number | number[]) {
           :current-time-seconds="currentTimeSeconds"
         />
       </div>
+
+      <v-menu location="top" offset="4">
+        <template #activator="{ props: menuProps }">
+          <v-btn v-bind="menuProps" class="playback-controls__speed" variant="text" size="x-small">
+            {{ playbackSpeed }}×
+          </v-btn>
+        </template>
+
+        <v-list density="compact">
+          <v-list-item
+            v-for="speed in playbackSpeeds"
+            :key="speed"
+            :active="speed === playbackSpeed"
+            @click="handleSpeedChange(speed)"
+          >
+            <v-list-item-title> {{ speed }}× </v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
 
       <v-btn
         class="playback-controls__play"
@@ -125,16 +153,6 @@ function handleSeek(value: number | number[]) {
   margin-bottom: 8px;
 }
 
-.playback-controls__grid {
-  display: grid;
-
-  grid-template-columns: auto 42px minmax(0, 1fr) 42px;
-  grid-template-rows: auto auto;
-
-  align-items: center;
-  column-gap: 12px;
-}
-
 .playback-controls__elevation {
   grid-column: 3;
   grid-row: 1;
@@ -143,8 +161,26 @@ function handleSeek(value: number | number[]) {
 .playback-controls__play {
   grid-column: 1;
   grid-row: 2;
+  position: relative;
 }
 
+.playback-controls__grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 42px minmax(0, 1fr) 42px;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 12px;
+}
+
+.playback-controls__speed {
+  position: absolute;
+  left: 48px;
+  bottom: 40px;
+  min-width: 36px;
+  padding: 0;
+  font-size: 14px;
+}
 .playback-controls__current-time {
   grid-column: 2;
   grid-row: 2;
@@ -159,7 +195,6 @@ function handleSeek(value: number | number[]) {
 .playback-controls__duration {
   grid-column: 4;
   grid-row: 2;
-
   text-align: right;
 }
 

@@ -17,22 +17,76 @@ type Props = {
 };
 
 const props = defineProps<Props>();
+
 const mapContainer = ref<HTMLDivElement | null>(null);
+const mapMode = ref<'satellite' | 'map'>('map');
 
 let map: maplibregl.Map | null = null;
 let marker: maplibregl.Marker | null = null;
+
+function createMapStyle(): maplibregl.StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      map: {
+        type: 'raster',
+        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        maxzoom: 19,
+      },
+      satellite: {
+        type: 'raster',
+        tiles: [
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        ],
+        tileSize: 256,
+        maxzoom: 19,
+      },
+    },
+    layers: [
+      {
+        id: 'map',
+        type: 'raster',
+        source: 'map',
+        layout: {
+          visibility: 'visible',
+        },
+      },
+      {
+        id: 'satellite',
+        type: 'raster',
+        source: 'satellite',
+        layout: {
+          visibility: 'none',
+        },
+      },
+    ],
+  };
+}
+
+function setMapMode(mode: 'satellite' | 'map') {
+  mapMode.value = mode;
+  if (!map) {
+    return;
+  }
+  map.setLayoutProperty('map', 'visibility', mode === 'map' ? 'visible' : 'none');
+  map.setLayoutProperty('satellite', 'visibility', mode === 'satellite' ? 'visible' : 'none');
+}
 
 onMounted(() => {
   if (!mapContainer.value || props.activity.track.length === 0) {
     return;
   }
+
   const firstPoint = props.activity.track[0];
+
   if (!firstPoint) {
     return;
   }
+
   map = new maplibregl.Map({
     container: mapContainer.value,
-    style: 'https://tiles.openfreemap.org/styles/bright',
+    style: createMapStyle(),
     center: [firstPoint.longitude, firstPoint.latitude],
     zoom: 13,
   });
@@ -41,8 +95,10 @@ onMounted(() => {
     if (!map) {
       return;
     }
+
     const coordinates = trackToCoordinates(props.activity.track);
     const firstCoordinate = coordinates[0];
+
     if (!firstCoordinate) {
       return;
     }
@@ -104,13 +160,8 @@ onMounted(() => {
     });
 
     const markerElement = document.createElement('div');
-    markerElement.className = 'mdi mdi-run';
-    markerElement.style.fontSize = '32px';
-    markerElement.style.color = '#1976D2';
-    marker = new maplibregl.Marker({
-      element: markerElement,
-      anchor: 'center',
-    })
+    markerElement.className = 'activity-marker';
+    marker = new maplibregl.Marker({ element: markerElement, anchor: 'center' })
       .setLngLat(firstCoordinate)
       .addTo(map);
   });
@@ -125,9 +176,7 @@ function setPlaybackTime(seconds: number) {
   if (!currentCoordinate) {
     return;
   }
-
   marker.setLngLat(currentCoordinate);
-
   const source = map.getSource('elapsed-route') as maplibregl.GeoJSONSource | undefined;
 
   if (!source) {
@@ -157,15 +206,47 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="mapContainer" class="activity-map" />
+  <div class="activity-map-wrapper">
+    <div ref="mapContainer" class="activity-map" />
+
+    <div class="map-switch">
+      <v-btn-toggle
+        :model-value="mapMode"
+        mandatory
+        density="comfortable"
+        divided
+        @update:model-value="setMapMode"
+      >
+        <v-btn value="map" size="small"> Схема </v-btn>
+        <v-btn value="satellite" size="small"> Спутник </v-btn>
+      </v-btn-toggle>
+    </div>
+  </div>
 </template>
 
 <style scoped>
+.activity-map-wrapper {
+  position: relative;
+  width: 100%;
+}
+
 .activity-map {
   width: 100%;
   height: 561px;
   overflow: hidden;
   border-radius: 10px;
+}
+
+.map-switch {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 :deep(.maplibregl-ctrl) {
