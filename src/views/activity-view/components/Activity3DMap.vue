@@ -47,8 +47,9 @@ defineExpose({
 }
 @media (max-width: 600px) {
   .activity-map-3d {
+    flex: 1 1 auto;
+    min-height: 0;
     height: 56dvh;
-    min-height: 360px;
     max-height: 560px;
     border-radius: 8px;
   }

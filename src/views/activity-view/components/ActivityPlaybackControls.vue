@@ -102,7 +102,7 @@ function handleSpeedChange(speed: number) {
             :active="speed === playbackSpeed"
             @click="handleSpeedChange(speed)"
           >
-            <v-list-item-title> {{ speed }}× </v-list-item-title>
+            <v-list-item-title>{{ speed }}×</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
@@ -142,6 +142,8 @@ function handleSpeedChange(speed: number) {
 
 <style scoped>
 .playback-controls {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   padding: 12px 0;
 }
@@ -213,19 +215,25 @@ function handleSpeedChange(speed: number) {
     padding: 8px 0;
   }
 
+  .playback-controls__grid {
+    order: 1;
+    margin-bottom: 10px;
+  }
+
   .playback-controls__elevation-controls {
-    margin-bottom: 4px;
+    order: 2;
+    margin-bottom: 0;
   }
 
   .playback-controls__grid {
     grid-template-columns: 40px auto minmax(0, 1fr) auto;
-    grid-template-rows: 56px 40px 32px;
+    grid-template-rows: 56px 40px;
     column-gap: 6px;
     row-gap: 2px;
   }
 
   .playback-controls__elevation {
-    grid-column: 2 / -1;
+    grid-column: 3;
     grid-row: 1;
     min-width: 0;
   }
@@ -253,7 +261,7 @@ function handleSpeedChange(speed: number) {
   .playback-controls__duration {
     grid-column: 4;
     grid-row: 2;
-    text-align: right;
+    text-align: left;
     white-space: nowrap;
   }
 

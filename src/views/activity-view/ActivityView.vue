@@ -181,14 +181,6 @@ onBeforeUnmount(() => {
   gap: 24px;
   margin: 4px 0 12px;
 }
-.activity-title {
-  margin: 0;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .empty-state {
   display: flex;
   align-items: center;
@@ -200,17 +192,7 @@ onBeforeUnmount(() => {
   max-width: 420px;
   text-align: center;
 }
-@media (max-width: 900px) {
-  .activity-header {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 0;
-  }
-  .activity-title {
-    font-size: 20px;
-  }
-}
+
 @media (max-width: 600px) {
   .page {
     padding: 10px;
@@ -218,10 +200,6 @@ onBeforeUnmount(() => {
   .activity-header {
     gap: 8px;
     margin-bottom: 8px;
-  }
-  .activity-title {
-    font-size: 18px;
-    line-height: 1.3;
   }
   .empty-state {
     min-height: calc(100dvh - 120px);
