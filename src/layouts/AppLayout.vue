@@ -36,9 +36,12 @@ async function handleFileChange(event: Event) {
 </script>
 
 <template>
-  <v-app>
-    <v-app-bar flat border="bottom">
-      <v-app-bar-title class="app-title"> RunVision </v-app-bar-title> <v-spacer />
+  <v-app class="app">
+    <v-app-bar flat border="bottom" class="app-bar">
+      <v-app-bar-title class="app-title"> RunVision </v-app-bar-title>
+
+      <v-spacer />
+
       <v-btn
         v-if="isActivityPage"
         class="import-button import-button--desktop mr-4"
@@ -63,7 +66,7 @@ async function handleFileChange(event: Event) {
       />
     </v-app-bar>
 
-    <v-main>
+    <v-main class="app-main">
       <input
         ref="fileInput"
         type="file"
@@ -80,35 +83,67 @@ async function handleFileChange(event: Event) {
     </v-main>
   </v-app>
 </template>
-
 <style scoped>
 .file-input {
   display: none;
 }
+
 .import-error {
   margin: 16px 24px 0;
 }
+
 .import-button--mobile {
   display: none;
 }
 
+.app {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.app-main {
+  min-height: 0 !important;
+  height: 100%;
+  overflow: hidden;
+}
+
 @media (max-width: 600px) {
+  .app-bar {
+    height: 48px !important;
+  }
+
+  :deep(.v-main) {
+    padding-top: 48px !important;
+  }
+
+  :deep(.app-bar .v-toolbar__content) {
+    height: 48px !important;
+    min-height: 48px !important;
+  }
+
+  .app-title {
+    font-size: 16px;
+  }
+
   .import-button--desktop {
     display: none;
   }
 
   .import-button--mobile {
     display: inline-flex;
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
+    margin-right: 8px !important;
   }
 
   .import-error {
-    margin: 12px 12px 0;
+    margin: 8px 10px 0;
   }
 
-  .app-title {
-    font-size: 18px;
+  .app-main {
+    min-height: 0 !important;
+    overflow: hidden;
   }
 }
 </style>

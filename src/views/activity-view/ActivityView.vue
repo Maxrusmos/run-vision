@@ -171,7 +171,7 @@ onBeforeUnmount(() => {
 .page {
   width: 100%;
   max-width: 100%;
-  padding: 16px;
+  padding: 8px 16px;
   overflow-x: hidden;
 }
 .activity-header {
@@ -195,7 +195,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 600px) {
   .page {
-    padding: 10px;
+    padding: 4px 8px;
   }
   .activity-header {
     gap: 8px;
