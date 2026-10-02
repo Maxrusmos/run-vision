@@ -45,4 +45,25 @@ defineProps<Props>();
   width: 5ch;
   text-align: right;
 }
+
+@media (max-width: 600px) {
+  .metrics-block {
+    width: 100%;
+    min-width: 0;
+    padding: 6px 8px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .metric {
+    min-width: 0;
+  }
+
+  .metric__value--distance {
+    width: auto;
+    font-size: 14px;
+  }
+}
 </style>

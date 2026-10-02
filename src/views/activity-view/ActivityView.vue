@@ -1,32 +1,30 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import Activity3DMap from '@/views/activity-view/components/Activity3DMap.vue';
-import ActivityMap from '@/views/activity-view/components/ActivityMap.vue';
+import ActivityMapControls from '@/views/activity-view/components/ActivityMapControls.vue';
 import ActivityPlaybackControls from '@/views/activity-view/components/ActivityPlaybackControls.vue';
 import { getPlaybackDuration } from '@/entities/activity/model/activity-playback';
 import { useActivityStore } from '@/stores/activity.store';
 
-const route = useRoute();
+type ViewMode = '2d' | '3d';
+type MapStyle = 'map' | 'satellite';
+
 const activityStore = useActivityStore();
-const activeTab = ref('2d');
+
 const currentTimeSeconds = ref(0);
 const isPlaying = ref(false);
 const playbackSpeed = ref(2);
-const activityMap = ref<InstanceType<typeof ActivityMap> | null>(null);
+
+const viewMode = ref<ViewMode>('3d');
+const mapStyle = ref<MapStyle>('map');
+const followCamera = ref(false);
+
 const activity3DMap = ref<InstanceType<typeof Activity3DMap> | null>(null);
 
 let animationFrameId = 0;
 let lastFrameTime = 0;
 
-const activity = computed(() => {
-  const id = String(route.params.id);
-  return activityStore.getActivity(id);
-});
-
-function changePlaybackSpeed(speed: number) {
-  playbackSpeed.value = speed;
-}
+const activity = computed(() => activityStore.activity);
 
 const durationSeconds = computed(() => {
   if (!activity.value) {
@@ -35,9 +33,48 @@ const durationSeconds = computed(() => {
   return getPlaybackDuration(activity.value.track);
 });
 
+function setViewMode(mode: ViewMode) {
+  viewMode.value = mode;
+  activity3DMap.value?.setViewMode(mode);
+}
+
+function setMapStyle(style: MapStyle) {
+  mapStyle.value = style;
+  activity3DMap.value?.setMapStyle(style);
+}
+
+function setFollowCamera(enabled: boolean) {
+  followCamera.value = enabled;
+  activity3DMap.value?.setFollowCamera(enabled);
+}
+
 function updateMap() {
-  activityMap.value?.setPlaybackTime(currentTimeSeconds.value);
   activity3DMap.value?.setPlaybackTime(currentTimeSeconds.value);
+}
+
+async function syncActivity() {
+  currentTimeSeconds.value = 0;
+
+  await nextTick();
+
+  activity3DMap.value?.setPlaybackTime(0);
+  activity3DMap.value?.setViewMode(viewMode.value);
+  activity3DMap.value?.setMapStyle(mapStyle.value);
+  activity3DMap.value?.setFollowCamera(followCamera.value);
+}
+
+watch(
+  () => activity.value?.id,
+  async (id, previousId) => {
+    if (!id || id === previousId) {
+      return;
+    }
+
+    await syncActivity();
+  },
+);
+function changePlaybackSpeed(speed: number) {
+  playbackSpeed.value = speed;
 }
 
 function play() {
@@ -46,6 +83,7 @@ function play() {
   }
   if (currentTimeSeconds.value >= durationSeconds.value) {
     currentTimeSeconds.value = 0;
+    updateMap();
   }
   isPlaying.value = true;
   lastFrameTime = performance.now();
@@ -88,63 +126,113 @@ onBeforeUnmount(() => {
 <template>
   <div class="page">
     <template v-if="activity">
-      <h2 class="mb-1 mt-1">
-        {{ activity.name }}
-      </h2>
+      <div class="activity-header">
+        <h2 class="activity-title">
+          {{ activity.name }}
+        </h2>
 
-      <v-tabs v-model="activeTab" class="mb-4">
-        <v-tab value="2d"> 2D карта </v-tab>
-        <v-tab value="3d"> 3D карта </v-tab>
-      </v-tabs>
+        <ActivityMapControls
+          :view-mode="viewMode"
+          :map-style="mapStyle"
+          :follow-camera="followCamera"
+          @update:view-mode="setViewMode"
+          @update:map-style="setMapStyle"
+          @update:follow-camera="setFollowCamera"
+        />
+      </div>
 
-      <v-window v-model="activeTab">
-        <v-window-item value="2d">
-          <ActivityMap ref="activityMap" :activity="activity" />
+      <Activity3DMap :key="activity.id" ref="activity3DMap" :activity="activity" />
 
-          <ActivityPlaybackControls
-            :activity="activity"
-            :current-time-seconds="currentTimeSeconds"
-            :duration-seconds="durationSeconds"
-            :is-playing="isPlaying"
-            @play="play"
-            @pause="pause"
-            @seek="seek"
-            @speed="changePlaybackSpeed"
-          />
-        </v-window-item>
-
-        <v-window-item value="3d">
-          <Activity3DMap :activity="activity" ref="activity3DMap" />
-
-          <ActivityPlaybackControls
-            :activity="activity"
-            :current-time-seconds="currentTimeSeconds"
-            :duration-seconds="durationSeconds"
-            :is-playing="isPlaying"
-            @play="play"
-            @pause="pause"
-            @seek="seek"
-            @speed="changePlaybackSpeed"
-          />
-        </v-window-item>
-      </v-window>
+      <ActivityPlaybackControls
+        :activity="activity"
+        :current-time-seconds="currentTimeSeconds"
+        :duration-seconds="durationSeconds"
+        :is-playing="isPlaying"
+        @play="play"
+        @pause="pause"
+        @seek="seek"
+        @speed="changePlaybackSpeed"
+      />
     </template>
 
-    <v-alert v-else type="info" variant="tonal"> Пробежка не найдена </v-alert>
+    <template v-else>
+      <div class="empty-state">
+        <div class="empty-content">
+          <v-icon icon="mdi-run" size="64" class="mb-4" />
+
+          <h2 class="text-h5 mb-2">Нет тренировки</h2>
+
+          <p class="text-body-2 text-medium-emphasis">
+            Нажмите «Импортировать GPX» в правом верхнем углу, чтобы открыть тренировку.
+          </p>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <style scoped>
 .page {
-  padding: 24px;
+  width: 100%;
+  max-width: 100%;
+  padding: 16px;
+  overflow-x: hidden;
 }
-
-:global(.activity-marker) {
-  width: 16px;
-  height: 16px;
-  border: 3px solid #1976d2;
-  border-radius: 50%;
-  background: #fff;
-  box-sizing: border-box;
+.activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 4px 0 12px;
+}
+.activity-title {
+  margin: 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+}
+.empty-content {
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+@media (max-width: 900px) {
+  .activity-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 0;
+  }
+  .activity-title {
+    font-size: 20px;
+  }
+}
+@media (max-width: 600px) {
+  .page {
+    padding: 10px;
+  }
+  .activity-header {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .activity-title {
+    font-size: 18px;
+    line-height: 1.3;
+  }
+  .empty-state {
+    min-height: calc(100dvh - 120px);
+    padding: 16px;
+  }
+  .empty-content {
+    max-width: 320px;
+  }
 }
 </style>

@@ -48,7 +48,7 @@ watch(
       </span>
     </div>
 
-    <div class="metric metric--muted">
+    <div class="metric metric--muted max-heart">
       <span class="metric__label">макс.</span>
 
       <span class="metric__value">
@@ -136,6 +136,45 @@ watch(
   100% {
     color: rgba(255, 255, 255, 0.65);
     transform: scale(1);
+  }
+}
+
+@media (max-width: 600px) {
+  .metrics-block {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .metric {
+    min-width: 0;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .metric__label {
+    font-size: 14px;
+  }
+
+  .metric__value {
+    font-size: 14px;
+  }
+
+  .metric__value--heart-rate {
+    min-width: 0;
+  }
+
+  .heart {
+    font-size: 16px;
+  }
+
+  .max-heart {
+    display: none;
   }
 }
 </style>

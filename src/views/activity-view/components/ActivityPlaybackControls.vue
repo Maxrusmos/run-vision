@@ -56,11 +56,9 @@ const progress = computed(() => {
 
 function handleSeek(value: number | number[]) {
   const progress = Array.isArray(value) ? value[0] : value;
-
   if (progress === undefined) {
     return;
   }
-
   emit('seek', progress * props.durationSeconds);
 }
 
@@ -181,6 +179,7 @@ function handleSpeedChange(speed: number) {
   padding: 0;
   font-size: 14px;
 }
+
 .playback-controls__current-time {
   grid-column: 2;
   grid-row: 2;
@@ -201,5 +200,74 @@ function handleSpeedChange(speed: number) {
 .time {
   font-size: 14px;
   font-variant-numeric: tabular-nums;
+}
+
+.playback-controls__current-time,
+.playback-controls__duration {
+  width: 32px;
+  min-width: 32px;
+}
+
+@media (max-width: 600px) {
+  .playback-controls {
+    padding: 8px 0;
+  }
+
+  .playback-controls__elevation-controls {
+    margin-bottom: 4px;
+  }
+
+  .playback-controls__grid {
+    grid-template-columns: 40px auto minmax(0, 1fr) auto;
+    grid-template-rows: 56px 40px 32px;
+    column-gap: 6px;
+    row-gap: 2px;
+  }
+
+  .playback-controls__elevation {
+    grid-column: 2 / -1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .playback-controls__play {
+    grid-column: 1;
+    grid-row: 2;
+    width: 40px;
+    height: 40px;
+  }
+
+  .playback-controls__current-time {
+    grid-column: 2;
+    grid-row: 2;
+    white-space: nowrap;
+  }
+
+  .playback-controls__slider {
+    grid-column: 3;
+    grid-row: 2;
+    width: 100%;
+    margin: 0;
+  }
+
+  .playback-controls__duration {
+    grid-column: 4;
+    grid-row: 2;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .playback-controls__speed {
+    position: absolute;
+    top: 32px;
+    left: 2px;
+    height: 28px;
+    padding: 0;
+    font-size: 13px;
+  }
+
+  .time {
+    font-size: 12px;
+  }
 }
 </style>

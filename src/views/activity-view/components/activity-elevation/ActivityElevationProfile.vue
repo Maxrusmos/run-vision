@@ -241,4 +241,16 @@ function getSegmentAreaPath(segment: IElevationChartSegment): string {
   box-sizing: border-box;
   pointer-events: none;
 }
+
+@media (max-width: 600px) {
+  .elevation-profile__chart-wrapper {
+    height: 56px;
+  }
+
+  .elevation-profile__marker {
+    width: 10px;
+    height: 10px;
+    border-width: 2px;
+  }
+}
 </style>

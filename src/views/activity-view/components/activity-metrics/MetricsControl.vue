@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-
 import type {
   IElevationStats,
   IElevationDisplayMode,
 } from '@/entities/activity/model/elevation-profile.ts';
 import type { IActivityMetrics } from '@/entities/activity/model/activity-metrics.ts';
-
 import PaceCadenceMetrics from './PaceCadenceMetrics.vue';
 import HeartRateMetrics from './HeartRateMetrics.vue';
 import ElevationMetrics from './ElevationMetrics.vue';
@@ -54,9 +52,9 @@ const isGrade = computed(() => props.modelValue === 'grade');
   <div class="metrics-control">
     <div class="metrics-control__groups">
       <PaceCadenceMetrics :metrics="metrics" />
+      <ElevationMetrics :stats="stats" :metrics="metrics" />
       <DistanceMetrics :metrics="metrics" />
       <HeartRateMetrics :metrics="metrics" />
-      <ElevationMetrics :stats="stats" :metrics="metrics" />
     </div>
 
     <div class="metrics-control__tools">
@@ -92,7 +90,7 @@ const isGrade = computed(() => props.modelValue === 'grade');
         variant="solo"
         hide-details
         class="metrics-control__select"
-        @update:model-value="emit('update:model-value', $event)"
+        @update:model-value="emit('update:modelValue', $event)"
       />
     </div>
   </div>
@@ -130,7 +128,6 @@ const isGrade = computed(() => props.modelValue === 'grade');
   display: flex;
   align-items: center;
   gap: 8px;
-
   font-size: 14px;
   color: rgba(255, 255, 255, 0.65);
 }
@@ -162,5 +159,31 @@ const isGrade = computed(() => props.modelValue === 'grade');
 
 .gradient--grade {
   background: linear-gradient(to right, #1976d2, #999, #e57373);
+}
+
+@media (max-width: 600px) {
+  .metrics-control {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .metrics-control__groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .metrics-control__tools {
+    justify-content: flex-end;
+  }
+
+  .metrics-control__select {
+    display: none;
+  }
+
+  .metrics-control__legend {
+    display: none;
+  }
 }
 </style>

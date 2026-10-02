@@ -72,4 +72,30 @@ defineProps<Props>();
 .metric--muted .metric__value {
   color: rgba(255, 255, 255, 0.55);
 }
+
+@media (max-width: 600px) {
+  .metrics-block {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 8px;
+    width: 100%;
+    min-width: 0;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .metric {
+    min-width: 0;
+    justify-content: center;
+    gap: 3px;
+  }
+
+  .metric__label {
+    font-size: 14px;
+  }
+
+  .metric__value {
+    font-size: 14px;
+  }
+}
 </style>

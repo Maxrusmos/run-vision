@@ -6,19 +6,11 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/activities',
+      redirect: '/activity',
     },
     {
-      path: '/activities',
-      component: () => import('@/views/activities-view/ActivitiesView.vue'),
-    },
-    {
-      path: '/activity/:id',
+      path: '/activity',
       component: () => import('@/views/activity-view/ActivityView.vue'),
-    },
-    {
-      path: '/settings',
-      component: () => import('@/views/settings-view/SettingsView.vue'),
     },
   ],
 });
