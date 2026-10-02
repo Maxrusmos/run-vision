@@ -127,10 +127,6 @@ onBeforeUnmount(() => {
   <div class="page">
     <template v-if="activity">
       <div class="activity-header">
-        <h2 class="activity-title">
-          {{ activity.name }}
-        </h2>
-
         <ActivityMapControls
           :view-mode="viewMode"
           :map-style="mapStyle"
