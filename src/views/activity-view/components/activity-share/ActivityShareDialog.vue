@@ -5,7 +5,7 @@ import PhotoTemplateCarousel, {
   type PhotoTemplate,
 } from '@/views/activity-view/components/activity-share/activity-photo-settings/PhotoTemplateCarousel.vue';
 import type { IActivity } from '@/entities/activity/model/activity.types.ts';
-import ActivitySharePreview from '@/views/activity-view/components/activity-share/activity-photo-settings/ActivitySharePreview.vue';
+import ActivitySharePreview from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ActivitySharePreview.vue';
 type ShareType = 'photo' | 'video';
 
 export type ActivityShareSettings = {

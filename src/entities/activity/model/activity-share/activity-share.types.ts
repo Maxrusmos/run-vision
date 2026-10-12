@@ -1,0 +1,30 @@
+export type ShareStatKey =
+  | 'distance'
+  | 'duration'
+  | 'averagePace'
+  | 'averageHeartRate'
+  | 'maxHeartRate'
+  | 'averageCadence'
+  | 'elevationGain';
+
+export type ShareColorPreset = {
+  id: string;
+  name: string;
+  background: string;
+  route: string;
+  text: string;
+};
+
+export type ShareCardSettings = {
+  backgroundColor: string;
+  routeColor: string;
+  textColor: string;
+  presetId: string | null;
+  visibleStats: ShareStatKey[];
+};
+
+export type ShareStatOption = {
+  key: ShareStatKey;
+  label: string;
+  shortLabel: string;
+};
