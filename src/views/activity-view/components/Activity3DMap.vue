@@ -35,22 +35,24 @@ defineExpose({
 .activity-map-3d-wrapper {
   position: relative;
   width: 100%;
+  height: 100%;
+  min-height: 0;
 }
+
 .activity-map-3d {
   width: 100%;
-  height: clamp(420px, 65vh, 629px);
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
   border-radius: 10px;
 }
+
 :deep(.maplibregl-ctrl) {
   display: none !important;
 }
+
 @media (max-width: 600px) {
   .activity-map-3d {
-    flex: 1 1 auto;
-    min-height: 0;
-    height: 56dvh;
-    max-height: 560px;
     border-radius: 8px;
   }
 }

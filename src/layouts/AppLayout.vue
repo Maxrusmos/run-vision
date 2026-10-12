@@ -3,6 +3,9 @@ import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { parseGpx } from '@/entities/activity/parser/gpx.parser';
 import { useActivityStore } from '@/stores/activity.store';
+import ActivityShareDialog, {
+  type ActivityShareSettings,
+} from '@/views/activity-view/components/activity-share/ActivityShareDialog.vue';
 
 const route = useRoute();
 const activityStore = useActivityStore();
@@ -32,6 +35,19 @@ async function handleFileChange(event: Event) {
     isLoading.value = false;
     input.value = '';
   }
+}
+
+const isShareDialogOpen = ref(false);
+
+function openShareDialog() {
+  isShareDialogOpen.value = true;
+}
+
+const activity = computed(() => activityStore.activity);
+
+function handleShareConfirm(settings: ActivityShareSettings) {
+  console.log('Выбранный тип:', settings.shareType);
+  console.log('Выбранный шаблон:', settings.photoTemplate);
 }
 </script>
 
@@ -64,6 +80,27 @@ async function handleFileChange(event: Event) {
         aria-label="Импортировать GPX"
         @click="openFileDialog"
       />
+
+      <v-btn
+        v-if="activity && isActivityPage"
+        class="share-button share-button--desktop mr-2"
+        color="primary"
+        prepend-icon="mdi-share-outline"
+        variant="tonal"
+        @click="openShareDialog"
+      >
+        Поделиться
+      </v-btn>
+
+      <v-btn
+        v-if="activity && isActivityPage"
+        class="share-button share-button--mobile mr-2"
+        icon="mdi-share-outline"
+        variant="tonal"
+        aria-label="Поделиться"
+        color="primary"
+        @click="openShareDialog"
+      />
     </v-app-bar>
 
     <v-main class="app-main">
@@ -80,6 +117,12 @@ async function handleFileChange(event: Event) {
       </v-alert>
 
       <router-view />
+
+      <ActivityShareDialog
+        :activity="activity!"
+        v-model="isShareDialogOpen"
+        @confirm="handleShareConfirm"
+      />
     </v-main>
   </v-app>
 </template>
@@ -106,6 +149,10 @@ async function handleFileChange(event: Event) {
   min-height: 0 !important;
   height: 100%;
   overflow: hidden;
+}
+
+.share-button--mobile {
+  display: none;
 }
 
 @media (max-width: 600px) {
@@ -135,6 +182,16 @@ async function handleFileChange(event: Event) {
     width: 36px;
     height: 36px;
     margin-right: 8px !important;
+  }
+
+  .share-button--desktop {
+    display: none;
+  }
+
+  .share-button--mobile {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
   }
 
   .import-error {

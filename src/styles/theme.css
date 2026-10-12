@@ -1,0 +1,20 @@
+:root {
+  /* Основные цвета */
+  --app-primary: rgb(var(--v-theme-primary, 25, 118, 210));
+  --app-secondary: rgb(var(--v-theme-secondary, 96, 125, 139));
+  --app-success: rgb(var(--v-theme-success, 76, 175, 80));
+  --app-error: rgb(var(--v-theme-error, 244, 67, 54));
+  --app-warning: rgb(var(--v-theme-warning, 251, 140, 0));
+  --app-info: rgb(var(--v-theme-info, 33, 150, 243));
+
+  /* Поверхности и текст */
+  --app-surface: rgb(var(--v-theme-surface, 255, 255, 255));
+  --app-on-surface: rgb(var(--v-theme-on-surface, 33, 33, 33));
+  --app-background: rgb(var(--v-theme-background, 255, 255, 255));
+  --app-text: var(--app-on-surface);
+
+  /* Границы и фоновые оттенки */
+  --app-border: rgba(var(--v-theme-on-surface, 33, 33, 33), 0.12);
+  --app-primary-bg: rgba(var(--v-theme-primary, 25, 118, 210), 0.06);
+  --app-hover-bg: rgba(var(--v-theme-on-surface, 33, 33, 33), 0.04);
+}

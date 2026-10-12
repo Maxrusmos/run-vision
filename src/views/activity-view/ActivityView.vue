@@ -126,38 +126,40 @@ onBeforeUnmount(() => {
 <template>
   <div class="page">
     <template v-if="activity">
-      <div class="activity-header">
-        <ActivityMapControls
-          :view-mode="viewMode"
-          :map-style="mapStyle"
-          :follow-camera="followCamera"
-          @update:view-mode="setViewMode"
-          @update:map-style="setMapStyle"
-          @update:follow-camera="setFollowCamera"
+      <div class="activity-layout">
+        <div class="activity-header">
+          <ActivityMapControls
+            :view-mode="viewMode"
+            :map-style="mapStyle"
+            :follow-camera="followCamera"
+            @update:view-mode="setViewMode"
+            @update:map-style="setMapStyle"
+            @update:follow-camera="setFollowCamera"
+          />
+        </div>
+
+        <div class="activity-map-container">
+          <Activity3DMap :key="activity.id" ref="activity3DMap" :activity="activity" />
+        </div>
+
+        <ActivityPlaybackControls
+          :activity="activity"
+          :current-time-seconds="currentTimeSeconds"
+          :duration-seconds="durationSeconds"
+          :is-playing="isPlaying"
+          @play="play"
+          @pause="pause"
+          @seek="seek"
+          @speed="changePlaybackSpeed"
         />
       </div>
-
-      <Activity3DMap :key="activity.id" ref="activity3DMap" :activity="activity" />
-
-      <ActivityPlaybackControls
-        :activity="activity"
-        :current-time-seconds="currentTimeSeconds"
-        :duration-seconds="durationSeconds"
-        :is-playing="isPlaying"
-        @play="play"
-        @pause="pause"
-        @seek="seek"
-        @speed="changePlaybackSpeed"
-      />
     </template>
 
     <template v-else>
       <div class="empty-state">
         <div class="empty-content">
           <v-icon icon="mdi-run" size="64" class="mb-4" />
-
           <h2 class="text-h5 mb-2">Нет тренировки</h2>
-
           <p class="text-body-2 text-medium-emphasis">
             Нажмите «Импортировать GPX» в правом верхнем углу, чтобы открыть тренировку.
           </p>
@@ -171,22 +173,42 @@ onBeforeUnmount(() => {
 .page {
   width: 100%;
   max-width: 100%;
-  padding: 8px 16px;
-  overflow-x: hidden;
+  height: 100%;
+  min-height: 0;
+  padding: 12px 16px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
+
+.activity-layout {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 80px);
+  min-height: 0;
+  gap: 12px;
+}
+
 .activity-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  margin: 4px 0 12px;
+  flex: 0 0 auto;
+  min-width: 0;
 }
+
+.activity-map-container {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .empty-state {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 70vh;
 }
+
 .empty-content {
   width: 100%;
   max-width: 420px;
@@ -195,16 +217,19 @@ onBeforeUnmount(() => {
 
 @media (max-width: 600px) {
   .page {
-    padding: 4px 8px;
+    padding: 8px 8px;
   }
-  .activity-header {
+
+  .activity-layout {
+    height: calc(100dvh - 64px);
     gap: 8px;
-    margin-bottom: 8px;
   }
+
   .empty-state {
     min-height: calc(100dvh - 120px);
     padding: 16px;
   }
+
   .empty-content {
     max-width: 320px;
   }

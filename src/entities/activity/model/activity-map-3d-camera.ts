@@ -51,27 +51,36 @@ export function createCameraController(map: maplibregl.Map, options: CameraContr
       lastFrameTime = 0;
       return;
     }
+
     if (lastFrameTime === 0) {
       lastFrameTime = timestamp;
     }
+
     const deltaSeconds = Math.min((timestamp - lastFrameTime) / 1000, 0.1);
     lastFrameTime = timestamp;
+
     const positionProgress = 1 - Math.exp(-smoothing * deltaSeconds);
     const bearingProgress = 1 - Math.exp(-bearingSmoothing * deltaSeconds);
+
     const currentCenter = map.getCenter();
     const currentBearing = map.getBearing();
+
     const longitudeDelta = normalizeLongitudeDelta(target.coordinate.lng - currentCenter.lng);
+
     const nextLongitude = currentCenter.lng + longitudeDelta * positionProgress;
     const nextLatitude =
       currentCenter.lat + (target.coordinate.lat - currentCenter.lat) * positionProgress;
+
     const bearingDelta = normalizeBearingDelta(targetBearing - currentBearing);
     const nextBearing = currentBearing + bearingDelta * bearingProgress;
+
     map.jumpTo({
       center: [nextLongitude, nextLatitude],
       bearing: nextBearing,
       pitch: target.pitch,
-      zoom,
+      zoom: map.getZoom(),
     });
+
     animationFrame = requestAnimationFrame(animate);
   }
 
