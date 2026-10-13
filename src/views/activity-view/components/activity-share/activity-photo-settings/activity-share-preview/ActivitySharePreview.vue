@@ -11,6 +11,7 @@ import ShareCardArtwork from '@/views/activity-view/components/activity-share/ac
 import ShareColorSettings from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareColorSettings.vue';
 import ShareCardStatAdd from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareCardStatAdd.vue';
 import ShareCardResultDialog from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareCardResultDialog.vue';
+import ShareBackgroundSettings from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareBackgroundSettings.vue';
 
 const props = defineProps<{
   activity: IActivity;
@@ -21,8 +22,16 @@ const emit = defineEmits<{
   back: [];
 }>();
 
-const { presets, settings, applyPreset, setColor, addStat, removeStat, setStatWidth } =
-  useActivityShare();
+const {
+  presets,
+  settings,
+  applyPreset,
+  setColor,
+  addStat,
+  removeStat,
+  setStatWidth,
+  setTransparentBackground,
+} = useActivityShare();
 
 const statOptions: ShareStatOption[] = [
   { key: 'distance', label: 'Дистанция', shortLabel: 'км' },
@@ -58,7 +67,7 @@ async function handleContinue() {
     resultImage.value = await toPng(element, {
       cacheBust: true,
       pixelRatio: 2,
-      ...(settings.value.backgroundColor !== 'transparent'
+      ...(!settings.value.transparentBackground
         ? { backgroundColor: settings.value.backgroundColor }
         : {}),
     });
@@ -99,7 +108,6 @@ async function handleSaveResult() {
     const blob = await response.blob();
     const fileName =
       props.activity.name.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '').trim() || 'runvision-activity';
-
     const file = new File([blob], `${fileName}.png`, {
       type: 'image/png',
     });
@@ -159,6 +167,11 @@ function handleReorderStats(keys: ShareStatKey[]) {
             :active-preset="settings.presetId"
             @apply-preset="handleApplyPreset"
             @set-color="handleSetColor"
+            @set-transparent-background="setTransparentBackground"
+          />
+          <ShareBackgroundSettings
+            :settings="settings"
+            @set-transparent-background="setTransparentBackground"
           />
         </aside>
 
@@ -181,13 +194,14 @@ function handleReorderStats(keys: ShareStatKey[]) {
                 :background-color="settings.backgroundColor"
                 :route-color="settings.routeColor"
                 :text-color="settings.textColor"
+                :transparent-background="settings.transparentBackground"
                 :visible-stats="visibleStats"
                 :stat-options="statOptions"
+                :stat-widths="settings.statWidths"
                 @set-color="handleSetColor"
                 @add-stat="handleAdd"
                 @remove-stat="handleRemove"
                 @reorder-stats="handleReorderStats"
-                :stat-widths="settings.statWidths"
                 @set-stat-width="setStatWidth"
               />
             </div>
@@ -300,6 +314,21 @@ function handleReorderStats(keys: ShareStatKey[]) {
   border-top: 1px solid var(--app-border);
   background: var(--app-background);
   box-shadow: 0 -4px 12px rgb(0 0 0 / 4%);
+}
+
+.share-preview__canvas--transparent {
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, #d1d5db 25%, transparent 25%),
+    linear-gradient(-45deg, #d1d5db 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #d1d5db 75%),
+    linear-gradient(-45deg, transparent 75%, #d1d5db 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
 }
 
 @media (max-width: 800px) {

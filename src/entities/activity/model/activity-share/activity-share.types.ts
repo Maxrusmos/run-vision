@@ -24,6 +24,7 @@ export type ShareCardSettings = {
   presetId: string | null;
   visibleStats: ShareStatKey[];
   statWidths: Partial<Record<ShareStatKey, ShareStatWidth>>;
+  transparentBackground: boolean;
 };
 
 export type ShareStatOption = {

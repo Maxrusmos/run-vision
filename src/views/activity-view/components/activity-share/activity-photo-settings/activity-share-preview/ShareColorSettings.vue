@@ -36,7 +36,13 @@ const emit = defineEmits<{
           :aria-pressed="activePreset === preset.id"
           @click="emit('applyPreset', preset.id)"
         >
-          <span class="preset__preview" :style="{ backgroundColor: preset.background }">
+          <span
+            class="preset__preview"
+            :class="{ checkerboard: settings.transparentBackground }"
+            :style="{
+              backgroundColor: settings.transparentBackground ? undefined : preset.background,
+            }"
+          >
             <span class="preset__line" :style="{ backgroundColor: preset.route }" />
             <span class="preset__dot" :style="{ backgroundColor: preset.text }" />
           </span>
@@ -126,5 +132,20 @@ const emit = defineEmits<{
   top: 5px;
   right: 5px;
   color: var(--app-primary);
+}
+
+.checkerboard {
+  background-color: #262626 !important;
+  background-image:
+    linear-gradient(45deg, #404040 25%, transparent 25%),
+    linear-gradient(-45deg, #404040 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #404040 75%),
+    linear-gradient(-45deg, transparent 75%, #404040 75%) !important;
+  background-size: 20px 20px;
+  background-position:
+    0 0,
+    0 10px,
+    10px -10px,
+    -10px 0;
 }
 </style>

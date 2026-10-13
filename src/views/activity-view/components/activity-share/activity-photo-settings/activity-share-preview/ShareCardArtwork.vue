@@ -20,6 +20,7 @@ const props = defineProps<{
   visibleStats: ShareStatKey[];
   statOptions: ShareStatOption[];
   statWidths: Partial<Record<ShareStatKey, ShareStatWidth>>;
+  transparentBackground: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -135,7 +136,10 @@ const activityDate = computed(() =>
 <template>
   <div
     class="artwork"
-    :class="{ 'artwork--dragging-stats': isDraggingStats }"
+    :class="{
+      'artwork--dragging-stats': isDraggingStats,
+      'artwork--transparent': transparentBackground,
+    }"
     :style="{
       '--share-background': backgroundColor,
       '--share-route': routeColor,
@@ -370,6 +374,20 @@ const activityDate = computed(() =>
   grid-column: 1 / -1;
 }
 
+.artwork--transparent {
+  background-color: #242424 !important;
+  background-image:
+    linear-gradient(45deg, #383838 25%, transparent 25%),
+    linear-gradient(-45deg, #383838 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #383838 75%),
+    linear-gradient(-45deg, transparent 75%, #383838 75%) !important;
+  background-size: 20px 20px;
+  background-position:
+    0 0,
+    0 10px,
+    10px -10px,
+    -10px 0;
+}
 @media (max-width: 420px) {
   .artwork__heading {
     padding-right: 38px;

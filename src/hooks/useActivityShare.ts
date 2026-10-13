@@ -15,13 +15,6 @@ const presets: ShareColorPreset[] = [
     text: '#FFFFFF',
   },
   {
-    id: 'transparent',
-    name: 'Прозрачный',
-    background: 'transparent',
-    route: '#60A5FA',
-    text: '#FFFFFF',
-  },
-  {
     id: 'light',
     name: 'Светлый',
     background: '#F4F1EA',
@@ -77,6 +70,13 @@ const presets: ShareColorPreset[] = [
     route: '#DB2777',
     text: '#831843',
   },
+  {
+    id: 'graphite',
+    name: 'Графитовый',
+    background: '#27272A',
+    route: '#A1A1AA',
+    text: '#FFFFFF',
+  },
 ];
 
 export function useActivityShare() {
@@ -87,6 +87,7 @@ export function useActivityShare() {
     presetId: 'night',
     visibleStats: ['distance', 'duration', 'averagePace', 'averageHeartRate'],
     statWidths: {},
+    transparentBackground: false,
   });
 
   const activePreset = computed(
@@ -110,6 +111,7 @@ export function useActivityShare() {
       routeColor: preset.route,
       textColor: preset.text,
       presetId: preset.id,
+      transparentBackground: false,
     };
   }
 
@@ -143,6 +145,13 @@ export function useActivityShare() {
     settings.value.visibleStats = settings.value.visibleStats.filter((item) => item !== key);
   }
 
+  function setTransparentBackground(value: boolean) {
+    settings.value = {
+      ...settings.value,
+      transparentBackground: value,
+    };
+  }
+
   return {
     presets,
     settings,
@@ -152,5 +161,6 @@ export function useActivityShare() {
     addStat,
     removeStat,
     setStatWidth,
+    setTransparentBackground,
   };
 }
