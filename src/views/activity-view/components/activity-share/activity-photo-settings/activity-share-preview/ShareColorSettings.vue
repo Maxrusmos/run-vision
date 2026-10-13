@@ -14,12 +14,6 @@ const emit = defineEmits<{
   applyPreset: [id: string];
   setColor: [key: 'backgroundColor' | 'routeColor' | 'textColor', value: string];
 }>();
-
-const colorFields = [
-  { key: 'backgroundColor', label: 'Фон' },
-  { key: 'routeColor', label: 'Маршрут' },
-  { key: 'textColor', label: 'Текст' },
-] as const;
 </script>
 
 <template>
@@ -54,39 +48,6 @@ const colorFields = [
             size="small"
           />
         </button>
-      </div>
-
-      <v-divider class="my-5" />
-
-      <div class="text-body-2 text-medium-emphasis mb-3">Свои цвета</div>
-
-      <div class="color-fields">
-        <div v-for="field in colorFields" :key="field.key" class="color-field">
-          <label :for="`share-${field.key}`" class="color-field__label">
-            {{ field.label }}
-          </label>
-
-          <div class="color-field__controls">
-            <input
-              :id="`share-${field.key}`"
-              class="color-field__picker"
-              type="color"
-              :value="settings[field.key]"
-              :aria-label="`${field.label}: выбрать цвет`"
-              @input="emit('setColor', field.key, ($event.target as HTMLInputElement).value)"
-            />
-
-            <v-text-field
-              :model-value="settings[field.key]"
-              variant="outlined"
-              density="compact"
-              hide-details
-              maxlength="7"
-              class="hex-input"
-              @update:model-value="emit('setColor', field.key, String($event ?? ''))"
-            />
-          </div>
-        </div>
       </div>
     </v-card-text>
   </v-card>
@@ -165,39 +126,5 @@ const colorFields = [
   top: 5px;
   right: 5px;
   color: var(--app-primary);
-}
-
-.color-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.color-field__label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.color-field__controls {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-}
-
-.color-field__picker {
-  width: 44px;
-  height: 40px;
-  padding: 3px;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 8px;
-  background: transparent;
-  cursor: pointer;
-}
-
-.hex-input {
-  min-width: 0;
 }
 </style>

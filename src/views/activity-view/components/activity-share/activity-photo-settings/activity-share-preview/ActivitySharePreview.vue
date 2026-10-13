@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { toPng } from 'html-to-image';
-
 import type { IActivity } from '@/entities/activity/model/activity.types.ts';
 import { useActivityShare } from '@/hooks/useActivityShare.ts';
 import type {
   ShareStatKey,
   ShareStatOption,
 } from '@/entities/activity/model/activity-share/activity-share.types.ts';
-
 import ShareCardArtwork from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareCardArtwork.vue';
-import ShareStatsSettings from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareStatsSettings.vue';
 import ShareColorSettings from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareColorSettings.vue';
+import ShareCardStatAdd from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareCardStatAdd.vue';
+import ShareCardResultDialog from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareCardResultDialog.vue';
 
 const props = defineProps<{
   activity: IActivity;
@@ -22,12 +21,11 @@ const emit = defineEmits<{
   back: [];
 }>();
 
-const { presets, settings, applyPreset, setColor, addStat, removeStat, moveStat } =
-  useActivityShare();
+const { presets, settings, applyPreset, setColor, addStat, removeStat } = useActivityShare();
 
 const statOptions: ShareStatOption[] = [
   { key: 'distance', label: 'Дистанция', shortLabel: 'км' },
-  { key: 'duration', label: 'Время', shortLabel: 'длительность' },
+  { key: 'duration', label: 'Время', shortLabel: 'мин' },
   { key: 'averagePace', label: 'Средний темп', shortLabel: 'мин/км' },
   { key: 'averageHeartRate', label: 'Средний пульс', shortLabel: 'уд/мин' },
   { key: 'maxHeartRate', label: 'Максимальный пульс', shortLabel: 'уд/мин' },
@@ -36,9 +34,39 @@ const statOptions: ShareStatOption[] = [
 ];
 
 const visibleStats = computed(() => settings.value.visibleStats);
-
 const canvasRef = ref<HTMLElement | null>(null);
 const isSaving = ref(false);
+const currentStep = ref<'edit' | 'result'>('edit');
+const resultImage = ref('');
+
+const isResultDialogOpen = computed({
+  get: () => currentStep.value === 'result',
+  set: (value) => {
+    currentStep.value = value ? 'result' : 'edit';
+  },
+});
+
+async function handleContinue() {
+  const element = canvasRef.value?.querySelector<HTMLElement>('.artwork');
+  if (!element || isSaving.value) return;
+  isSaving.value = true;
+  element.classList.add('artwork--exporting');
+
+  try {
+    await nextTick();
+    resultImage.value = await toPng(element, {
+      cacheBust: true,
+      pixelRatio: 2,
+      backgroundColor: settings.value.backgroundColor,
+    });
+    currentStep.value = 'result';
+  } catch (error) {
+    console.error('Не удалось подготовить карточку:', error);
+  } finally {
+    element.classList.remove('artwork--exporting');
+    isSaving.value = false;
+  }
+}
 
 function handleAdd(key: ShareStatKey) {
   addStat(key);
@@ -48,17 +76,8 @@ function handleRemove(key: ShareStatKey) {
   removeStat(key);
 }
 
-function handleMove(key: ShareStatKey, direction: -1 | 1) {
-  const index = settings.value.visibleStats.indexOf(key);
-
-  if (index !== -1) {
-    moveStat(index, direction);
-  }
-}
-
 function handleApplyPreset(id: string) {
   const preset = presets.find((item) => item.id === id);
-
   if (preset) {
     applyPreset(preset);
   }
@@ -68,32 +87,57 @@ function handleSetColor(key: 'backgroundColor' | 'routeColor' | 'textColor', val
   setColor(key, value);
 }
 
-async function handleSave() {
-  const element = canvasRef.value?.querySelector<HTMLElement>('.artwork');
-
-  if (!element || isSaving.value) return;
-
+async function handleSaveResult() {
+  if (!resultImage.value || isSaving.value) return;
   isSaving.value = true;
-
   try {
-    const dataUrl = await toPng(element, {
-      cacheBust: true,
-      pixelRatio: 2,
-      backgroundColor: settings.value.backgroundColor,
-    });
+    const response = await fetch(resultImage.value);
+    const blob = await response.blob();
 
-    const link = document.createElement('a');
     const fileName =
       props.activity.name.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '').trim() || 'runvision-activity';
 
+    const file = new File([blob], `${fileName}.png`, {
+      type: 'image/png',
+    });
+
+    if (
+      typeof navigator.share === 'function' &&
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare({ files: [file] })
+    ) {
+      await navigator.share({
+        files: [file],
+        title: fileName,
+      });
+
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
     link.download = `${fileName}.png`;
-    link.href = dataUrl;
+
+    document.body.appendChild(link);
     link.click();
+    link.remove();
+
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return;
+    }
+
     console.error('Не удалось сохранить карточку:', error);
   } finally {
     isSaving.value = false;
   }
+}
+
+function handleReorderStats(keys: ShareStatKey[]) {
+  settings.value.visibleStats = keys;
 }
 </script>
 
@@ -117,60 +161,59 @@ async function handleSave() {
             @apply-preset="handleApplyPreset"
             @set-color="handleSetColor"
           />
-
-          <ShareStatsSettings
-            :visible-stats="visibleStats"
-            :options="statOptions"
-            @add="handleAdd"
-            @remove="handleRemove"
-            @move="handleMove"
-          />
         </aside>
 
         <main class="share-preview__main">
           <div class="preview-heading">
             <div>
-              <div class="text-subtitle-1 font-weight-bold">Предпросмотр</div>
-              <div class="text-caption text-medium-emphasis">Так будет выглядеть изображение</div>
+              <div class="text-subtitle-1 font-weight-bold">Редактирование карточки</div>
+              <div class="text-caption text-medium-emphasis">
+                Настройте цвета, состав и порядок показателей
+              </div>
             </div>
 
-            <v-chip size="small" variant="tonal" prepend-icon="mdi-image-outline"> PNG </v-chip>
+            <v-chip size="small" variant="tonal"> PNG </v-chip>
           </div>
 
-          <div ref="canvasRef" class="share-preview__canvas">
-            <ShareCardArtwork
-              :activity="props.activity"
-              :background-color="settings.backgroundColor"
-              :route-color="settings.routeColor"
-              :text-color="settings.textColor"
+          <div class="share-preview__stage">
+            <div ref="canvasRef" class="share-preview__canvas">
+              <ShareCardArtwork
+                :activity="props.activity"
+                :background-color="settings.backgroundColor"
+                :route-color="settings.routeColor"
+                :text-color="settings.textColor"
+                :visible-stats="visibleStats"
+                :stat-options="statOptions"
+                @set-color="handleSetColor"
+                @add-stat="handleAdd"
+                @remove-stat="handleRemove"
+                @reorder-stats="handleReorderStats"
+              />
+            </div>
+
+            <ShareCardStatAdd
+              :options="statOptions"
               :visible-stats="visibleStats"
+              @add="handleAdd"
             />
-          </div>
-
-          <div class="preview-hint">
-            <v-icon icon="mdi-information-outline" size="small" />
-            <span>
-              Изменения отображаются сразу. Для лучшего результата оставь 3–5 основных показателей.
-            </span>
           </div>
         </main>
       </div>
 
       <footer class="share-preview__footer">
         <v-btn variant="tonal" @click="emit('back')"> Отмена </v-btn>
-
-        <v-btn
-          color="primary"
-          variant="flat"
-          :loading="isSaving"
-          :disabled="isSaving"
-          @click="handleSave"
-        >
-          Сохранить
+        <v-btn color="primary" :loading="isSaving" :disabled="isSaving" @click="handleContinue">
+          Продолжить
         </v-btn>
       </footer>
     </v-card>
   </v-dialog>
+  <ShareCardResultDialog
+    v-model="isResultDialogOpen"
+    :image="resultImage"
+    :loading="isSaving"
+    @save="handleSaveResult"
+  />
 </template>
 
 <style scoped>
@@ -184,20 +227,30 @@ async function handleSave() {
   background: var(--app-background);
 }
 
-.share-preview__header {
+.share-preview__stage {
   display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 16px;
-  min-height: 80px;
-  padding: 12px 24px;
-}
-
-.share-preview__header-left {
-  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 12px;
+  width: 100%;
   min-width: 0;
+}
+
+.share-preview__canvas {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: clamp(12px, 3vw, 36px);
+  border: 1px solid var(--app-border);
+  border-radius: 18px;
+  background-color: var(--app-hover-bg);
+}
+
+.share-preview__stage > :deep(.share-card-stat-add) {
+  align-self: center;
 }
 
 .share-preview__body {
@@ -233,28 +286,6 @@ async function handleSave() {
   gap: 12px;
 }
 
-.share-preview__canvas {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  min-width: 0;
-  min-height: 300px;
-  padding: clamp(12px, 3vw, 36px);
-  border: 1px solid var(--app-border);
-  border-radius: 18px;
-  background-color: var(--app-hover-bg);
-}
-
-.preview-hint {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  max-width: 600px;
-  margin-inline: auto;
-  color: var(--app-on-surface);
-  font-size: 12px;
-}
-
 .share-preview__footer {
   position: relative;
   z-index: 2;
@@ -286,20 +317,15 @@ async function handleSave() {
     padding: 16px;
   }
 
-  .share-preview__header {
-    min-height: 68px;
-    padding: 10px 12px;
-  }
-
   .share-preview__footer {
-    padding: 12px;
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding: 12px 12px max(12px, env(safe-area-inset-bottom));
   }
 }
 
 @media (max-width: 480px) {
   .share-preview__footer {
     gap: 8px;
+    padding: 12px 12px max(12px, env(safe-area-inset-bottom));
   }
 
   .share-preview__footer .v-btn {

@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import type { CSSProperties } from 'vue';
 import type { IActivity } from '@/entities/activity/model/activity.types.ts';
-import type { ShareStatKey } from '@/entities/activity/model/activity-share/activity-share.types.ts';
+import type {
+  ShareStatKey,
+  ShareStatOption,
+} from '@/entities/activity/model/activity-share/activity-share.types.ts';
 import { getActivityShareStat } from '@/entities/activity/model/activity-share/activity-share-stats.ts';
+import ShareCardColorEditor from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareCardColorEditor.vue';
+import Draggable from 'vuedraggable';
+import ShareCardStatItem from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareCardStatItem.vue';
 
 const props = defineProps<{
   activity: IActivity;
@@ -10,9 +17,18 @@ const props = defineProps<{
   routeColor: string;
   textColor: string;
   visibleStats: ShareStatKey[];
+  statOptions: ShareStatOption[];
+}>();
+
+const emit = defineEmits<{
+  setColor: [key: 'backgroundColor' | 'routeColor' | 'textColor', color: string];
+  removeStat: [key: ShareStatKey];
+  addStat: [key: ShareStatKey];
+  reorderStats: [keys: ShareStatKey[]];
 }>();
 
 const svgRef = ref<SVGSVGElement | null>(null);
+const isDraggingStats = ref(false);
 
 defineExpose({ svgRef });
 
@@ -40,6 +56,7 @@ const routePoints = computed(() => {
 
   const routeWidth = lonRange * scale;
   const routeHeight = latRange * scale;
+
   const offsetX = (width - routeWidth) / 2;
   const offsetY = (height - routeHeight) / 2;
 
@@ -51,6 +68,43 @@ const routePoints = computed(() => {
       return `${x.toFixed(2)},${y.toFixed(2)}`;
     })
     .join(' ');
+});
+
+const parsedRoutePoints = computed(() =>
+  routePoints.value
+    .split(' ')
+    .filter(Boolean)
+    .map((point) => {
+      const [x, y] = point.split(',').map(Number);
+      return { x: x ?? 0, y: y ?? 0 };
+    }),
+);
+
+const draggableStats = computed({
+  get: () => stats.value.map((stat) => ({ ...stat })),
+  set: (items) => {
+    emit(
+      'reorderStats',
+      items.map((item) => item.key),
+    );
+  },
+});
+
+const routeStart = computed(() => parsedRoutePoints.value[0] ?? null);
+const routeAnchor = computed(() => {
+  const points = parsedRoutePoints.value;
+  if (points.length < 2) return null;
+  const targetIndex = Math.min(points.length - 1, Math.floor(points.length * 0.65));
+  return points[targetIndex] ?? null;
+});
+
+const routeEditorStyle = computed<CSSProperties>(() => {
+  const anchor = routeAnchor.value;
+  if (!anchor) return {};
+  return {
+    left: `${(anchor.x / 600) * 100}%`,
+    top: `${(anchor.y / 300) * 100}%`,
+  };
 });
 
 const stats = computed(() =>
@@ -72,12 +126,21 @@ const activityDate = computed(() =>
 <template>
   <div
     class="artwork"
+    :class="{ 'artwork--dragging-stats': isDraggingStats }"
     :style="{
       '--share-background': backgroundColor,
       '--share-route': routeColor,
       '--share-text': textColor,
     }"
   >
+    <ShareCardColorEditor
+      class="artwork__background-editor export-hidden"
+      label="Цвет фона"
+      placement="bottom"
+      :color="backgroundColor"
+      @change="emit('setColor', 'backgroundColor', $event)"
+    />
+
     <div class="artwork__heading">
       <div class="artwork__meta">
         <span class="artwork__brand">RUNVISION</span>
@@ -85,7 +148,17 @@ const activityDate = computed(() =>
       </div>
 
       <div class="artwork__title">
-        {{ activity.name || 'Тренировка' }}
+        <span ref="titleTextRef" class="artwork__title-text">
+          {{ activity.name || 'Тренировка' }}
+        </span>
+
+        <ShareCardColorEditor
+          class="artwork__title-editor export-hidden"
+          label="Цвет текста"
+          placement="left"
+          :color="textColor"
+          @change="emit('setColor', 'textColor', $event)"
+        />
       </div>
     </div>
 
@@ -107,68 +180,84 @@ const activityDate = computed(() =>
           stroke-linejoin="round"
         />
 
-        <circle
-          v-if="routePoints"
-          :cx="Number(routePoints.split(' ')[0]?.split(',')[0] ?? 0)"
-          :cy="Number(routePoints.split(' ')[0]?.split(',')[1] ?? 0)"
-          r="7"
-          :fill="routeColor"
-        />
+        <circle v-if="routeStart" :cx="routeStart.x" :cy="routeStart.y" r="7" :fill="routeColor" />
       </svg>
+
+      <div v-if="routeAnchor" class="artwork__route-editor-wrapper" :style="routeEditorStyle">
+        <ShareCardColorEditor
+          class="artwork__route-editor export-hidden"
+          label="Цвет маршрута"
+          :color="routeColor"
+          @change="emit('setColor', 'routeColor', $event)"
+        />
+      </div>
     </div>
 
     <div class="artwork__stats">
-      <div
-        v-for="(stat, index) in stats"
-        :key="stat.key"
-        class="artwork__stat"
-        :class="{ 'artwork__stat--primary': index === 0 }"
+      <Draggable
+        v-model="draggableStats"
+        item-key="key"
+        :animation="180"
+        ghost-class="stat--ghost"
+        chosen-class="stat--chosen"
+        fallback-class="stat--fallback"
+        :delay="250"
+        :delay-on-touch-only="true"
+        :touch-start-threshold="5"
+        :force-fallback="true"
+        class="artwork__stats-grid"
+        @start="isDraggingStats = true"
+        @end="isDraggingStats = false"
       >
-        <div class="artwork__stat-label">{{ stat.label }}</div>
-        <div class="artwork__stat-value">{{ stat.value }}</div>
-      </div>
+        <template #item="{ element }">
+          <ShareCardStatItem
+            :label="element.label"
+            :value="element.value"
+            @remove="emit('removeStat', element.key)"
+          />
+        </template>
+      </Draggable>
     </div>
   </div>
 </template>
 
 <style scoped>
 .artwork {
+  position: relative;
   box-sizing: border-box;
   width: 100%;
   max-width: 600px;
   margin-inline: auto;
   padding: clamp(16px, 4vw, 32px);
   overflow: hidden;
-  color: var(--share-text);
-  background: var(--share-background);
   border-radius: 16px;
   font-family: Inter, Arial, sans-serif;
+
+  --share-background: #111827;
+  --share-route: #fff;
+  --share-text: #fff;
+
+  color: var(--share-text);
+  background: var(--share-background);
 }
 
-.artwork__route svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  color: var(--share-route);
+:global(.artwork--exporting .export-hidden) {
+  display: none !important;
 }
 
-.artwork__stat {
-  min-width: 0;
-  padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--share-text) 18%, transparent);
-  border-radius: 12px;
+.artwork__heading {
+  margin-top: 8px;
+  padding-right: 42px;
 }
 
-.artwork__brand {
+.artwork__meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 9px;
 }
 
 .artwork__brand {
-  justify-content: flex-start;
-  gap: 9px;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.14em;
@@ -180,61 +269,79 @@ const activityDate = computed(() =>
   opacity: 0.7;
 }
 
-.artwork__heading {
-  margin-top: 8px;
-}
-
 .artwork__title {
+  position: relative;
   margin-top: 8px;
+  width: max-content;
   overflow-wrap: anywhere;
   font-size: clamp(23px, 5vw, 34px);
   font-weight: 800;
-  line-height: 1.15;
+  line-height: 1;
+}
+
+.artwork__title-editor {
+  position: absolute;
+  z-index: 5;
+  transform: translateY(-2px);
+}
+
+.artwork__background-editor {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
 }
 
 .artwork__route {
+  position: relative;
   margin: 20px -8px 12px;
 }
 
-.artwork__stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 10px;
+.artwork__route-editor-wrapper {
+  position: absolute;
+  z-index: 5;
+  transform: translate(20%, -40%);
 }
-.artwork {
-  --share-background: #111827;
-  --share-route: #ffffff;
-  --share-text: #ffffff;
 
-  color: var(--share-text);
-  background: var(--share-background);
+.artwork__route-editor {
+  pointer-events: auto;
 }
 
 .artwork__route svg {
-  color: var(--share-route);
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
-.artwork__stat {
-  border: 1px solid color-mix(in srgb, var(--share-text) 18%, transparent);
+.artwork__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
 }
 
-.artwork__stat--primary {
-  grid-column: 1 / -1;
-  padding: 18px;
+.artwork__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
 }
 
-.artwork__stat-label {
-  font-size: 11px;
-  opacity: 0.7;
+:deep(.stat) {
+  border-style: solid;
 }
 
-.artwork__stat-value {
-  margin-top: 5px;
-  overflow-wrap: anywhere;
-  font-size: clamp(19px, 4vw, 25px);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
+.artwork--dragging-stats :deep(.stat) {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--share-text) 45%, transparent);
+}
+
+:deep(.stat--chosen) {
+  cursor: grabbing;
+}
+
+:deep(.stat--ghost) {
+  opacity: 0.35;
 }
 
 .artwork__stat--primary .artwork__stat-value {
@@ -242,12 +349,20 @@ const activityDate = computed(() =>
 }
 
 @media (max-width: 420px) {
+  .artwork__heading {
+    padding-right: 38px;
+  }
+
   .artwork__date {
     font-size: 9px;
   }
 
-  .artwork__stat {
-    padding: 11px;
+  .artwork__stats-grid {
+    gap: 8px;
+  }
+
+  .artwork__title-editor {
+    right: -38px;
   }
 }
 </style>
