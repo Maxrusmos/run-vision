@@ -16,6 +16,7 @@ const emit = defineEmits<{
     :model-value="modelValue"
     max-width="720"
     scrim="rgba(0, 0, 0, 0.9)"
+    content-class="result-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <v-card class="pa-4">
@@ -71,5 +72,16 @@ const emit = defineEmits<{
     flex: 1 1 0;
     min-width: 0;
   }
+}
+</style>
+
+<style>
+.v-overlay:has(.result-dialog) .v-overlay__scrim {
+  background: #000 !important;
+  opacity: 0.8 !important;
+}
+
+.v-overlay:has(.result-dialog) .v-overlay__content {
+  filter: none;
 }
 </style>
