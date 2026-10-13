@@ -21,7 +21,8 @@ const emit = defineEmits<{
   back: [];
 }>();
 
-const { presets, settings, applyPreset, setColor, addStat, removeStat } = useActivityShare();
+const { presets, settings, applyPreset, setColor, addStat, removeStat, setStatWidth } =
+  useActivityShare();
 
 const statOptions: ShareStatOption[] = [
   { key: 'distance', label: 'Дистанция', shortLabel: 'км' },
@@ -51,14 +52,17 @@ async function handleContinue() {
   if (!element || isSaving.value) return;
   isSaving.value = true;
   element.classList.add('artwork--exporting');
-
   try {
     await nextTick();
+
     resultImage.value = await toPng(element, {
       cacheBust: true,
       pixelRatio: 2,
-      backgroundColor: settings.value.backgroundColor,
+      ...(settings.value.backgroundColor !== 'transparent'
+        ? { backgroundColor: settings.value.backgroundColor }
+        : {}),
     });
+
     currentStep.value = 'result';
   } catch (error) {
     console.error('Не удалось подготовить карточку:', error);
@@ -93,7 +97,6 @@ async function handleSaveResult() {
   try {
     const response = await fetch(resultImage.value);
     const blob = await response.blob();
-
     const fileName =
       props.activity.name.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '').trim() || 'runvision-activity';
 
@@ -116,20 +119,16 @@ async function handleSaveResult() {
 
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-
     link.href = url;
     link.download = `${fileName}.png`;
-
     document.body.appendChild(link);
     link.click();
     link.remove();
-
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       return;
     }
-
     console.error('Не удалось сохранить карточку:', error);
   } finally {
     isSaving.value = false;
@@ -188,6 +187,8 @@ function handleReorderStats(keys: ShareStatKey[]) {
                 @add-stat="handleAdd"
                 @remove-stat="handleRemove"
                 @reorder-stats="handleReorderStats"
+                :stat-widths="settings.statWidths"
+                @set-stat-width="setStatWidth"
               />
             </div>
 

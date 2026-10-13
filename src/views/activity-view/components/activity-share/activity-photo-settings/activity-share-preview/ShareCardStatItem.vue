@@ -1,24 +1,43 @@
 <script setup lang="ts">
+import type { ShareStatWidth } from '@/entities/activity/model/activity-share/activity-share.types.ts';
+
 defineProps<{
   label: string;
   value: string;
+  width: ShareStatWidth;
 }>();
 
 const emit = defineEmits<{
   remove: [];
+  toggleWidth: [];
 }>();
 </script>
 
 <template>
   <div class="stat">
-    <button
-      class="stat__remove export-hidden"
-      type="button"
-      aria-label="Удалить показатель"
-      @click.stop="emit('remove')"
-    >
-      <v-icon icon="mdi-close" size="x-small" />
-    </button>
+    <div class="stat__actions export-hidden">
+      <button
+        class="stat__action"
+        type="button"
+        :aria-label="width === 'full' ? 'Сделать в одну колонку' : 'Растянуть на две колонки'"
+        :title="width === 'full' ? 'Одна колонка' : 'На всю ширину'"
+        @click.stop="emit('toggleWidth')"
+      >
+        <v-icon
+          :icon="width === 'full' ? 'mdi-arrow-collapse-horizontal' : 'mdi-arrow-expand-horizontal'"
+          size="x-small"
+        />
+      </button>
+
+      <button
+        class="stat__action stat__action--remove"
+        type="button"
+        aria-label="Удалить показатель"
+        @click.stop="emit('remove')"
+      >
+        <v-icon icon="mdi-close" size="x-small" />
+      </button>
+    </div>
 
     <div class="stat__label">{{ label }}</div>
     <div class="stat__value">{{ value }}</div>
@@ -48,23 +67,32 @@ const emit = defineEmits<{
   font-variant-numeric: tabular-nums;
 }
 
-.stat__remove {
+.stat__actions {
   position: absolute;
   z-index: 2;
   top: -5px;
   right: -5px;
   display: flex;
+  gap: 3px;
+}
+
+.stat__action {
+  display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   color: white;
-  background: #d94848;
+  background: #475569;
   border: 0;
   border-radius: 50%;
   cursor: pointer;
+}
+
+.stat__action--remove {
+  background: #d94848;
 }
 
 .stat__label {

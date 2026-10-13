@@ -5,6 +5,7 @@ import type { IActivity } from '@/entities/activity/model/activity.types.ts';
 import type {
   ShareStatKey,
   ShareStatOption,
+  ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types.ts';
 import { getActivityShareStat } from '@/entities/activity/model/activity-share/activity-share-stats.ts';
 import ShareCardColorEditor from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareCardColorEditor.vue';
@@ -18,6 +19,7 @@ const props = defineProps<{
   textColor: string;
   visibleStats: ShareStatKey[];
   statOptions: ShareStatOption[];
+  statWidths: Partial<Record<ShareStatKey, ShareStatWidth>>;
 }>();
 
 const emit = defineEmits<{
@@ -25,12 +27,19 @@ const emit = defineEmits<{
   removeStat: [key: ShareStatKey];
   addStat: [key: ShareStatKey];
   reorderStats: [keys: ShareStatKey[]];
+  setStatWidth: [key: ShareStatKey, width: ShareStatWidth];
 }>();
 
 const svgRef = ref<SVGSVGElement | null>(null);
 const isDraggingStats = ref(false);
 
 defineExpose({ svgRef });
+
+type DraggableStat = {
+  key: ShareStatKey;
+  label: string;
+  value: string;
+};
 
 const routePoints = computed(() => {
   const track = props.activity.track;
@@ -80,16 +89,6 @@ const parsedRoutePoints = computed(() =>
     }),
 );
 
-const draggableStats = computed({
-  get: () => stats.value.map((stat) => ({ ...stat })),
-  set: (items) => {
-    emit(
-      'reorderStats',
-      items.map((item) => item.key),
-    );
-  },
-});
-
 const routeStart = computed(() => parsedRoutePoints.value[0] ?? null);
 const routeAnchor = computed(() => {
   const points = parsedRoutePoints.value;
@@ -107,12 +106,22 @@ const routeEditorStyle = computed<CSSProperties>(() => {
   };
 });
 
-const stats = computed(() =>
+const stats = computed<DraggableStat[]>(() =>
   props.visibleStats.map((key) => ({
     key,
     ...getActivityShareStat(props.activity, key),
   })),
 );
+
+const draggableStats = computed<DraggableStat[]>({
+  get: () => stats.value.map((stat) => ({ ...stat })),
+  set: (items) => {
+    emit(
+      'reorderStats',
+      items.map((item) => item.key),
+    );
+  },
+});
 
 const activityDate = computed(() =>
   new Intl.DateTimeFormat('ru-RU', {
@@ -201,7 +210,7 @@ const activityDate = computed(() =>
         ghost-class="stat--ghost"
         chosen-class="stat--chosen"
         fallback-class="stat--fallback"
-        :delay="250"
+        :delay="210"
         :delay-on-touch-only="true"
         :touch-start-threshold="5"
         :force-fallback="true"
@@ -209,11 +218,20 @@ const activityDate = computed(() =>
         @start="isDraggingStats = true"
         @end="isDraggingStats = false"
       >
-        <template #item="{ element }">
+        <template #item="{ element }: { element: DraggableStat }">
           <ShareCardStatItem
             :label="element.label"
             :value="element.value"
+            :width="props.statWidths[element.key] ?? 'half'"
+            :class="{ 'stat--full': props.statWidths[element.key] === 'full' }"
             @remove="emit('removeStat', element.key)"
+            @toggle-width="
+              emit(
+                'setStatWidth',
+                element.key,
+                props.statWidths[element.key] === 'full' ? 'half' : 'full',
+              )
+            "
           />
         </template>
       </Draggable>
@@ -346,6 +364,10 @@ const activityDate = computed(() =>
 
 .artwork__stat--primary .artwork__stat-value {
   font-size: clamp(28px, 6vw, 38px);
+}
+
+:deep(.stat--full) {
+  grid-column: 1 / -1;
 }
 
 @media (max-width: 420px) {

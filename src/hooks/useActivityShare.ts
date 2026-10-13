@@ -3,6 +3,7 @@ import type {
   ShareCardSettings,
   ShareColorPreset,
   ShareStatKey,
+  ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types.ts';
 
 const presets: ShareColorPreset[] = [
@@ -11,6 +12,13 @@ const presets: ShareColorPreset[] = [
     name: 'Ночной',
     background: '#111827',
     route: '#F9FAFB',
+    text: '#FFFFFF',
+  },
+  {
+    id: 'transparent',
+    name: 'Прозрачный',
+    background: 'transparent',
+    route: '#60A5FA',
     text: '#FFFFFF',
   },
   {
@@ -41,9 +49,34 @@ const presets: ShareColorPreset[] = [
     route: '#A3A3A3',
     text: '#FFFFFF',
   },
-  { id: 'ocean', name: 'Океан', background: '#153B50', route: '#5DE0E6', text: '#F0FDFF' },
-  { id: 'sand', name: 'Песочный', background: '#E8D5B7', route: '#A64B2A', text: '#493323' },
-  { id: 'neon', name: 'Неон', background: '#19152E', route: '#C6FF00', text: '#FFFFFF' },
+  {
+    id: 'ocean',
+    name: 'Океан',
+    background: '#153B50',
+    route: '#5DE0E6',
+    text: '#F0FDFF',
+  },
+  {
+    id: 'sand',
+    name: 'Песочный',
+    background: '#E8D5B7',
+    route: '#A64B2A',
+    text: '#493323',
+  },
+  {
+    id: 'neon',
+    name: 'Неон',
+    background: '#19152E',
+    route: '#C6FF00',
+    text: '#FFFFFF',
+  },
+  {
+    id: 'sakura',
+    name: 'Сакура',
+    background: '#FCE7F3',
+    route: '#DB2777',
+    text: '#831843',
+  },
 ];
 
 export function useActivityShare() {
@@ -52,12 +85,23 @@ export function useActivityShare() {
     routeColor: '#FFFFFF',
     textColor: '#FFFFFF',
     presetId: 'night',
-    visibleStats: ['distance', 'duration', 'averagePace'],
+    visibleStats: ['distance', 'duration', 'averagePace', 'averageHeartRate'],
+    statWidths: {},
   });
 
   const activePreset = computed(
     () => presets.find((preset) => preset.id === settings.value.presetId) ?? null,
   );
+
+  function setStatWidth(key: ShareStatKey, width: ShareStatWidth) {
+    settings.value = {
+      ...settings.value,
+      statWidths: {
+        ...settings.value.statWidths,
+        [key]: width,
+      },
+    };
+  }
 
   function applyPreset(preset: ShareColorPreset) {
     settings.value = {
@@ -99,17 +143,6 @@ export function useActivityShare() {
     settings.value.visibleStats = settings.value.visibleStats.filter((item) => item !== key);
   }
 
-  function moveStat(index: number, direction: -1 | 1) {
-    const next = [...settings.value.visibleStats];
-    const target = index + direction;
-    if (target < 0 || target >= next.length) return;
-    const current = next[index];
-    if (!current) return;
-    next.splice(index, 1);
-    next.splice(target, 0, current);
-    settings.value.visibleStats = next;
-  }
-
   return {
     presets,
     settings,
@@ -118,6 +151,6 @@ export function useActivityShare() {
     setColor,
     addStat,
     removeStat,
-    moveStat,
+    setStatWidth,
   };
 }

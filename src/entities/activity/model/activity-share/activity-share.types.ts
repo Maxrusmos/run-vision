@@ -15,12 +15,15 @@ export type ShareColorPreset = {
   text: string;
 };
 
+export type ShareStatWidth = 'half' | 'full';
+
 export type ShareCardSettings = {
   backgroundColor: string;
   routeColor: string;
   textColor: string;
   presetId: string | null;
   visibleStats: ShareStatKey[];
+  statWidths: Partial<Record<ShareStatKey, ShareStatWidth>>;
 };
 
 export type ShareStatOption = {
