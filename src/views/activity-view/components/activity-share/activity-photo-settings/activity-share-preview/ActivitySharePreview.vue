@@ -62,14 +62,35 @@ const isResultDialogOpen = computed({
 
 async function handleContinue() {
   const element = canvasRef.value?.querySelector<HTMLElement>('.artwork');
+
   if (!element || isSaving.value) return;
+
   isSaving.value = true;
   element.classList.add('artwork--exporting');
+
   try {
     await nextTick();
+    if (document.fonts?.ready) {
+      await document.fonts.ready;
+    }
+    const images = Array.from(element.querySelectorAll('img'));
+
+    await Promise.all(
+      images.map(async (img) => {
+        if (!img.complete) {
+          await new Promise<void>((resolve) => {
+            img.addEventListener('load', () => resolve(), { once: true });
+            img.addEventListener('error', () => resolve(), { once: true });
+          });
+        }
+
+        if (img.complete && img.naturalWidth > 0 && img.decode) {
+          await img.decode().catch(() => {});
+        }
+      }),
+    );
 
     resultImage.value = await toPng(element, {
-      cacheBust: true,
       pixelRatio: 2,
       ...(!settings.value.transparentBackground
         ? { backgroundColor: settings.value.backgroundColor }
