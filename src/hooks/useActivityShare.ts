@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue';
+import { computed, onScopeDispose, ref } from 'vue';
 import type {
   ShareCardSettings,
   ShareColorPreset,
@@ -88,6 +88,48 @@ export function useActivityShare() {
     visibleStats: ['distance', 'duration', 'averagePace', 'averageHeartRate'],
     statWidths: {},
     transparentBackground: false,
+    showStatBorders: true,
+    backgroundImage: null,
+    backgroundImageFit: 'cover',
+    backgroundImagePosition: 'center',
+    statSpacing: 12,
+  });
+
+  let backgroundImageObjectUrl: string | null = null;
+
+  function setStatSpacing(value: number) {
+    settings.value.statSpacing = Math.min(24, Math.max(4, value));
+  }
+
+  function setShowStatBorders(value: boolean) {
+    settings.value.showStatBorders = value;
+  }
+
+  function setBackgroundImage(file: File) {
+    if (!file.type.startsWith('image/')) return;
+
+    if (backgroundImageObjectUrl) {
+      URL.revokeObjectURL(backgroundImageObjectUrl);
+    }
+
+    backgroundImageObjectUrl = URL.createObjectURL(file);
+    settings.value.backgroundImage = backgroundImageObjectUrl;
+  }
+
+  function removeBackgroundImage() {
+    if (backgroundImageObjectUrl) {
+      URL.revokeObjectURL(backgroundImageObjectUrl);
+      backgroundImageObjectUrl = null;
+    }
+
+    settings.value.backgroundImage = null;
+  }
+
+  onScopeDispose(() => {
+    if (backgroundImageObjectUrl) {
+      URL.revokeObjectURL(backgroundImageObjectUrl);
+      backgroundImageObjectUrl = null;
+    }
   });
 
   const activePreset = computed(
@@ -105,14 +147,13 @@ export function useActivityShare() {
   }
 
   function applyPreset(preset: ShareColorPreset) {
-    settings.value = {
-      ...settings.value,
-      backgroundColor: preset.background,
-      routeColor: preset.route,
-      textColor: preset.text,
-      presetId: preset.id,
-      transparentBackground: false,
-    };
+    settings.value.routeColor = preset.route;
+    settings.value.textColor = preset.text;
+    settings.value.presetId = preset.id;
+
+    if (!settings.value.transparentBackground) {
+      settings.value.backgroundColor = preset.background;
+    }
   }
 
   function setColor(key: 'backgroundColor' | 'routeColor' | 'textColor', value: string) {
@@ -146,10 +187,15 @@ export function useActivityShare() {
   }
 
   function setTransparentBackground(value: boolean) {
-    settings.value = {
-      ...settings.value,
-      transparentBackground: value,
-    };
+    settings.value.transparentBackground = value;
+
+    if (!value) {
+      const preset = presets.find((item) => item.id === settings.value.presetId);
+
+      if (preset) {
+        settings.value.backgroundColor = preset.background;
+      }
+    }
   }
 
   return {
@@ -162,5 +208,9 @@ export function useActivityShare() {
     removeStat,
     setStatWidth,
     setTransparentBackground,
+    setShowStatBorders,
+    setBackgroundImage,
+    removeBackgroundImage,
+    setStatSpacing,
   };
 }

@@ -5,6 +5,7 @@ defineProps<{
   label: string;
   value: string;
   width: ShareStatWidth;
+  showBorder: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -14,7 +15,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="stat">
+  <div class="stat" :class="{ 'stat--bordered': showBorder }">
     <div class="stat__actions export-hidden">
       <button
         class="stat__action"
@@ -50,8 +51,12 @@ const emit = defineEmits<{
   box-sizing: border-box;
   min-width: 0;
   padding: 8px;
-  border: 1px solid color-mix(in srgb, var(--share-text) 18%, transparent);
+  border: 1px solid transparent;
   border-radius: 12px;
+}
+
+.stat--bordered {
+  border-color: color-mix(in srgb, var(--share-text) 18%, transparent);
 }
 
 .stat__label {
@@ -60,7 +65,7 @@ const emit = defineEmits<{
 }
 
 .stat__value {
-  margin-top: 4px;
+  margin-top: 2px;
   overflow-wrap: anywhere;
   font-size: clamp(19px, 4vw, 25px);
   font-weight: 800;

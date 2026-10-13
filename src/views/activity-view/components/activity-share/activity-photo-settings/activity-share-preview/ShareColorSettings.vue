@@ -38,15 +38,35 @@ const emit = defineEmits<{
         >
           <span
             class="preset__preview"
-            :class="{ checkerboard: settings.transparentBackground }"
+            :class="{
+              checkerboard: settings.transparentBackground && !settings.backgroundImage,
+            }"
             :style="{
-              backgroundColor: settings.transparentBackground ? undefined : preset.background,
+              backgroundColor:
+                settings.backgroundImage || settings.transparentBackground
+                  ? undefined
+                  : preset.background,
             }"
           >
+            <img
+              v-if="settings.backgroundImage"
+              class="preset__background-image"
+              :src="settings.backgroundImage"
+              :style="{
+                objectFit: settings.backgroundImageFit,
+                objectPosition: settings.backgroundImagePosition,
+              }"
+              alt=""
+              aria-hidden="true"
+            />
+
             <span class="preset__line" :style="{ backgroundColor: preset.route }" />
+
             <span class="preset__dot" :style="{ backgroundColor: preset.text }" />
           </span>
+
           <span class="preset__name">{{ preset.name }}</span>
+
           <v-icon
             v-if="activePreset === preset.id"
             class="preset__check"
@@ -92,21 +112,32 @@ const emit = defineEmits<{
 }
 
 .preset--active {
-  border: 2px solid var(--app-primary);
   padding: 7px;
+  border: 2px solid var(--app-primary);
 }
 
 .preset__preview {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
   height: 66px;
-  border-radius: 7px;
   overflow: hidden;
+  border-radius: 7px;
+}
+
+.preset__background-image {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 .preset__line {
+  position: relative;
+  z-index: 1;
   width: 54%;
   height: 4px;
   border-radius: 4px;
@@ -115,6 +146,7 @@ const emit = defineEmits<{
 
 .preset__dot {
   position: absolute;
+  z-index: 1;
   top: 12px;
   right: 14px;
   width: 7px;
@@ -135,17 +167,9 @@ const emit = defineEmits<{
 }
 
 .checkerboard {
-  background-color: #262626 !important;
-  background-image:
-    linear-gradient(45deg, #404040 25%, transparent 25%),
-    linear-gradient(-45deg, #404040 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #404040 75%),
-    linear-gradient(-45deg, transparent 75%, #404040 75%) !important;
+  background-color: #262626;
+  background-image: conic-gradient(#404040 25%, #262626 0 50%, #404040 0 75%, #262626 0);
   background-size: 20px 20px;
-  background-position:
-    0 0,
-    0 10px,
-    10px -10px,
-    -10px 0;
+  background-repeat: repeat;
 }
 </style>

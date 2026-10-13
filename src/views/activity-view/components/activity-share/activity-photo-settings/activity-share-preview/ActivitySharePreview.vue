@@ -11,7 +11,7 @@ import ShareCardArtwork from '@/views/activity-view/components/activity-share/ac
 import ShareColorSettings from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareColorSettings.vue';
 import ShareCardStatAdd from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareCardStatAdd.vue';
 import ShareCardResultDialog from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareCardResultDialog.vue';
-import ShareBackgroundSettings from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareBackgroundSettings.vue';
+import ShareCardAppearanceSettings from '@/views/activity-view/components/activity-share/activity-photo-settings/activity-share-preview/ShareCardAppearanceSettings.vue';
 
 const props = defineProps<{
   activity: IActivity;
@@ -31,6 +31,10 @@ const {
   removeStat,
   setStatWidth,
   setTransparentBackground,
+  setShowStatBorders,
+  setBackgroundImage,
+  removeBackgroundImage,
+  setStatSpacing,
 } = useActivityShare();
 
 const statOptions: ShareStatOption[] = [
@@ -161,16 +165,20 @@ function handleReorderStats(keys: ShareStatKey[]) {
 
       <div class="share-preview__body">
         <aside class="share-preview__sidebar">
+          <ShareCardAppearanceSettings
+            :settings="settings"
+            @set-transparent-background="setTransparentBackground"
+            @set-show-stat-borders="setShowStatBorders"
+            @set-background-image="setBackgroundImage"
+            @remove-background-image="removeBackgroundImage"
+            @set-stat-spacing="setStatSpacing"
+          />
           <ShareColorSettings
             :settings="settings"
             :presets="presets"
             :active-preset="settings.presetId"
             @apply-preset="handleApplyPreset"
             @set-color="handleSetColor"
-            @set-transparent-background="setTransparentBackground"
-          />
-          <ShareBackgroundSettings
-            :settings="settings"
             @set-transparent-background="setTransparentBackground"
           />
         </aside>
@@ -195,6 +203,10 @@ function handleReorderStats(keys: ShareStatKey[]) {
                 :route-color="settings.routeColor"
                 :text-color="settings.textColor"
                 :transparent-background="settings.transparentBackground"
+                :show-stat-borders="settings.showStatBorders"
+                :background-image="settings.backgroundImage"
+                :background-image-fit="settings.backgroundImageFit"
+                :background-image-position="settings.backgroundImagePosition"
                 :visible-stats="visibleStats"
                 :stat-options="statOptions"
                 :stat-widths="settings.statWidths"
@@ -203,6 +215,7 @@ function handleReorderStats(keys: ShareStatKey[]) {
                 @remove-stat="handleRemove"
                 @reorder-stats="handleReorderStats"
                 @set-stat-width="setStatWidth"
+                :stat-spacing="settings.statSpacing"
               />
             </div>
 
