@@ -21,6 +21,11 @@ const props = defineProps<{
   statOptions: ShareStatOption[];
   statWidths: Partial<Record<ShareStatKey, ShareStatWidth>>;
   transparentBackground: boolean;
+  showStatBorders: boolean;
+  backgroundImage: string | null;
+  backgroundImageFit: 'cover' | 'contain';
+  backgroundImagePosition: string;
+  statSpacing: number;
 }>();
 
 const emit = defineEmits<{
@@ -144,9 +149,28 @@ const activityDate = computed(() =>
       '--share-background': backgroundColor,
       '--share-route': routeColor,
       '--share-text': textColor,
+      '--share-stat-spacing': `${statSpacing}px`,
     }"
   >
+    <div
+      v-if="transparentBackground"
+      class="artwork__checkerboard export-hidden"
+      aria-hidden="true"
+    />
+    <img
+      v-if="backgroundImage"
+      class="artwork__background-image"
+      :src="backgroundImage"
+      :style="{
+        objectFit: backgroundImageFit,
+        objectPosition: backgroundImagePosition,
+      }"
+      alt=""
+      aria-hidden="true"
+    />
+
     <ShareCardColorEditor
+      v-if="!backgroundImage && !transparentBackground"
       class="artwork__background-editor export-hidden"
       label="Цвет фона"
       placement="bottom"
@@ -228,6 +252,7 @@ const activityDate = computed(() =>
             :value="element.value"
             :width="props.statWidths[element.key] ?? 'half'"
             :class="{ 'stat--full': props.statWidths[element.key] === 'full' }"
+            :show-border="showStatBorders"
             @remove="emit('removeStat', element.key)"
             @toggle-width="
               emit(
@@ -258,9 +283,19 @@ const activityDate = computed(() =>
   --share-background: #111827;
   --share-route: #fff;
   --share-text: #fff;
+  --share-stat-spacing: 12px;
 
   color: var(--share-text);
   background: var(--share-background);
+}
+
+.artwork__background-image {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 :global(.artwork--exporting .export-hidden) {
@@ -338,14 +373,14 @@ const activityDate = computed(() =>
 .artwork__stats {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 10px;
+  gap: var(--share-stat-spacing, 12px);
+  margin-top: var(--share-stat-spacing, 12px);
 }
 
 .artwork__stats-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--share-stat-spacing, 12px);
   min-width: 0;
 }
 
@@ -375,19 +410,28 @@ const activityDate = computed(() =>
 }
 
 .artwork--transparent {
-  background-color: #242424 !important;
-  background-image:
-    linear-gradient(45deg, #383838 25%, transparent 25%),
-    linear-gradient(-45deg, #383838 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #383838 75%),
-    linear-gradient(-45deg, transparent 75%, #383838 75%) !important;
-  background-size: 20px 20px;
-  background-position:
-    0 0,
-    0 10px,
-    10px -10px,
-    -10px 0;
+  background: transparent !important;
 }
+
+.artwork__checkerboard {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+
+  background-color: #262626;
+  background-image: conic-gradient(#404040 25%, #262626 0 50%, #404040 0 75%, #262626 0);
+  background-size: 20px 20px;
+  background-repeat: repeat;
+}
+
+.artwork__heading,
+.artwork__route,
+.artwork__stats {
+  position: relative;
+  z-index: 1;
+}
+
 @media (max-width: 420px) {
   .artwork__heading {
     padding-right: 38px;
@@ -395,10 +439,6 @@ const activityDate = computed(() =>
 
   .artwork__date {
     font-size: 9px;
-  }
-
-  .artwork__stats-grid {
-    gap: 8px;
   }
 
   .artwork__title-editor {

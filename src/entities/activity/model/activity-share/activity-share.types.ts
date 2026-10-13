@@ -25,6 +25,11 @@ export type ShareCardSettings = {
   visibleStats: ShareStatKey[];
   statWidths: Partial<Record<ShareStatKey, ShareStatWidth>>;
   transparentBackground: boolean;
+  showStatBorders: boolean;
+  backgroundImage: string | null;
+  backgroundImageFit: 'cover' | 'contain';
+  backgroundImagePosition: string;
+  statSpacing: number;
 };
 
 export type ShareStatOption = {
