@@ -41,6 +41,9 @@ const presets: ShareColorPreset[] = [
     route: '#A3A3A3',
     text: '#FFFFFF',
   },
+  { id: 'ocean', name: 'Океан', background: '#153B50', route: '#5DE0E6', text: '#F0FDFF' },
+  { id: 'sand', name: 'Песочный', background: '#E8D5B7', route: '#A64B2A', text: '#493323' },
+  { id: 'neon', name: 'Неон', background: '#19152E', route: '#C6FF00', text: '#FFFFFF' },
 ];
 
 export function useActivityShare() {
@@ -89,7 +92,6 @@ export function useActivityShare() {
 
   function addStat(key: ShareStatKey) {
     if (settings.value.visibleStats.includes(key)) return;
-
     settings.value.visibleStats = [...settings.value.visibleStats, key];
   }
 
@@ -100,15 +102,11 @@ export function useActivityShare() {
   function moveStat(index: number, direction: -1 | 1) {
     const next = [...settings.value.visibleStats];
     const target = index + direction;
-
     if (target < 0 || target >= next.length) return;
-
     const current = next[index];
     if (!current) return;
-
     next.splice(index, 1);
     next.splice(target, 0, current);
-
     settings.value.visibleStats = next;
   }
 

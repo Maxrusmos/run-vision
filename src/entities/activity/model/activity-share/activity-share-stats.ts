@@ -6,6 +6,7 @@ import {
   formatHeartRate,
   formatPace,
   formatPlaybackDistance,
+  formatActivityDuration,
 } from '@/shared/lib/formatters/formatters.ts';
 
 export type ActivityShareStat = {
@@ -34,7 +35,7 @@ export function getActivityShareStat(activity: IActivity, key: ShareStatKey): Ac
       break;
 
     case 'duration':
-      value = `${formatDuration(activity.durationSeconds)} мин`;
+      value = formatActivityDuration(activity.durationSeconds);
       break;
 
     case 'averagePace':

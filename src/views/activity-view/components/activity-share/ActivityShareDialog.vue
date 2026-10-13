@@ -60,14 +60,6 @@ function confirm() {
             <p class="share-subtitle">Создай фото или видео маршрута</p>
           </div>
         </div>
-
-        <v-btn
-          icon="mdi-close"
-          variant="text"
-          density="comfortable"
-          aria-label="Закрыть"
-          @click="isOpen = false"
-        />
       </header>
 
       <v-divider />
@@ -299,13 +291,18 @@ function confirm() {
 }
 
 .share-footer {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 10px 18px;
-  background: var(--app-surface);
+  gap: 12px;
+  min-height: 76px;
+  padding: 12px 24px;
+  border-top: 1px solid var(--app-border);
+  background: var(--app-background);
+  box-shadow: 0 -4px 12px rgb(0 0 0 / 4%);
 }
 
 @media (max-width: 600px) {
@@ -335,7 +332,8 @@ function confirm() {
   }
 
   .share-footer {
-    padding: 10px 14px max(10px, env(safe-area-inset-bottom));
+    gap: 8px;
+    padding: 12px 12px max(12px, env(safe-area-inset-bottom));
   }
 
   .share-footer > .v-btn {

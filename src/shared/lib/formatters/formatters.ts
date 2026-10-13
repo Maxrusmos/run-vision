@@ -28,3 +28,31 @@ export function formatElevation(value: number | null): string {
 export function formatPlaybackDistance(meters: number): string {
   return (meters / 1000).toFixed(2);
 }
+
+export function formatActivityDuration(totalSeconds: number): string {
+  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
+    return '—';
+  }
+
+  const total = Math.floor(totalSeconds);
+
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+
+  const parts: string[] = [];
+
+  if (hours > 0) {
+    parts.push(`${hours}ч`);
+  }
+
+  if (minutes > 0) {
+    parts.push(`${minutes}мин`);
+  }
+
+  if (seconds > 0 || parts.length === 0) {
+    parts.push(`${seconds}с`);
+  }
+
+  return parts.join(' ');
+}
