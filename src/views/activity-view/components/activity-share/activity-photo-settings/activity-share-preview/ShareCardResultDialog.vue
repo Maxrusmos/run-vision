@@ -26,8 +26,9 @@ const emit = defineEmits<{
         Проверьте изображение перед сохранением
       </div>
 
-      <img v-if="image" :src="image" alt="Итоговая карточка тренировки" class="result-image" />
-
+      <div v-if="image" class="result-image-wrapper">
+        <img :src="image" alt="Итоговая карточка тренировки" class="result-image" />
+      </div>
       <div class="share-preview__footer">
         <v-btn variant="tonal" :disabled="loading" @click="emit('update:modelValue', false)">
           Отмена
@@ -46,12 +47,25 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
+.result-image-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-height: 70vh;
+  overflow: hidden;
+  border-radius: 12px;
+  background-color: #262626;
+  background-image: conic-gradient(#404040 25%, #262626 0 50%, #404040 0 75%, #262626 0);
+  background-size: 20px 20px;
+  background-repeat: repeat;
+}
+
 .result-image {
   display: block;
   width: 100%;
   max-height: 70vh;
   object-fit: contain;
-  border-radius: 12px;
 }
 
 .share-preview__footer {

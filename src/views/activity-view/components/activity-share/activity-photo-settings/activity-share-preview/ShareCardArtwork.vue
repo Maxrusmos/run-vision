@@ -39,13 +39,17 @@ const emit = defineEmits<{
 const svgRef = ref<SVGSVGElement | null>(null);
 const isDraggingStats = ref(false);
 
-defineExpose({ svgRef });
+defineExpose({ svgRef, clearSelectedStat });
 
 type DraggableStat = {
   key: ShareStatKey;
   label: string;
   value: string;
 };
+
+function clearSelectedStat() {
+  selectedStatKey.value = null;
+}
 
 const routePoints = computed(() => {
   const track = props.activity.track;
@@ -136,6 +140,19 @@ const activityDate = computed(() =>
     year: 'numeric',
   }).format(new Date(props.activity.startedAt)),
 );
+
+const selectedStatKey = ref<ShareStatKey | null>(null);
+
+function toggleSelectedStat(key: ShareStatKey) {
+  selectedStatKey.value = selectedStatKey.value === key ? null : key;
+}
+
+function removeStat(key: ShareStatKey) {
+  emit('removeStat', key);
+  if (selectedStatKey.value === key) {
+    selectedStatKey.value = null;
+  }
+}
 </script>
 
 <template>
@@ -150,6 +167,7 @@ const activityDate = computed(() =>
       '--share-route': routeColor,
       '--share-text': textColor,
       '--share-stat-spacing': `${statSpacing}px`,
+      '--share-stat-padding-y': `${1 + statSpacing * 0.35}px`,
     }"
   >
     <div
@@ -243,7 +261,10 @@ const activityDate = computed(() =>
         :touch-start-threshold="5"
         :force-fallback="true"
         class="artwork__stats-grid"
-        @start="isDraggingStats = true"
+        @start="
+          isDraggingStats = true;
+          selectedStatKey = null;
+        "
         @end="isDraggingStats = false"
       >
         <template #item="{ element }: { element: DraggableStat }">
@@ -251,9 +272,11 @@ const activityDate = computed(() =>
             :label="element.label"
             :value="element.value"
             :width="props.statWidths[element.key] ?? 'half'"
+            :selected="selectedStatKey === element.key"
             :class="{ 'stat--full': props.statWidths[element.key] === 'full' }"
             :show-border="showStatBorders"
-            @remove="emit('removeStat', element.key)"
+            @select="toggleSelectedStat(element.key)"
+            @remove="removeStat(element.key)"
             @toggle-width="
               emit(
                 'setStatWidth',
@@ -284,6 +307,7 @@ const activityDate = computed(() =>
   --share-route: #fff;
   --share-text: #fff;
   --share-stat-spacing: 12px;
+  --share-stat-padding-y: 6px;
 
   color: var(--share-text);
   background: var(--share-background);

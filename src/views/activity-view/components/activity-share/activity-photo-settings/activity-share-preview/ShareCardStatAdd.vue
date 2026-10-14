@@ -3,8 +3,9 @@ import type {
   ShareStatKey,
   ShareStatOption,
 } from '@/entities/activity/model/activity-share/activity-share.types.ts';
+import { computed } from 'vue';
 
-defineProps<{
+const props = defineProps<{
   options: ShareStatOption[];
   visibleStats: ShareStatKey[];
 }>();
@@ -12,10 +13,14 @@ defineProps<{
 const emit = defineEmits<{
   add: [key: ShareStatKey];
 }>();
+
+const hasAvailableOptions = computed(() =>
+  props.options.some((item) => !props.visibleStats.includes(item.key)),
+);
 </script>
 
 <template>
-  <v-menu location="top" :close-on-content-click="false">
+  <v-menu v-if="hasAvailableOptions" location="top" :close-on-content-click="false">
     <template #activator="{ props: menuProps }">
       <button v-bind="menuProps" class="stat-add" type="button" aria-label="Добавить показатель">
         <v-icon icon="mdi-plus" size="small" />
@@ -34,9 +39,6 @@ const emit = defineEmits<{
           @click="emit('add', option.key)"
         />
       </template>
-      <div v-if="options.every((item) => visibleStats.includes(item.key))" class="stat-add__empty">
-        Все показатели добавлены
-      </div>
     </v-list>
   </v-menu>
 </template>

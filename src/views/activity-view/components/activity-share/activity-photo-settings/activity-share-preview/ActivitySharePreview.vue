@@ -52,6 +52,7 @@ const canvasRef = ref<HTMLElement | null>(null);
 const isSaving = ref(false);
 const currentStep = ref<'edit' | 'result'>('edit');
 const resultImage = ref('');
+const artworkRef = ref<InstanceType<typeof ShareCardArtwork> | null>(null);
 
 const isResultDialogOpen = computed({
   get: () => currentStep.value === 'result',
@@ -62,17 +63,22 @@ const isResultDialogOpen = computed({
 
 async function handleContinue() {
   const element = canvasRef.value?.querySelector<HTMLElement>('.artwork');
-
   if (!element || isSaving.value) return;
-
   isSaving.value = true;
-  element.classList.add('artwork--exporting');
-
   try {
+    artworkRef.value?.clearSelectedStat();
+    await new Promise((resolve) => setTimeout(resolve, 160));
+    element.classList.add('artwork--exporting');
     await nextTick();
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => resolve());
+      });
+    });
     if (document.fonts?.ready) {
       await document.fonts.ready;
     }
+
     const images = Array.from(element.querySelectorAll('img'));
 
     await Promise.all(
@@ -208,17 +214,14 @@ function handleReorderStats(keys: ShareStatKey[]) {
           <div class="preview-heading">
             <div>
               <div class="text-subtitle-1 font-weight-bold">Редактирование карточки</div>
-              <div class="text-caption text-medium-emphasis">
-                Настройте цвета, состав и порядок показателей
-              </div>
+              <div class="text-label">Настройте цвета, состав и порядок показателей</div>
             </div>
-
-            <v-chip size="small" variant="tonal"> PNG </v-chip>
           </div>
 
           <div class="share-preview__stage">
             <div ref="canvasRef" class="share-preview__canvas">
               <ShareCardArtwork
+                ref="artworkRef"
                 :activity="props.activity"
                 :background-color="settings.backgroundColor"
                 :route-color="settings.routeColor"
@@ -332,7 +335,6 @@ function handleReorderStats(keys: ShareStatKey[]) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
 }
 
 .share-preview__footer {
@@ -363,6 +365,12 @@ function handleReorderStats(keys: ShareStatKey[]) {
     0 8px,
     8px -8px,
     -8px 0;
+}
+
+.text-label {
+  font-size: 14px;
+  color: rgb(var(--app-on-surface));
+  opacity: 0.65;
 }
 
 @media (max-width: 800px) {

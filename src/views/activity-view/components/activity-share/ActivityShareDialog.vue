@@ -37,12 +37,6 @@ const showPreview = ref(false);
 
 function confirm() {
   showPreview.value = true;
-  // emit('confirm', {
-  //   shareType: shareType.value,
-  //   photoTemplate: photoTemplate.value,
-  // });
-  //
-  // isOpen.value = false;
 }
 </script>
 
