@@ -60,6 +60,23 @@ const isResultDialogOpen = computed({
     currentStep.value = value ? 'result' : 'edit';
   },
 });
+async function waitForImage(img: HTMLImageElement): Promise<void> {
+  if (!img.complete) {
+    await new Promise<void>((resolve) => {
+      const finish = () => resolve();
+      img.addEventListener('load', finish, { once: true });
+      img.addEventListener('error', finish, { once: true });
+    });
+  }
+
+  if (img.naturalWidth === 0) {
+    throw new Error(`Не удалось загрузить изображение: ${img.currentSrc || img.src}`);
+  }
+
+  if (typeof img.decode === 'function') {
+    await img.decode();
+  }
+}
 
 async function handleContinue() {
   const element = canvasRef.value?.querySelector<HTMLElement>('.artwork');
@@ -81,20 +98,7 @@ async function handleContinue() {
 
     const images = Array.from(element.querySelectorAll('img'));
 
-    await Promise.all(
-      images.map(async (img) => {
-        if (!img.complete) {
-          await new Promise<void>((resolve) => {
-            img.addEventListener('load', () => resolve(), { once: true });
-            img.addEventListener('error', () => resolve(), { once: true });
-          });
-        }
-
-        if (img.complete && img.naturalWidth > 0 && img.decode) {
-          await img.decode().catch(() => {});
-        }
-      }),
-    );
+    await Promise.all(images.map(waitForImage));
 
     resultImage.value = await toPng(element, {
       pixelRatio: 2,
@@ -295,9 +299,8 @@ function handleReorderStats(keys: ShareStatKey[]) {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  padding: clamp(12px, 3vw, 36px);
-  border: 1px solid var(--app-border);
-  border-radius: 18px;
+  padding: clamp(12px, 2vw, 36px);
+  border-radius: 16px;
   background-color: var(--app-hover-bg);
 }
 
@@ -319,14 +322,13 @@ function handleReorderStats(keys: ShareStatKey[]) {
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-  padding: 20px;
-  border-right: 1px solid var(--app-border);
+  padding: 16px;
 }
 
 .share-preview__main {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   min-width: 0;
   padding: 24px;
 }
@@ -352,21 +354,6 @@ function handleReorderStats(keys: ShareStatKey[]) {
   box-shadow: 0 -4px 12px rgb(0 0 0 / 4%);
 }
 
-.share-preview__canvas--transparent {
-  background-color: #fff;
-  background-image:
-    linear-gradient(45deg, #d1d5db 25%, transparent 25%),
-    linear-gradient(-45deg, #d1d5db 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #d1d5db 75%),
-    linear-gradient(-45deg, transparent 75%, #d1d5db 75%);
-  background-size: 16px 16px;
-  background-position:
-    0 0,
-    0 8px,
-    8px -8px,
-    -8px 0;
-}
-
 .text-label {
   font-size: 14px;
   color: rgb(var(--app-on-surface));
@@ -380,8 +367,8 @@ function handleReorderStats(keys: ShareStatKey[]) {
 
   .share-preview__sidebar {
     order: 2;
-    border-top: 1px solid var(--app-border);
     border-right: 0;
+    padding-top: 0;
   }
 
   .share-preview__main {

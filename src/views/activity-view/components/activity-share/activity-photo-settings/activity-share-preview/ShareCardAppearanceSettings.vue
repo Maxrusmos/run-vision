@@ -40,144 +40,134 @@ function handleFileChange(event: Event) {
 </script>
 
 <template>
-  <v-card variant="outlined" class="settings-card">
-    <v-card-title class="text-subtitle-1 font-weight-bold">
-      <v-icon start icon="mdi-tune-variant" />
-      Настройки карточки
-    </v-card-title>
+  <v-expansion-panels variant="accordion">
+    <v-expansion-panel class="settings-card">
+      <v-expansion-panel-title class="settings-panel-title">
+        <v-icon start icon="mdi-tune-variant" size="18" />
+        <span class="font-weight-bold">Настройки карточки</span>
+      </v-expansion-panel-title>
 
-    <v-card-text class="settings-content">
-      <section class="settings-section">
-        <div class="settings-section__title">Фон</div>
+      <v-expansion-panel-text class="settings-content mt-3">
+        <section class="settings-section">
+          <div class="spacing-setting">
+            <div class="spacing-setting__header">
+              <div class="spacing-setting__title">
+                <v-icon icon="mdi-arrow-collapse-vertical" size="18" />
+                Плотность карточки
+              </div>
+            </div>
 
-        <ShareSettingToggle
-          :model-value="settings.transparentBackground"
-          :disabled="hasBackgroundImage"
-          title="Прозрачный фон"
-          :description="
-            hasBackgroundImage
-              ? 'Удалите фоновое фото, чтобы включить прозрачность'
-              : 'Сохранить прозрачность в PNG'
-          "
-          @update:model-value="emit('setTransparentBackground', $event)"
-        >
-          <template #preview>
-            <span
-              class="setting-option__preview checkerboard"
-              :class="{
-                'setting-option__preview--solid': !settings.transparentBackground,
+            <v-slider
+              :model-value="settings.statSpacing"
+              :min="4"
+              :max="24"
+              :step="2"
+              :ticks="{
+                4: 'Компактно',
+                14: 'Средне',
+                24: 'Свободно',
               }"
-              :style="{
-                backgroundColor: settings.transparentBackground
-                  ? undefined
-                  : settings.backgroundColor,
-              }"
-            >
-              <v-icon icon="mdi-image-outline" size="24" />
-            </span>
-          </template>
-        </ShareSettingToggle>
-
-        <input
-          ref="fileInput"
-          class="visually-hidden"
-          type="file"
-          accept="image/*"
-          @change="handleFileChange"
-        />
-
-        <div class="setting-option setting-option--upload">
-          <span class="setting-option__preview setting-option__preview--photo">
-            <v-icon icon="mdi-image-plus-outline" size="24" />
-          </span>
-
-          <span class="setting-option__details">
-            <span class="setting-option__title">
-              {{ hasBackgroundImage ? 'Фото загружено' : 'Фоновое изображение' }}
-            </span>
-
-            <span class="setting-option__description">
-              {{
-                hasBackgroundImage ? 'Можно заменить или удалить фото' : 'Использовать своё фото'
-              }}
-            </span>
-          </span>
-
-          <div class="setting-option__actions">
-            <v-btn
-              v-if="hasBackgroundImage"
-              icon="mdi-delete-outline"
-              size="small"
-              variant="text"
-              color="error"
-              aria-label="Удалить фоновое изображение"
-              @click="emit('removeBackgroundImage')"
+              show-ticks="always"
+              tick-size="4"
+              hide-details
+              color="primary"
+              track-size="4"
+              thumb-size="16"
+              aria-label="Плотность карточки"
+              @update:model-value="emit('setStatSpacing', Number($event))"
             />
 
-            <v-btn
-              icon="mdi-upload"
-              size="small"
-              variant="tonal"
-              aria-label="Загрузить фоновое изображение"
-              @click="openFilePicker"
-            />
-          </div>
-        </div>
-      </section>
-
-      <v-divider />
-
-      <section class="settings-section">
-        <div class="settings-section__title">Статистика</div>
-
-        <ShareSettingToggle
-          :model-value="settings.showStatBorders"
-          title="Границы показателей"
-          description="Показывать рамки вокруг статистики"
-          @update:model-value="emit('setShowStatBorders', $event)"
-        >
-          <template #preview>
-            <span class="setting-option__preview stat-border-preview">
-              <v-icon icon="mdi-card-outline" size="24" />
-            </span>
-          </template>
-        </ShareSettingToggle>
-
-        <div class="spacing-setting">
-          <div class="spacing-setting__header">
-            <div class="spacing-setting__title">
-              <v-icon icon="mdi-arrow-collapse-vertical" size="18" />
-              Плотность карточки
+            <div class="spacing-setting__description">
+              Управляет расстоянием между показателями статистики
             </div>
           </div>
-
-          <v-slider
-            :model-value="settings.statSpacing"
-            :min="4"
-            :max="24"
-            :step="2"
-            :ticks="{
-              4: 'Компактно',
-              14: 'Средне',
-              24: 'Свободно',
-            }"
-            show-ticks="always"
-            tick-size="4"
-            hide-details
-            color="primary"
-            track-size="4"
-            thumb-size="16"
-            aria-label="Плотность карточки"
-            @update:model-value="emit('setStatSpacing', Number($event))"
+          <ShareSettingToggle
+            :model-value="settings.showStatBorders"
+            title="Границы показателей"
+            description="Показывать рамки вокруг статистики"
+            @update:model-value="emit('setShowStatBorders', $event)"
+          >
+            <template #preview>
+              <span class="setting-option__preview stat-border-preview">
+                <v-icon icon="mdi-card-outline" size="24" />
+              </span>
+            </template>
+          </ShareSettingToggle>
+          <ShareSettingToggle
+            :model-value="settings.transparentBackground"
+            :disabled="hasBackgroundImage"
+            title="Прозрачный фон"
+            :description="
+              hasBackgroundImage
+                ? 'Удалите фоновое фото, чтобы включить прозрачность'
+                : 'Сохранить прозрачность в PNG'
+            "
+            @update:model-value="emit('setTransparentBackground', $event)"
+          >
+            <template #preview>
+              <span
+                class="setting-option__preview checkerboard"
+                :class="{
+                  'setting-option__preview--solid': !settings.transparentBackground,
+                }"
+                :style="{
+                  backgroundColor: settings.transparentBackground
+                    ? undefined
+                    : settings.backgroundColor,
+                }"
+              >
+                <v-icon icon="mdi-image-outline" size="24" />
+              </span>
+            </template>
+          </ShareSettingToggle>
+          <input
+            ref="fileInput"
+            class="visually-hidden"
+            type="file"
+            accept="image/*"
+            @change="handleFileChange"
           />
+          <div class="setting-option setting-option--upload">
+            <span class="setting-option__preview setting-option__preview--photo">
+              <v-icon icon="mdi-image-plus-outline" size="24" />
+            </span>
 
-          <div class="spacing-setting__description">
-            Управляет расстоянием между показателями статистики
+            <span class="setting-option__details">
+              <span class="setting-option__title">
+                {{ hasBackgroundImage ? 'Фото загружено' : 'Фоновое изображение' }}
+              </span>
+
+              <span class="setting-option__description">
+                {{
+                  hasBackgroundImage ? 'Можно заменить или удалить фото' : 'Использовать своё фото'
+                }}
+              </span>
+            </span>
+
+            <div class="setting-option__actions">
+              <v-btn
+                v-if="hasBackgroundImage"
+                icon="mdi-delete-outline"
+                size="small"
+                variant="text"
+                color="error"
+                aria-label="Удалить фоновое изображение"
+                @click="emit('removeBackgroundImage')"
+              />
+
+              <v-btn
+                icon="mdi-upload"
+                size="small"
+                variant="tonal"
+                aria-label="Загрузить фоновое изображение"
+                @click="openFilePicker"
+              />
+            </div>
           </div>
-        </div>
-      </section>
-    </v-card-text>
-  </v-card>
+        </section>
+      </v-expansion-panel-text>
+    </v-expansion-panel>
+  </v-expansion-panels>
 </template>
 
 <style scoped>
@@ -337,5 +327,28 @@ function handleFileChange(event: Event) {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.settings-card :deep(.v-card-title) {
+  font-size: 16px;
+  min-height: auto;
+}
+.settings-card {
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.settings-panel-title {
+  min-height: 52px;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.settings-panel-title :deep(.v-icon) {
+  margin-inline-end: 8px;
+}
+
+:deep(.v-expansion-panel-text__wrapper) {
+  padding: 0 16px 16px;
 }
 </style>
