@@ -107,13 +107,7 @@ function handleShareConfirm(settings: ActivityShareSettings) {
     </v-app-bar>
 
     <v-main class="app-main">
-      <input
-        ref="fileInput"
-        type="file"
-        accept=".gpx,.xml,application/gpx+xml,application/xml,text/xml"
-        class="file-input"
-        @change="handleFileChange"
-      />
+      <input ref="fileInput" type="file" class="file-input" @change="handleFileChange" />
 
       <v-alert v-if="error" type="error" variant="tonal" class="import-error">
         {{ error }}
