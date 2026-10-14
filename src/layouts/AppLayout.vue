@@ -94,20 +94,23 @@ function handleShareConfirm(settings: ActivityShareSettings) {
 
       <v-btn
         v-if="activity && isActivityPage"
-        class="share-button share-button--mobile mr-2"
-        icon="mdi-share-outline"
-        variant="tonal"
-        aria-label="Поделиться"
+        class="share-button share-button--mobile share-button--pulse mr-2"
         color="primary"
+        prepend-icon="mdi-share-outline"
+        variant="flat"
+        size="small"
+        aria-label="Поделиться тренировкой"
         @click="openShareDialog"
-      />
+      >
+        Поделиться
+      </v-btn>
     </v-app-bar>
 
     <v-main class="app-main">
       <input
         ref="fileInput"
         type="file"
-        accept=".gpx,application/gpx+xml"
+        accept=".gpx,.xml,application/gpx+xml,application/xml,text/xml"
         class="file-input"
         @change="handleFileChange"
       />
@@ -190,8 +193,17 @@ function handleShareConfirm(settings: ActivityShareSettings) {
 
   .share-button--mobile {
     display: inline-flex;
-    width: 36px;
+    width: auto;
     height: 36px;
+    padding-inline: 12px;
+    margin-right: 8px !important;
+    flex-shrink: 0;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+
+  .share-button--pulse {
+    animation: share-button-pulse 2.4s ease-in-out infinite;
   }
 
   .import-error {
@@ -201,6 +213,25 @@ function handleShareConfirm(settings: ActivityShareSettings) {
   .app-main {
     min-height: 0 !important;
     overflow: hidden;
+  }
+}
+
+@keyframes share-button-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--app-primary), 0);
+    transform: scale(1);
+  }
+
+  50% {
+    box-shadow: 0 0 0 5px rgba(var(--app-primary), 0.16);
+    transform: scale(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .share-button--pulse {
+    animation: none;
   }
 }
 </style>
