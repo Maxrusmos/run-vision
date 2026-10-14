@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { parseGpx } from '@/entities/activity/parser/gpx.parser';
-import { useActivityStore } from '@/stores/activity.store';
+import { parseGpx } from '@/entities/activity/parser/gpx.parser.ts';
+import { useActivityStore } from '@/stores/activity.store.ts';
 import ActivityShareDialog, {
   type ActivityShareSettings,
 } from '@/views/activity-view/components/activity-share/ActivityShareDialog.vue';
@@ -107,7 +107,13 @@ function handleShareConfirm(settings: ActivityShareSettings) {
     </v-app-bar>
 
     <v-main class="app-main">
-      <input ref="fileInput" type="file" class="file-input" @change="handleFileChange" />
+      <input
+        ref="fileInput"
+        type="file"
+        class="file-input"
+        @change="handleFileChange"
+        accept=".gpx"
+      />
 
       <v-alert v-if="error" type="error" variant="tonal" class="import-error">
         {{ error }}

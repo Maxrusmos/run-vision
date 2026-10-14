@@ -17,66 +17,66 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <v-card variant="outlined" class="settings-card">
-    <v-card-title class="text-subtitle-1 font-weight-bold">
-      <v-icon start icon="mdi-palette-outline" />
-      Оформление
-    </v-card-title>
+  <v-expansion-panels variant="accordion">
+    <v-expansion-panel class="settings-card">
+      <v-expansion-panel-title class="settings-panel-title">
+        <v-icon start icon="mdi-palette-outline" size="18" />
+        <span class="font-weight-bold">Оформление</span>
+      </v-expansion-panel-title>
 
-    <v-card-text>
-      <div class="text-body-2 text-medium-emphasis mb-3">Готовые палитры</div>
-
-      <div class="preset-grid">
-        <button
-          v-for="preset in presets"
-          :key="preset.id"
-          type="button"
-          class="preset"
-          :class="{ 'preset--active': activePreset === preset.id }"
-          :aria-pressed="activePreset === preset.id"
-          @click="emit('applyPreset', preset.id)"
-        >
-          <span
-            class="preset__preview"
-            :class="{
-              checkerboard: settings.transparentBackground && !settings.backgroundImage,
-            }"
-            :style="{
-              backgroundColor:
-                settings.backgroundImage || settings.transparentBackground
-                  ? undefined
-                  : preset.background,
-            }"
+      <v-expansion-panel-text>
+        <div class="preset-grid mt-3">
+          <button
+            v-for="preset in presets"
+            :key="preset.id"
+            type="button"
+            class="preset"
+            :class="{ 'preset--active': activePreset === preset.id }"
+            :aria-pressed="activePreset === preset.id"
+            @click="emit('applyPreset', preset.id)"
           >
-            <img
-              v-if="settings.backgroundImage"
-              class="preset__background-image"
-              :src="settings.backgroundImage"
-              :style="{
-                objectFit: settings.backgroundImageFit,
-                objectPosition: settings.backgroundImagePosition,
+            <span
+              class="preset__preview"
+              :class="{
+                checkerboard: settings.transparentBackground && !settings.backgroundImage,
               }"
-              alt=""
-              aria-hidden="true"
+              :style="{
+                backgroundColor:
+                  settings.backgroundImage || settings.transparentBackground
+                    ? undefined
+                    : preset.background,
+              }"
+            >
+              <img
+                v-if="settings.backgroundImage"
+                class="preset__background-image"
+                :src="settings.backgroundImage"
+                :style="{
+                  objectFit: settings.backgroundImageFit,
+                  objectPosition: settings.backgroundImagePosition,
+                }"
+                alt=""
+                aria-hidden="true"
+              />
+
+              <span class="preset__line" :style="{ backgroundColor: preset.route }" />
+
+              <span class="preset__dot" :style="{ backgroundColor: preset.text }" />
+            </span>
+
+            <span class="preset__name">{{ preset.name }}</span>
+
+            <v-icon
+              v-if="activePreset === preset.id"
+              class="preset__check"
+              icon="mdi-check-circle"
+              size="small"
             />
-
-            <span class="preset__line" :style="{ backgroundColor: preset.route }" />
-
-            <span class="preset__dot" :style="{ backgroundColor: preset.text }" />
-          </span>
-
-          <span class="preset__name">{{ preset.name }}</span>
-
-          <v-icon
-            v-if="activePreset === preset.id"
-            class="preset__check"
-            icon="mdi-check-circle"
-            size="small"
-          />
-        </button>
-      </div>
-    </v-card-text>
-  </v-card>
+          </button>
+        </div>
+      </v-expansion-panel-text>
+    </v-expansion-panel>
+  </v-expansion-panels>
 </template>
 
 <style scoped>
@@ -171,5 +171,24 @@ const emit = defineEmits<{
   background-image: conic-gradient(#404040 25%, #262626 0 50%, #404040 0 75%, #262626 0);
   background-size: 20px 20px;
   background-repeat: repeat;
+}
+
+.settings-card {
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.settings-panel-title {
+  min-height: 52px;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.settings-panel-title :deep(.v-icon) {
+  margin-inline-end: 8px;
+}
+
+:deep(.v-expansion-panel-text__wrapper) {
+  padding: 0 16px 16px;
 }
 </style>

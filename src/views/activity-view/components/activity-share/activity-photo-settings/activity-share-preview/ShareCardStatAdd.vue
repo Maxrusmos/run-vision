@@ -20,11 +20,18 @@ const hasAvailableOptions = computed(() =>
 </script>
 
 <template>
-  <v-menu v-if="hasAvailableOptions" location="top" :close-on-content-click="false">
+  <v-menu
+    v-if="hasAvailableOptions"
+    location="bottom"
+    origin="top"
+    :close-on-content-click="false"
+    :location-strategy="'connected'"
+    scroll-strategy="reposition"
+  >
     <template #activator="{ props: menuProps }">
       <button v-bind="menuProps" class="stat-add" type="button" aria-label="Добавить показатель">
         <v-icon icon="mdi-plus" size="small" />
-        <span>Добавить показатель</span>
+        <span>Добавить показатели</span>
       </button>
     </template>
 
