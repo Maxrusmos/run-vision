@@ -1,0 +1,24 @@
+/* Шахматный фон для обозначения прозрачности. Размер клетки — через --checkerboard-size. */
+.checkerboard {
+  background-color: #262626;
+  background-image: conic-gradient(#404040 25%, #262626 0 50%, #404040 0 75%, #262626 0);
+  background-size: var(--checkerboard-size, 20px) var(--checkerboard-size, 20px);
+  background-repeat: repeat;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Элементы редактора, которые не должны попасть в экспортируемый PNG. */
+.share-artwork--exporting .export-hidden {
+  display: none !important;
+}
