@@ -3,7 +3,7 @@ import type {
   ShareCardSettings,
   ShareColorKey,
   ShareColorPreset,
-  ShareRouteOffset,
+  ShareRoutePosition,
   ShareRouteSize,
   ShareStatKey,
   ShareStatWidth,
@@ -23,6 +23,7 @@ const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 
 function createSettings(preset: ShareColorPreset): ShareCardSettings {
   return {
+    title: null,
     backgroundColor: preset.background,
     routeColor: preset.route,
     textColor: preset.text,
@@ -37,7 +38,7 @@ function createSettings(preset: ShareColorPreset): ShareCardSettings {
     statSpacing: 12,
     routeVisible: true,
     routeSize: DEFAULT_ROUTE_SIZE,
-    routeOffset: { x: 0, y: 0 },
+    routePosition: null,
     routeBehindStats: false,
   };
 }
@@ -134,8 +135,20 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     settings.value.routeSize = size;
   }
 
-  function setRouteOffset(offset: ShareRouteOffset) {
-    settings.value.routeOffset = offset;
+  function setRoutePosition(position: ShareRoutePosition) {
+    settings.value.routePosition = position;
+  }
+
+  function setTitle(value: string) {
+    const title = value.trim();
+    // Пустое название возвращает исходное из GPX.
+    settings.value.title = title || null;
+  }
+
+  /** Возвращает карточку к исходному виду выбранного шаблона. */
+  function resetSettings() {
+    releaseBackgroundImage();
+    settings.value = createSettings(initialPreset);
   }
 
   function setRouteBehindStats(value: boolean) {
@@ -146,7 +159,9 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     settings,
     setRouteVisible,
     setRouteSize,
-    setRouteOffset,
+    setRoutePosition,
+    setTitle,
+    resetSettings,
     setRouteBehindStats,
     applyPresetById,
     setColor,

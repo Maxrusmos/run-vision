@@ -16,6 +16,7 @@ import SectionHeading from '@/shared/ui/SectionHeading.vue';
 import PhotoEditorSidebar from '@/views/photo-editor-view/components/PhotoEditorSidebar.vue';
 import ShareCardArtwork from '@/views/photo-editor-view/components/artwork/ShareCardArtwork.vue';
 import AddElementButton from '@/views/photo-editor-view/components/AddElementButton.vue';
+import ResetCardButton from '@/views/photo-editor-view/components/ResetCardButton.vue';
 import ShareCardStatAdd from '@/views/photo-editor-view/components/ShareCardStatAdd.vue';
 import ShareCardResultDialog from '@/views/photo-editor-view/components/ShareCardResultDialog.vue';
 
@@ -41,7 +42,9 @@ const {
   removeBackgroundImage,
   setRouteVisible,
   setRouteSize,
-  setRouteOffset,
+  setRoutePosition,
+  setTitle,
+  resetSettings,
   setRouteBehindStats,
 } = useShareCardSettings(getPhotoTemplatePresetId(photoTemplateId.value));
 
@@ -88,6 +91,11 @@ function saveImage() {
   }
 }
 
+function handleReset() {
+  selected.value = null;
+  resetSettings();
+}
+
 function goBack() {
   router.push({ name: ROUTE_NAMES.share });
 }
@@ -109,10 +117,13 @@ function goBack() {
       />
 
       <section class="photo-editor__main">
-        <SectionHeading
-          title="Редактирование карточки"
-          description="Настройте цвета, состав и порядок показателей"
-        />
+        <div class="photo-editor__heading">
+          <SectionHeading
+            title="Редактирование карточки"
+            description="Нажмите на название, трек или показатель, чтобы изменить их"
+          />
+          <ResetCardButton @confirm="handleReset" />
+        </div>
 
         <div class="photo-editor__canvas">
           <ShareCardArtwork
@@ -127,7 +138,8 @@ function goBack() {
             @reorder-stats="reorderStats"
             @set-stat-width="setStatWidth"
             @set-route-size="setRouteSize"
-            @set-route-offset="setRouteOffset"
+            @set-route-position="setRoutePosition"
+            @set-title="setTitle"
             @remove-route="setRouteVisible(false)"
           />
         </div>
@@ -189,6 +201,13 @@ function goBack() {
   padding: clamp(12px, 2vw, 36px);
   border-radius: 16px;
   background-color: var(--app-hover-bg);
+}
+
+.photo-editor__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .photo-editor__add-actions {

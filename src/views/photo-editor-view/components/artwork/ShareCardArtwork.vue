@@ -5,7 +5,7 @@ import type {
   ShareCardElement,
   ShareCardSettings,
   ShareColorKey,
-  ShareRouteOffset,
+  ShareRoutePosition,
   ShareRouteSize,
   ShareStat,
   ShareStatKey,
@@ -35,13 +35,17 @@ const emit = defineEmits<{
   reorderStats: [keys: ShareStatKey[]];
   setStatWidth: [key: ShareStatKey, width: ShareStatWidth];
   setRouteSize: [size: ShareRouteSize];
-  setRouteOffset: [offset: ShareRouteOffset];
+  setRoutePosition: [position: ShareRoutePosition];
   removeRoute: [];
+  setTitle: [value: string];
 }>();
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
 
 const rootElement = useTemplateRef<HTMLElement>('root');
+const routeSlot = useTemplateRef<HTMLElement>('routeSlot');
+
+const title = computed(() => props.settings.title ?? (props.activity.name || 'Тренировка'));
 
 defineExpose({
   /** Корневой DOM-элемент карточки — его рендерим в PNG. */
@@ -54,10 +58,6 @@ const stats = computed<ShareStat[]>(() =>
     label: getShareStatCardLabel(key),
     value: props.statValues[key],
   })),
-);
-
-const isRouteBehindStats = computed(
-  () => props.settings.routeVisible && props.settings.routeBehindStats,
 );
 
 const cssVariables = computed(() => {
@@ -93,7 +93,7 @@ function removeRoute() {
     :class="{
       'share-artwork--transparent': settings.transparentBackground,
       'share-artwork--exporting': exporting,
-      'share-artwork--route-behind': isRouteBehindStats,
+      'share-artwork--route-behind': settings.routeBehindStats,
       'share-artwork--route-selected': selected === 'route',
     }"
     :style="cssVariables"
@@ -110,27 +110,18 @@ function removeRoute() {
 
     <ArtworkHeader
       class="share-artwork__header"
-      :title="activity.name"
+      :title="title"
       :date="activity.startedAt"
       :text-color="settings.textColor"
+      :title-selected="selected === 'title'"
+      @select-title="selected = 'title'"
+      @change-title="emit('setTitle', $event)"
       @change-text-color="emit('setColor', 'textColor', $event)"
     />
 
     <div class="share-artwork__body">
-      <ArtworkRoute
-        v-if="settings.routeVisible"
-        class="share-artwork__route"
-        :track="activity.track"
-        :color="settings.routeColor"
-        :size="settings.routeSize"
-        :offset="settings.routeOffset"
-        :selected="selected === 'route'"
-        @select="selected = 'route'"
-        @change-color="emit('setColor', 'routeColor', $event)"
-        @set-size="emit('setRouteSize', $event)"
-        @set-offset="emit('setRouteOffset', $event)"
-        @remove="removeRoute"
-      />
+      <!-- Место под трек в раскладке: задаёт его исходные положение и размер. -->
+      <div v-if="settings.routeVisible" ref="routeSlot" class="share-artwork__route-slot" />
 
       <ArtworkStatsGrid
         v-model:selected="selected"
@@ -141,6 +132,23 @@ function removeRoute() {
         @reorder="emit('reorderStats', $event)"
         @remove="emit('removeStat', $event)"
         @set-width="(key, width) => emit('setStatWidth', key, width)"
+      />
+
+      <!-- Трек двигается по всей области: от низа названия до низа карточки. -->
+      <ArtworkRoute
+        v-if="settings.routeVisible"
+        class="share-artwork__route"
+        :track="activity.track"
+        :color="settings.routeColor"
+        :size="settings.routeSize"
+        :position="settings.routePosition"
+        :selected="selected === 'route'"
+        :slot-element="routeSlot"
+        @select="selected = 'route'"
+        @change-color="emit('setColor', 'routeColor', $event)"
+        @set-size="emit('setRouteSize', $event)"
+        @set-position="emit('setRoutePosition', $event)"
+        @remove="removeRoute"
       />
     </div>
   </div>
@@ -154,13 +162,14 @@ function removeRoute() {
   --share-stat-gap: 12px;
   --share-stat-padding-y: 6px;
   --share-stat-padding-x: 8px;
+  --share-card-padding: clamp(16px, 4vw, 32px);
 
   position: relative;
   box-sizing: border-box;
   width: 100%;
   max-width: 600px;
   margin-inline: auto;
-  padding: clamp(16px, 4vw, 32px);
+  padding: var(--share-card-padding);
   overflow: hidden;
   border-radius: 16px;
   font-family: Inter, Arial, sans-serif;
@@ -172,45 +181,45 @@ function removeRoute() {
   background: transparent;
 }
 
-.share-artwork__header,
+.share-artwork__header {
+  position: relative;
+  z-index: 4;
+}
+
+/* Без z-index: тело не создаёт свой контекст наложения,
+   поэтому выделенный трек может подняться над названием. */
 .share-artwork__body {
+  position: relative;
+  padding-top: 16px;
+}
+
+.share-artwork__route-slot {
+  aspect-ratio: 5 / 3;
+  margin-bottom: 12px;
+}
+
+.share-artwork__stats {
   position: relative;
   z-index: 1;
 }
 
-/* Обычный режим: трек над показателями. */
-.share-artwork__body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--share-stat-gap);
-  margin-top: 20px;
-}
-
+/* Слой трека: от верха тела карточки (низ названия) до низа карточки, на всю ширину. */
 .share-artwork__route {
-  margin: 0 -8px 12px;
-}
-
-/* Трек под показателями: оба слоя в одной ячейке, показатели прижаты к низу. */
-.share-artwork--route-behind .share-artwork__route,
-.share-artwork--route-behind .share-artwork__stats {
-  grid-area: 1 / 1;
-}
-
-/* z-index: auto — без своего контекста наложения, чтобы пипетка трека
-   (z-index внутри трека) оставалась над показателями. */
-.share-artwork--route-behind .share-artwork__route {
-  z-index: auto;
-  align-self: center;
-  margin-bottom: 0;
-}
-
-.share-artwork--route-behind .share-artwork__stats {
-  z-index: 1;
-  align-self: end;
-}
-
-/* Выделенный трек поднимаем над показателями, чтобы его можно было двигать. */
-.share-artwork--route-behind.share-artwork--route-selected .share-artwork__route {
+  position: absolute;
   z-index: 2;
+  top: 0;
+  right: calc(-1 * var(--share-card-padding));
+  bottom: calc(-1 * var(--share-card-padding));
+  left: calc(-1 * var(--share-card-padding));
+}
+
+/* Трек под показателями. */
+.share-artwork--route-behind .share-artwork__route {
+  z-index: 0;
+}
+
+/* Выделенный трек всегда сверху (и над названием), чтобы его можно было двигать. */
+.share-artwork--route-selected .share-artwork__route {
+  z-index: 5;
 }
 </style>

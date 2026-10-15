@@ -41,7 +41,7 @@ const emit = defineEmits<{
       options-label="Ширина показателя"
       remove-label="Удалить показатель"
       :inert="!selected"
-      @update:model-value="emit('setWidth', $event)"
+      @update:model-value="emit('setWidth', $event!)"
       @remove="emit('remove')"
     />
 
@@ -88,7 +88,7 @@ const emit = defineEmits<{
 .stat__toolbar {
   position: absolute;
   z-index: 3;
-  top: -13px;
+  top: -14px;
   right: -6px;
   opacity: 0;
   visibility: hidden;

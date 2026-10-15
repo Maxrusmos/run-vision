@@ -1,15 +1,16 @@
 <script setup lang="ts" generic="T extends string">
 /**
  * Панель действий выделенного элемента карточки:
- * переключатель вариантов (ширина, размер) и кнопка удаления.
+ * слот для своих кнопок (например, пипетки), переключатель вариантов и удаление.
  */
 defineProps<{
-  options: readonly { value: T; label: string; title: string }[];
-  optionsLabel: string;
-  removeLabel: string;
+  options?: readonly { value: T; label: string; title: string }[];
+  optionsLabel?: string;
+  /** Подпись кнопки удаления; без неё кнопка не показывается. */
+  removeLabel?: string;
 }>();
 
-const value = defineModel<T>({ required: true });
+const value = defineModel<T>();
 
 const emit = defineEmits<{
   remove: [];
@@ -18,7 +19,14 @@ const emit = defineEmits<{
 
 <template>
   <div class="element-toolbar" data-selectable @click.stop @pointerdown.stop>
-    <div class="element-toolbar__options" role="radiogroup" :aria-label="optionsLabel">
+    <slot />
+
+    <div
+      v-if="options?.length"
+      class="element-toolbar__options"
+      role="radiogroup"
+      :aria-label="optionsLabel"
+    >
       <button
         v-for="option in options"
         :key="option.value"
@@ -36,6 +44,7 @@ const emit = defineEmits<{
     </div>
 
     <button
+      v-if="removeLabel"
       class="element-toolbar__remove"
       type="button"
       :aria-label="removeLabel"
@@ -49,11 +58,18 @@ const emit = defineEmits<{
 
 <style scoped>
 .element-toolbar {
-  --toolbar-button-size: 22px;
+  --toolbar-button-size: 24px;
 
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* Пипетка в панели — того же размера, что и кнопки. */
+.element-toolbar :deep(.color-picker) {
+  --color-picker-size: var(--toolbar-button-size);
+
+  font-size: 12px;
 }
 
 .element-toolbar__options {

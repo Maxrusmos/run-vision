@@ -23,14 +23,17 @@ export type ShareStatWidth = 'third' | 'half' | 'full';
 
 export type ShareRouteSize = 'small' | 'medium' | 'large';
 
-/** Смещение трека внутри его области, в единицах viewBox. */
-export type ShareRouteOffset = {
+/**
+ * Центр трека в координатах слоя трека.
+ * Единицы: ширина слоя = 1000, высота — пропорционально.
+ */
+export type ShareRoutePosition = {
   x: number;
   y: number;
 };
 
-/** Элемент карточки, который можно выделить: показатель или трек. */
-export type ShareCardElement = ShareStatKey | 'route';
+/** Элемент карточки, который можно выделить: показатель, трек или название. */
+export type ShareCardElement = ShareStatKey | 'route' | 'title';
 
 export type ShareColorKey = 'backgroundColor' | 'routeColor' | 'textColor';
 
@@ -45,6 +48,8 @@ export type ShareColorPreset = {
 };
 
 export type ShareCardSettings = {
+  /** Название на карточке; null — название тренировки из GPX. */
+  title: string | null;
   backgroundColor: string;
   routeColor: string;
   textColor: string;
@@ -59,7 +64,8 @@ export type ShareCardSettings = {
   statSpacing: number;
   routeVisible: boolean;
   routeSize: ShareRouteSize;
-  routeOffset: ShareRouteOffset;
+  /** null — трек стоит на своём месте между названием и показателями. */
+  routePosition: ShareRoutePosition | null;
   /** Трек рисуется фоном под показателями. */
   routeBehindStats: boolean;
 };
