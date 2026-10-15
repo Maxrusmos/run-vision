@@ -81,7 +81,7 @@ function saveImage() {
 }
 
 function goBack() {
-  router.push({ name: ROUTE_NAMES.photoTemplate });
+  router.push({ name: ROUTE_NAMES.share });
 }
 </script>
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PhotoTemplate } from '@/entities/activity/model/activity-share/activity-share.types';
-import TopographicPattern from '@/views/photo-template-view/components/TopographicPattern.vue';
+import TopographicPattern from '@/views/share-view/components/TopographicPattern.vue';
 
 defineProps<{
   templateId: PhotoTemplate['id'];
