@@ -4,6 +4,7 @@ import SettingsPanel from '@/shared/ui/SettingsPanel.vue';
 import StatSpacingSetting from '@/views/photo-editor-view/components/settings/StatSpacingSetting.vue';
 import StatBordersToggle from '@/views/photo-editor-view/components/settings/StatBordersToggle.vue';
 import TransparentBackgroundToggle from '@/views/photo-editor-view/components/settings/TransparentBackgroundToggle.vue';
+import RouteBehindStatsToggle from '@/views/photo-editor-view/components/settings/RouteBehindStatsToggle.vue';
 import BackgroundImageSetting from '@/views/photo-editor-view/components/settings/BackgroundImageSetting.vue';
 
 defineProps<{
@@ -16,6 +17,7 @@ const emit = defineEmits<{
   setTransparentBackground: [value: boolean];
   setBackgroundImage: [file: File];
   removeBackgroundImage: [];
+  setRouteBehindStats: [value: boolean];
 }>();
 </script>
 
@@ -30,9 +32,13 @@ const emit = defineEmits<{
         :model-value="settings.showStatBorders"
         @update:model-value="emit('setShowStatBorders', $event)"
       />
+      <RouteBehindStatsToggle
+        :model-value="settings.routeBehindStats"
+        :disabled="!settings.routeVisible"
+        @update:model-value="emit('setRouteBehindStats', $event)"
+      />
       <TransparentBackgroundToggle
         :model-value="settings.transparentBackground"
-        :background-color="settings.backgroundColor"
         :disabled="Boolean(settings.backgroundImage)"
         @update:model-value="emit('setTransparentBackground', $event)"
       />

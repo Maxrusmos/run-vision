@@ -3,6 +3,8 @@ import type {
   ShareCardSettings,
   ShareColorKey,
   ShareColorPreset,
+  ShareRouteOffset,
+  ShareRouteSize,
   ShareStatKey,
   ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types';
@@ -11,6 +13,7 @@ import {
   findSharePreset,
   findSharePresetByColors,
 } from '@/entities/activity/model/activity-share/activity-share-presets';
+import { DEFAULT_ROUTE_SIZE } from '@/entities/activity/model/activity-share/activity-share-route';
 import { DEFAULT_VISIBLE_SHARE_STATS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
 export const STAT_SPACING_MIN = 0;
@@ -32,6 +35,10 @@ function createSettings(preset: ShareColorPreset): ShareCardSettings {
     backgroundImageFit: 'cover',
     backgroundImagePosition: 'center',
     statSpacing: 12,
+    routeVisible: true,
+    routeSize: DEFAULT_ROUTE_SIZE,
+    routeOffset: { x: 0, y: 0 },
+    routeBehindStats: false,
   };
 }
 
@@ -119,8 +126,28 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     settings.value.transparentBackground = false;
   }
 
+  function setRouteVisible(value: boolean) {
+    settings.value.routeVisible = value;
+  }
+
+  function setRouteSize(size: ShareRouteSize) {
+    settings.value.routeSize = size;
+  }
+
+  function setRouteOffset(offset: ShareRouteOffset) {
+    settings.value.routeOffset = offset;
+  }
+
+  function setRouteBehindStats(value: boolean) {
+    settings.value.routeBehindStats = value;
+  }
+
   return {
     settings,
+    setRouteVisible,
+    setRouteSize,
+    setRouteOffset,
+    setRouteBehindStats,
     applyPresetById,
     setColor,
     addStat,

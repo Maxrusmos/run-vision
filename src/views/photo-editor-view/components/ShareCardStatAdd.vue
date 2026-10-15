@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import type { ShareStatKey } from '@/entities/activity/model/activity-share/activity-share.types';
 import { SHARE_STAT_EMPTY_VALUE } from '@/entities/activity/model/activity-share/activity-share-stats';
+import AddElementButton from '@/views/photo-editor-view/components/AddElementButton.vue';
 import { SHARE_STAT_OPTIONS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
 const props = defineProps<{
@@ -33,10 +34,7 @@ const availableOptions = computed(() =>
     scroll-strategy="reposition"
   >
     <template #activator="{ props: menuProps }">
-      <button v-bind="menuProps" class="stat-add" type="button">
-        <v-icon icon="mdi-plus" size="small" />
-        <span>Добавить показатели</span>
-      </button>
+      <AddElementButton v-bind="menuProps" label="Добавить показатели" />
     </template>
 
     <v-list density="compact" max-height="360">
@@ -52,27 +50,3 @@ const availableOptions = computed(() =>
     </v-list>
   </v-menu>
 </template>
-
-<style scoped>
-.stat-add {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  min-height: 40px;
-  padding: 8px 12px;
-  color: var(--app-on-surface);
-  background: color-mix(in srgb, #fff 7%, transparent);
-  border: 1px dashed rgb(255 255 255 / 35%);
-  border-radius: 10px;
-  font: inherit;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.stat-add:focus-visible {
-  outline: 2px solid var(--app-primary);
-  outline-offset: 2px;
-}
-</style>

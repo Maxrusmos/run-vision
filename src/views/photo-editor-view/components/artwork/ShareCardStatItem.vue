@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { ShareStatWidth } from '@/entities/activity/model/activity-share/activity-share.types';
-import ShareCardStatActions from '@/views/photo-editor-view/components/artwork/ShareCardStatActions.vue';
+import { SHARE_STAT_WIDTH_OPTIONS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
+import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
+import SelectionFrame from '@/views/photo-editor-view/components/artwork/SelectionFrame.vue';
 
 defineProps<{
   label: string;
@@ -20,18 +22,26 @@ const emit = defineEmits<{
 <template>
   <div
     class="stat"
-    :class="{
-      'stat--bordered': showBorder,
-      'stat--selected': selected,
-      [`stat--${width}`]: true,
-    }"
+    :class="[
+      `stat--${width}`,
+      {
+        'stat--bordered': showBorder,
+        'stat--selected': selected,
+      },
+    ]"
+    data-selectable
     @click="emit('select')"
   >
-    <ShareCardStatActions
-      class="stat__actions export-hidden"
-      :width="width"
+    <SelectionFrame v-if="selected" />
+
+    <ArtworkElementToolbar
+      class="stat__toolbar export-hidden"
+      :model-value="width"
+      :options="SHARE_STAT_WIDTH_OPTIONS"
+      options-label="Ширина показателя"
+      remove-label="Удалить показатель"
       :inert="!selected"
-      @set-width="emit('setWidth', $event)"
+      @update:model-value="emit('setWidth', $event)"
       @remove="emit('remove')"
     />
 
@@ -41,12 +51,6 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-@property --stat-wave-angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
 .stat {
   position: relative;
   box-sizing: border-box;
@@ -55,6 +59,7 @@ const emit = defineEmits<{
   border: 1px solid transparent;
   border-radius: 12px;
   cursor: pointer;
+  pointer-events: auto;
   -webkit-tap-highlight-color: transparent;
   transition: border-color 180ms ease;
 }
@@ -77,44 +82,13 @@ const emit = defineEmits<{
 }
 
 .stat--selected {
-  border-color: color-mix(in srgb, var(--share-text) 65%, transparent);
-}
-
-.stat--selected::before {
-  position: absolute;
-  z-index: 1;
-  inset: -1px;
-  padding: 1.5px;
-  border-radius: inherit;
-  background: conic-gradient(
-    from var(--stat-wave-angle),
-    transparent 0deg,
-    transparent 245deg,
-    color-mix(in srgb, var(--share-text) 25%, transparent) 275deg,
-    color-mix(in srgb, var(--share-text) 100%, transparent) 310deg,
-    color-mix(in srgb, var(--share-text) 55%, transparent) 330deg,
-    transparent 355deg
-  );
-  content: '';
-  pointer-events: none;
-
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-
-  animation: stat-border-wave 2.4s linear infinite;
-}
-
-.stat__actions {
-  position: absolute;
   z-index: 2;
-  top: -9px;
+}
+
+.stat__toolbar {
+  position: absolute;
+  z-index: 3;
+  top: -13px;
   right: -6px;
   opacity: 0;
   visibility: hidden;
@@ -125,7 +99,7 @@ const emit = defineEmits<{
     visibility 160ms ease;
 }
 
-.stat--selected .stat__actions {
+.stat--selected .stat__toolbar {
   opacity: 1;
   visibility: visible;
   transform: translateY(0) scale(1);
@@ -139,39 +113,24 @@ const emit = defineEmits<{
   opacity: 0.7;
 }
 
+.stat__value {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+  font-size: clamp(19px, 4vw, 25px);
+  font-weight: 800;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
 /* В трети ширины длинные значения уменьшаем, чтобы они помещались. */
 .stat--third .stat__value {
   font-size: clamp(14px, 3vw, 20px);
 }
 
-.stat__value {
-  margin-top: 2px;
-  overflow-wrap: anywhere;
-  font-size: clamp(19px, 4vw, 25px);
-  line-height: 1.15;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-
-@keyframes stat-border-wave {
-  from {
-    --stat-wave-angle: 0deg;
-  }
-
-  to {
-    --stat-wave-angle: 360deg;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .stat,
-  .stat__actions {
+  .stat__toolbar {
     transition: none;
-  }
-
-  .stat--selected::before {
-    animation: none;
-    background: color-mix(in srgb, var(--share-text) 50%, transparent);
   }
 }
 </style>

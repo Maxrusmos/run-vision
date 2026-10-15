@@ -2,8 +2,11 @@
 import { computed, useTemplateRef } from 'vue';
 import type { IActivity } from '@/entities/activity/model/activity.types';
 import type {
+  ShareCardElement,
   ShareCardSettings,
   ShareColorKey,
+  ShareRouteOffset,
+  ShareRouteSize,
   ShareStat,
   ShareStatKey,
   ShareStatWidth,
@@ -13,6 +16,9 @@ import ArtworkBackground from '@/views/photo-editor-view/components/artwork/Artw
 import ArtworkHeader from '@/views/photo-editor-view/components/artwork/ArtworkHeader.vue';
 import ArtworkRoute from '@/views/photo-editor-view/components/artwork/ArtworkRoute.vue';
 import ArtworkStatsGrid from '@/views/photo-editor-view/components/artwork/ArtworkStatsGrid.vue';
+
+/** Минимальный зазор между показателями, чтобы они не слипались. */
+const MIN_STAT_GAP = 1;
 
 const props = defineProps<{
   activity: IActivity;
@@ -28,9 +34,12 @@ const emit = defineEmits<{
   removeStat: [key: ShareStatKey];
   reorderStats: [keys: ShareStatKey[]];
   setStatWidth: [key: ShareStatKey, width: ShareStatWidth];
+  setRouteSize: [size: ShareRouteSize];
+  setRouteOffset: [offset: ShareRouteOffset];
+  removeRoute: [];
 }>();
 
-const selectedStat = defineModel<ShareStatKey | null>('selectedStat', { default: null });
+const selected = defineModel<ShareCardElement | null>('selected', { default: null });
 
 const rootElement = useTemplateRef<HTMLElement>('root');
 
@@ -47,14 +56,34 @@ const stats = computed<ShareStat[]>(() =>
   })),
 );
 
-const cssVariables = computed(() => ({
-  '--share-background': props.settings.backgroundColor,
-  '--share-route': props.settings.routeColor,
-  '--share-text': props.settings.textColor,
-  '--share-stat-spacing': `${props.settings.statSpacing}px`,
-  '--share-stat-padding-y': `${1 + props.settings.statSpacing * 0.35}px`,
-  '--share-stat-padding-x': `${4 + props.settings.statSpacing / 3}px`,
-}));
+const isRouteBehindStats = computed(
+  () => props.settings.routeVisible && props.settings.routeBehindStats,
+);
+
+const cssVariables = computed(() => {
+  const spacing = props.settings.statSpacing;
+
+  return {
+    '--share-background': props.settings.backgroundColor,
+    '--share-route': props.settings.routeColor,
+    '--share-text': props.settings.textColor,
+    '--share-stat-gap': `${Math.max(MIN_STAT_GAP, spacing)}px`,
+    '--share-stat-padding-y': `${1 + spacing * 0.35}px`,
+    '--share-stat-padding-x': `${4 + spacing / 3}px`,
+  };
+});
+
+// Тап мимо выделенного элемента снимает выделение.
+function handleClick(event: MouseEvent) {
+  if (!(event.target as Element).closest('[data-selectable]')) {
+    selected.value = null;
+  }
+}
+
+function removeRoute() {
+  selected.value = null;
+  emit('removeRoute');
+}
 </script>
 
 <template>
@@ -64,8 +93,11 @@ const cssVariables = computed(() => ({
     :class="{
       'share-artwork--transparent': settings.transparentBackground,
       'share-artwork--exporting': exporting,
+      'share-artwork--route-behind': isRouteBehindStats,
+      'share-artwork--route-selected': selected === 'route',
     }"
     :style="cssVariables"
+    @click="handleClick"
   >
     <ArtworkBackground
       :color="settings.backgroundColor"
@@ -77,27 +109,40 @@ const cssVariables = computed(() => ({
     />
 
     <ArtworkHeader
+      class="share-artwork__header"
       :title="activity.name"
       :date="activity.startedAt"
       :text-color="settings.textColor"
       @change-text-color="emit('setColor', 'textColor', $event)"
     />
 
-    <ArtworkRoute
-      :track="activity.track"
-      :color="settings.routeColor"
-      @change-color="emit('setColor', 'routeColor', $event)"
-    />
+    <div class="share-artwork__body">
+      <ArtworkRoute
+        v-if="settings.routeVisible"
+        class="share-artwork__route"
+        :track="activity.track"
+        :color="settings.routeColor"
+        :size="settings.routeSize"
+        :offset="settings.routeOffset"
+        :selected="selected === 'route'"
+        @select="selected = 'route'"
+        @change-color="emit('setColor', 'routeColor', $event)"
+        @set-size="emit('setRouteSize', $event)"
+        @set-offset="emit('setRouteOffset', $event)"
+        @remove="removeRoute"
+      />
 
-    <ArtworkStatsGrid
-      v-model:selected="selectedStat"
-      :stats="stats"
-      :stat-widths="settings.statWidths"
-      :show-borders="settings.showStatBorders"
-      @reorder="emit('reorderStats', $event)"
-      @remove="emit('removeStat', $event)"
-      @set-width="(key, width) => emit('setStatWidth', key, width)"
-    />
+      <ArtworkStatsGrid
+        v-model:selected="selected"
+        class="share-artwork__stats"
+        :stats="stats"
+        :stat-widths="settings.statWidths"
+        :show-borders="settings.showStatBorders"
+        @reorder="emit('reorderStats', $event)"
+        @remove="emit('removeStat', $event)"
+        @set-width="(key, width) => emit('setStatWidth', key, width)"
+      />
+    </div>
   </div>
 </template>
 
@@ -106,8 +151,9 @@ const cssVariables = computed(() => ({
   --share-background: #111827;
   --share-route: #fff;
   --share-text: #fff;
-  --share-stat-spacing: 12px;
+  --share-stat-gap: 12px;
   --share-stat-padding-y: 6px;
+  --share-stat-padding-x: 8px;
 
   position: relative;
   box-sizing: border-box;
@@ -124,5 +170,47 @@ const cssVariables = computed(() => ({
 
 .share-artwork--transparent {
   background: transparent;
+}
+
+.share-artwork__header,
+.share-artwork__body {
+  position: relative;
+  z-index: 1;
+}
+
+/* Обычный режим: трек над показателями. */
+.share-artwork__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--share-stat-gap);
+  margin-top: 20px;
+}
+
+.share-artwork__route {
+  margin: 0 -8px 12px;
+}
+
+/* Трек под показателями: оба слоя в одной ячейке, показатели прижаты к низу. */
+.share-artwork--route-behind .share-artwork__route,
+.share-artwork--route-behind .share-artwork__stats {
+  grid-area: 1 / 1;
+}
+
+/* z-index: auto — без своего контекста наложения, чтобы пипетка трека
+   (z-index внутри трека) оставалась над показателями. */
+.share-artwork--route-behind .share-artwork__route {
+  z-index: auto;
+  align-self: center;
+  margin-bottom: 0;
+}
+
+.share-artwork--route-behind .share-artwork__stats {
+  z-index: 1;
+  align-self: end;
+}
+
+/* Выделенный трек поднимаем над показателями, чтобы его можно было двигать. */
+.share-artwork--route-behind.share-artwork--route-selected .share-artwork__route {
+  z-index: 2;
 }
 </style>

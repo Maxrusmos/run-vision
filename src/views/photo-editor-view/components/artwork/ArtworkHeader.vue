@@ -37,8 +37,6 @@ const formattedDate = computed(() => formatActivityDate(props.date));
 
 <style scoped>
 .artwork-header {
-  position: relative;
-  z-index: 1;
   margin-top: 8px;
   padding-right: 42px;
 }

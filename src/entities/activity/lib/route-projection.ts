@@ -60,3 +60,25 @@ export function projectRoute(track: ITrackPoint[], viewport: RouteViewport): Rou
 export function toSvgPolylinePoints(points: RoutePoint[]): string {
   return points.map(({ x, y }) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
 }
+
+export type RouteBounds = {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+};
+
+export function getRouteBounds(points: RoutePoint[]): RouteBounds | null {
+  if (!points.length) return null;
+
+  const bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+
+  for (const { x, y } of points) {
+    bounds.minX = Math.min(bounds.minX, x);
+    bounds.maxX = Math.max(bounds.maxX, x);
+    bounds.minY = Math.min(bounds.minY, y);
+    bounds.maxY = Math.max(bounds.maxY, y);
+  }
+
+  return bounds;
+}

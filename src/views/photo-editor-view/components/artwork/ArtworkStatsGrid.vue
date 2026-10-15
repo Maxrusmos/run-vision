@@ -2,6 +2,7 @@
 import { computed, ref, useTemplateRef } from 'vue';
 import Draggable from 'vuedraggable';
 import type {
+  ShareCardElement,
   ShareStat,
   ShareStatKey,
   ShareStatWidth,
@@ -22,7 +23,7 @@ const emit = defineEmits<{
   setWidth: [key: ShareStatKey, width: ShareStatWidth];
 }>();
 
-const selectedStat = defineModel<ShareStatKey | null>('selected', { default: null });
+const selected = defineModel<ShareCardElement | null>('selected', { default: null });
 
 const isDragging = ref(false);
 const draggable = useTemplateRef<InstanceType<typeof Draggable>>('draggable');
@@ -49,19 +50,19 @@ function getWidth(key: ShareStatKey): ShareStatWidth {
 }
 
 function toggleSelected(key: ShareStatKey) {
-  selectedStat.value = selectedStat.value === key ? null : key;
+  selected.value = selected.value === key ? null : key;
 }
 
 function remove(key: ShareStatKey) {
-  if (selectedStat.value === key) {
-    selectedStat.value = null;
+  if (selected.value === key) {
+    selected.value = null;
   }
   emit('remove', key);
 }
 
 function handleDragStart() {
   isDragging.value = true;
-  selectedStat.value = null;
+  selected.value = null;
 }
 </script>
 
@@ -89,7 +90,7 @@ function handleDragStart() {
         :label="element.label"
         :value="element.value"
         :width="getWidth(element.key)"
-        :selected="selectedStat === element.key"
+        :selected="selected === element.key"
         :show-border="showBorders"
         @select="toggleSelected(element.key)"
         @remove="remove(element.key)"
@@ -105,9 +106,10 @@ function handleDragStart() {
   z-index: 1;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: var(--share-stat-spacing, 12px);
+  gap: var(--share-stat-gap, 12px);
   min-width: 0;
-  margin-top: var(--share-stat-spacing, 12px);
+  /* Пропускаем касания сквозь промежутки — к треку под показателями. */
+  pointer-events: none;
 }
 
 .stats-grid--dragging :deep(.stat) {
