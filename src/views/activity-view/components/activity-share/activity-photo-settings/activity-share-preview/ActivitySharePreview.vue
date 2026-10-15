@@ -287,7 +287,7 @@ function handleReorderStats(keys: ShareStatKey[]) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   width: 100%;
   min-width: 0;
 }
@@ -363,6 +363,8 @@ function handleReorderStats(keys: ShareStatKey[]) {
 @media (max-width: 800px) {
   .share-preview__body {
     grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content;
+    align-content: start;
   }
 
   .share-preview__sidebar {
@@ -374,6 +376,7 @@ function handleReorderStats(keys: ShareStatKey[]) {
   .share-preview__main {
     order: 1;
     padding: 16px;
+    align-self: start;
   }
 
   .share-preview__footer {
