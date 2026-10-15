@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { ShareStatKey } from '@/entities/activity/model/activity-share/activity-share.types';
+import { SHARE_STAT_EMPTY_VALUE } from '@/entities/activity/model/activity-share/activity-share-stats';
 import { SHARE_STAT_OPTIONS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
 const props = defineProps<{
   visibleStats: ShareStatKey[];
+  statValues: Record<ShareStatKey, string>;
 }>();
 
 const emit = defineEmits<{
@@ -12,7 +14,12 @@ const emit = defineEmits<{
 }>();
 
 const availableOptions = computed(() =>
-  SHARE_STAT_OPTIONS.filter((option) => !props.visibleStats.includes(option.key)),
+  SHARE_STAT_OPTIONS.filter((option) => !props.visibleStats.includes(option.key)).map((option) => ({
+    ...option,
+    value: props.statValues[option.key],
+    // В GPX может не быть пульса, каденса или нужной дистанции.
+    hasData: props.statValues[option.key] !== SHARE_STAT_EMPTY_VALUE,
+  })),
 );
 </script>
 
@@ -32,11 +39,13 @@ const availableOptions = computed(() =>
       </button>
     </template>
 
-    <v-list density="compact" max-height="280">
+    <v-list density="compact" max-height="360">
       <v-list-item
         v-for="option in availableOptions"
         :key="option.key"
         :title="option.label"
+        :subtitle="option.hasData ? option.value : 'Нет данных в GPX'"
+        :disabled="!option.hasData"
         prepend-icon="mdi-plus"
         @click="emit('add', option.key)"
       />

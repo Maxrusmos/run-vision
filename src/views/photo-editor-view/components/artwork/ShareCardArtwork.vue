@@ -8,7 +8,6 @@ import type {
   ShareStatKey,
   ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types';
-import { getActivityShareStats } from '@/entities/activity/model/activity-share/activity-share-stats';
 import { getShareStatCardLabel } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 import ArtworkBackground from '@/views/photo-editor-view/components/artwork/ArtworkBackground.vue';
 import ArtworkHeader from '@/views/photo-editor-view/components/artwork/ArtworkHeader.vue';
@@ -18,6 +17,8 @@ import ArtworkStatsGrid from '@/views/photo-editor-view/components/artwork/Artwo
 const props = defineProps<{
   activity: IActivity;
   settings: ShareCardSettings;
+  /** Значения всех показателей тренировки. */
+  statValues: Record<ShareStatKey, string>;
   /** Скрывает элементы редактора перед рендером в PNG. */
   exporting?: boolean;
 }>();
@@ -38,13 +39,11 @@ defineExpose({
   getElement: () => rootElement.value,
 });
 
-const statValues = computed(() => getActivityShareStats(props.activity));
-
 const stats = computed<ShareStat[]>(() =>
   props.settings.visibleStats.map((key) => ({
     key,
     label: getShareStatCardLabel(key),
-    value: statValues.value[key],
+    value: props.statValues[key],
   })),
 );
 
@@ -54,6 +53,7 @@ const cssVariables = computed(() => ({
   '--share-text': props.settings.textColor,
   '--share-stat-spacing': `${props.settings.statSpacing}px`,
   '--share-stat-padding-y': `${1 + props.settings.statSpacing * 0.35}px`,
+  '--share-stat-padding-x': `${4 + props.settings.statSpacing / 3}px`,
 }));
 </script>
 

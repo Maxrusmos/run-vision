@@ -3,6 +3,7 @@ import { computed, nextTick, ref, useTemplateRef } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import type { ShareStatKey } from '@/entities/activity/model/activity-share/activity-share.types';
+import { getActivityShareStats } from '@/entities/activity/model/activity-share/activity-share-stats';
 import { getPhotoTemplatePresetId } from '@/entities/activity/model/activity-share/photo-templates';
 import { useActivityStore } from '@/stores/activity.store';
 import { useShareStore } from '@/stores/share.store';
@@ -46,6 +47,8 @@ const selectedStat = ref<ShareStatKey | null>(null);
 const isExporting = ref(false);
 const isResultOpen = ref(false);
 
+const statValues = computed(() => (activity.value ? getActivityShareStats(activity.value) : null));
+
 const isBusy = computed(() => isExporting.value || isRendering.value);
 
 async function createImage() {
@@ -86,7 +89,7 @@ function goBack() {
 </script>
 
 <template>
-  <StepPage v-if="activity" max-width="1280px">
+  <StepPage v-if="activity && statValues" max-width="1280px">
     <div class="photo-editor">
       <PhotoEditorSidebar
         class="photo-editor__sidebar"
@@ -111,6 +114,7 @@ function goBack() {
             v-model:selected-stat="selectedStat"
             :activity="activity"
             :settings="settings"
+            :stat-values="statValues"
             :exporting="isExporting"
             @set-color="setColor"
             @remove-stat="removeStat"
@@ -119,7 +123,11 @@ function goBack() {
           />
         </div>
 
-        <ShareCardStatAdd :visible-stats="settings.visibleStats" @add="addStat" />
+        <ShareCardStatAdd
+          :visible-stats="settings.visibleStats"
+          :stat-values="statValues"
+          @add="addStat"
+        />
       </section>
     </div>
 

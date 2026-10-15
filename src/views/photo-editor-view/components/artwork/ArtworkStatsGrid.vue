@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, useTemplateRef } from 'vue';
 import Draggable from 'vuedraggable';
 import type {
   ShareStat,
   ShareStatKey,
   ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types';
+import { DEFAULT_SHARE_STAT_WIDTH } from '@/entities/activity/model/activity-share/activity-share-stat-options';
+import { useFlipAnimation } from '@/hooks/useFlipAnimation';
 import ShareCardStatItem from '@/views/photo-editor-view/components/artwork/ShareCardStatItem.vue';
 
 const props = defineProps<{
@@ -23,6 +25,15 @@ const emit = defineEmits<{
 const selectedStat = defineModel<ShareStatKey | null>('selected', { default: null });
 
 const isDragging = ref(false);
+const draggable = useTemplateRef<InstanceType<typeof Draggable>>('draggable');
+const gridElement = computed(() => draggable.value?.$el as HTMLElement | undefined);
+
+// Анимируем изменение ширины, добавление и удаление показателей.
+// Порядок не учитываем: перетаскивание анимирует сам Sortable.
+useFlipAnimation(gridElement, () => ({
+  keys: props.stats.map((stat) => stat.key).sort(),
+  widths: props.statWidths,
+}));
 
 const draggableStats = computed<ShareStat[]>({
   get: () => props.stats.map((stat) => ({ ...stat })),
@@ -34,15 +45,11 @@ const draggableStats = computed<ShareStat[]>({
 });
 
 function getWidth(key: ShareStatKey): ShareStatWidth {
-  return props.statWidths[key] ?? 'half';
+  return props.statWidths[key] ?? DEFAULT_SHARE_STAT_WIDTH;
 }
 
 function toggleSelected(key: ShareStatKey) {
   selectedStat.value = selectedStat.value === key ? null : key;
-}
-
-function toggleWidth(key: ShareStatKey) {
-  emit('setWidth', key, getWidth(key) === 'full' ? 'half' : 'full');
 }
 
 function remove(key: ShareStatKey) {
@@ -60,6 +67,7 @@ function handleDragStart() {
 
 <template>
   <Draggable
+    ref="draggable"
     v-model="draggableStats"
     item-key="key"
     class="stats-grid"
@@ -77,6 +85,7 @@ function handleDragStart() {
   >
     <template #item="{ element }: { element: ShareStat }">
       <ShareCardStatItem
+        :data-flip-key="element.key"
         :label="element.label"
         :value="element.value"
         :width="getWidth(element.key)"
@@ -84,7 +93,7 @@ function handleDragStart() {
         :show-border="showBorders"
         @select="toggleSelected(element.key)"
         @remove="remove(element.key)"
-        @toggle-width="toggleWidth(element.key)"
+        @set-width="emit('setWidth', element.key, $event)"
       />
     </template>
   </Draggable>
@@ -95,7 +104,7 @@ function handleDragStart() {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--share-stat-spacing, 12px);
   min-width: 0;
   margin-top: var(--share-stat-spacing, 12px);

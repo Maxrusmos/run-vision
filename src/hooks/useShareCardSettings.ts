@@ -13,7 +13,7 @@ import {
 } from '@/entities/activity/model/activity-share/activity-share-presets';
 import { DEFAULT_VISIBLE_SHARE_STATS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
-export const STAT_SPACING_MIN = 4;
+export const STAT_SPACING_MIN = 0;
 export const STAT_SPACING_MAX = 24;
 
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;

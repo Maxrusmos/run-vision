@@ -13,7 +13,7 @@ defineProps<{
 const emit = defineEmits<{
   select: [];
   remove: [];
-  toggleWidth: [];
+  setWidth: [width: ShareStatWidth];
 }>();
 </script>
 
@@ -23,7 +23,7 @@ const emit = defineEmits<{
     :class="{
       'stat--bordered': showBorder,
       'stat--selected': selected,
-      'stat--full': width === 'full',
+      [`stat--${width}`]: true,
     }"
     @click="emit('select')"
   >
@@ -31,7 +31,7 @@ const emit = defineEmits<{
       class="stat__actions export-hidden"
       :width="width"
       :inert="!selected"
-      @toggle-width="emit('toggleWidth')"
+      @set-width="emit('setWidth', $event)"
       @remove="emit('remove')"
     />
 
@@ -51,12 +51,21 @@ const emit = defineEmits<{
   position: relative;
   box-sizing: border-box;
   min-width: 0;
-  padding: var(--share-stat-padding-y, 8px) 8px;
+  padding: var(--share-stat-padding-y, 8px) var(--share-stat-padding-x, 8px);
   border: 1px solid transparent;
   border-radius: 12px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: border-color 180ms ease;
+}
+
+/* Сетка из 6 колонок: треть = 2, половина = 3, вся ширина = 6. */
+.stat--third {
+  grid-column: span 2;
+}
+
+.stat--half {
+  grid-column: span 3;
 }
 
 .stat--full {
@@ -105,7 +114,7 @@ const emit = defineEmits<{
 .stat__actions {
   position: absolute;
   z-index: 2;
-  top: -7px;
+  top: -9px;
   right: -6px;
   opacity: 0;
   visibility: hidden;
@@ -123,15 +132,23 @@ const emit = defineEmits<{
 }
 
 .stat__label {
-  padding-right: 14px;
+  overflow: hidden;
   font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   opacity: 0.7;
+}
+
+/* В трети ширины длинные значения уменьшаем, чтобы они помещались. */
+.stat--third .stat__value {
+  font-size: clamp(14px, 3vw, 20px);
 }
 
 .stat__value {
   margin-top: 2px;
   overflow-wrap: anywhere;
   font-size: clamp(19px, 4vw, 25px);
+  line-height: 1.15;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }

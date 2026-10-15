@@ -5,13 +5,21 @@ export type PhotoTemplateId = 'minimal' | 'topographic' | 'custom';
 export type ShareStatKey =
   | 'distance'
   | 'duration'
+  | 'elapsedTime'
   | 'averagePace'
+  | 'averageSpeed'
+  | 'bestKm'
+  | 'best5k'
   | 'averageHeartRate'
   | 'maxHeartRate'
   | 'averageCadence'
-  | 'elevationGain';
+  | 'strideLength'
+  | 'elevationGain'
+  | 'elevationLoss'
+  | 'maxElevation'
+  | 'startTime';
 
-export type ShareStatWidth = 'half' | 'full';
+export type ShareStatWidth = 'third' | 'half' | 'full';
 
 export type ShareColorKey = 'backgroundColor' | 'routeColor' | 'textColor';
 
