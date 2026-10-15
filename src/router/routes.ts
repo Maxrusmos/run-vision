@@ -1,6 +1,5 @@
 export const ROUTE_NAMES = {
-  shareType: 'share-type',
-  photoTemplate: 'photo-template',
+  import: 'import',
+  share: 'share',
   photoEditor: 'photo-editor',
-  video: 'video',
 } as const;

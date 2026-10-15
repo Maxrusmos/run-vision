@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ShareType } from '@/entities/activity/model/activity-share/activity-share.types';
 import SelectableCard from '@/shared/ui/SelectableCard.vue';
-import { SHARE_TYPE_OPTIONS } from '@/views/share-type-view/share-type-options';
+import { SHARE_TYPE_OPTIONS } from '@/views/share-view/share-type-options';
 
 const selected = defineModel<ShareType>({ required: true });
 </script>

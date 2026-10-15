@@ -9,9 +9,9 @@ import {
   formatPace,
   formatPlaybackDistance,
 } from '@/shared/lib/formatters/formatters';
-import PhotoTemplateCard from '@/views/photo-template-view/components/PhotoTemplateCard.vue';
-import TemplateRoutePreview from '@/views/photo-template-view/components/TemplateRoutePreview.vue';
-import CustomTemplatePreview from '@/views/photo-template-view/components/CustomTemplatePreview.vue';
+import PhotoTemplateCard from '@/views/share-view/components/PhotoTemplateCard.vue';
+import TemplateRoutePreview from '@/views/share-view/components/TemplateRoutePreview.vue';
+import CustomTemplatePreview from '@/views/share-view/components/CustomTemplatePreview.vue';
 
 const PREVIEW_VIEWPORT = { width: 100, height: 100, padding: 12 };
 
