@@ -1,113 +1,87 @@
-import type { IActivity } from '@/entities/activity/model/activity.types.ts';
-import type { ShareStatKey } from '@/entities/activity/model/activity-share/activity-share.types.ts';
+import type { IActivity, ITrackPoint } from '@/entities/activity/model/activity.types';
 import {
-  formatDuration,
+  buildElevationPoints,
+  getElevationStats,
+  smoothElevationPoints,
+} from '@/entities/activity/model/elevation/elevation-calculations';
+import {
+  formatActivityDuration,
   formatElevation,
   formatHeartRate,
   formatPace,
   formatPlaybackDistance,
-  formatActivityDuration,
-} from '@/shared/lib/formatters/formatters.ts';
+} from '@/shared/lib/formatters/formatters';
+import type { ShareStatKey } from './activity-share.types';
 
-export type ActivityShareStat = {
-  label: string;
-  value: string;
-};
+const EMPTY_VALUE = '—';
 
-export function getActivityShareStat(activity: IActivity, key: ShareStatKey): ActivityShareStat {
-  const track = activity.track;
+function getPositiveValues(
+  track: ITrackPoint[],
+  select: (point: ITrackPoint) => number | undefined,
+): number[] {
+  const values: number[] = [];
 
-  const labels: Record<ShareStatKey, string> = {
-    distance: 'Дистанция',
-    duration: 'Время',
-    averagePace: 'Средний темп',
-    averageHeartRate: 'Средний пульс',
-    maxHeartRate: 'Макс. пульс',
-    averageCadence: 'Частота шагов',
-    elevationGain: 'Набор высоты',
-  };
+  for (const point of track) {
+    const value = select(point);
 
-  let value = '—';
-
-  switch (key) {
-    case 'distance':
-      value = `${formatPlaybackDistance(activity.distanceMeters)} км`;
-      break;
-
-    case 'duration':
-      value = formatActivityDuration(activity.durationSeconds);
-      break;
-
-    case 'averagePace':
-      value = `${formatPace(activity.averagePaceSecondsPerKm)} /км`;
-      break;
-
-    case 'averageHeartRate': {
-      const values = track
-        .map((point) => point.heartRate)
-        .filter(
-          (value): value is number => value !== undefined && Number.isFinite(value) && value > 0,
-        );
-
-      if (!values.length) {
-        value = '—';
-        break;
-      }
-
-      const sum = values.reduce((total, item) => total + item, 0);
-      value = `${formatHeartRate(sum / values.length)} уд/мин`;
-      break;
-    }
-
-    case 'maxHeartRate': {
-      const values = track
-        .map((point) => point.heartRate)
-        .filter(
-          (value): value is number => value !== undefined && Number.isFinite(value) && value > 0,
-        );
-
-      value = values.length ? `${formatHeartRate(Math.max(...values))} уд/мин` : '—';
-      break;
-    }
-
-    case 'averageCadence': {
-      const values = track
-        .map((point) => point.cadence)
-        .filter(
-          (value): value is number => value !== undefined && Number.isFinite(value) && value > 0,
-        );
-
-      if (!values.length) {
-        value = '—';
-        break;
-      }
-
-      const sum = values.reduce((total, item) => total + item, 0);
-      value = `${Math.round(sum / values.length)} шаг/мин`;
-      break;
-    }
-
-    case 'elevationGain': {
-      let gain = 0;
-
-      for (let i = 1; i < track.length; i++) {
-        const previous = track[i - 1];
-        const current = track[i];
-
-        if (!previous || !current) continue;
-
-        if (Number.isFinite(previous.elevation) && Number.isFinite(current.elevation)) {
-          gain += Math.max(0, current.elevation - previous.elevation);
-        }
-      }
-
-      value = formatElevation(gain);
-      break;
+    if (value !== undefined && Number.isFinite(value) && value > 0) {
+      values.push(value);
     }
   }
 
+  return values;
+}
+
+function average(values: number[]): number | null {
+  if (!values.length) {
+    return null;
+  }
+
+  return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function max(values: number[]): number | null {
+  if (!values.length) {
+    return null;
+  }
+
+  return values.reduce((result, value) => Math.max(result, value), -Infinity);
+}
+
+function withUnit(value: string, unit: string): string {
+  return value === EMPTY_VALUE ? value : `${value} ${unit}`;
+}
+
+function getElevationGain(track: ITrackPoint[]): number | null {
+  if (track.length < 2) {
+    return null;
+  }
+
+  // Сглаживаем высоту, чтобы шум GPS не завышал набор.
+  const points = smoothElevationPoints(buildElevationPoints(track));
+  return getElevationStats(points).totalAscentMeters;
+}
+
+/**
+ * Считает все показатели карточки за один проход по тренировке.
+ */
+export function getActivityShareStats(activity: IActivity): Record<ShareStatKey, string> {
+  const { track } = activity;
+
+  const heartRates = getPositiveValues(track, (point) => point.heartRate);
+  const cadences = getPositiveValues(track, (point) => point.cadence);
+  const averageCadence = average(cadences);
+  const hasDistance = Number.isFinite(activity.distanceMeters) && activity.distanceMeters >= 0;
+  const hasPace =
+    Number.isFinite(activity.averagePaceSecondsPerKm) && activity.averagePaceSecondsPerKm > 0;
+
   return {
-    label: labels[key],
-    value,
+    distance: hasDistance ? `${formatPlaybackDistance(activity.distanceMeters)} км` : EMPTY_VALUE,
+    duration: formatActivityDuration(activity.durationSeconds),
+    averagePace: hasPace ? `${formatPace(activity.averagePaceSecondsPerKm)} /км` : EMPTY_VALUE,
+    averageHeartRate: withUnit(formatHeartRate(average(heartRates)), 'уд/мин'),
+    maxHeartRate: withUnit(formatHeartRate(max(heartRates)), 'уд/мин'),
+    averageCadence: averageCadence === null ? EMPTY_VALUE : `${Math.round(averageCadence)} шаг/мин`,
+    elevationGain: formatElevation(getElevationGain(track)),
   };
 }

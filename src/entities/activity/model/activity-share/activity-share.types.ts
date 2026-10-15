@@ -1,3 +1,7 @@
+export type ShareType = 'photo' | 'video';
+
+export type PhotoTemplateId = 'minimal' | 'topographic' | 'custom';
+
 export type ShareStatKey =
   | 'distance'
   | 'duration'
@@ -7,6 +11,12 @@ export type ShareStatKey =
   | 'averageCadence'
   | 'elevationGain';
 
+export type ShareStatWidth = 'half' | 'full';
+
+export type ShareColorKey = 'backgroundColor' | 'routeColor' | 'textColor';
+
+export type ShareBackgroundImageFit = 'cover' | 'contain';
+
 export type ShareColorPreset = {
   id: string;
   name: string;
@@ -14,8 +24,6 @@ export type ShareColorPreset = {
   route: string;
   text: string;
 };
-
-export type ShareStatWidth = 'half' | 'full';
 
 export type ShareCardSettings = {
   backgroundColor: string;
@@ -27,13 +35,28 @@ export type ShareCardSettings = {
   transparentBackground: boolean;
   showStatBorders: boolean;
   backgroundImage: string | null;
-  backgroundImageFit: 'cover' | 'contain';
+  backgroundImageFit: ShareBackgroundImageFit;
   backgroundImagePosition: string;
   statSpacing: number;
 };
 
 export type ShareStatOption = {
   key: ShareStatKey;
+  /** Название в списке добавления показателей. */
   label: string;
-  shortLabel: string;
+  /** Короткое название, которое выводится на карточке. */
+  cardLabel: string;
+};
+
+export type ShareStat = {
+  key: ShareStatKey;
+  label: string;
+  value: string;
+};
+
+export type PhotoTemplate = {
+  id: Exclude<PhotoTemplateId, 'custom'>;
+  title: string;
+  description: string;
+  presetId: string;
 };
