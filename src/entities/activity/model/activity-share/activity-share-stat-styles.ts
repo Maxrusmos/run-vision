@@ -16,6 +16,12 @@ export const SHARE_STAT_STYLES: readonly ShareStatStyleOption[] = [
   { id: 'tile', name: 'Плитка' },
   { id: 'neon', name: 'Неон' },
   { id: 'minimal', name: 'Минимал' },
+  { id: 'inverted', name: 'Инверсия' },
+  { id: 'retro', name: 'Ретро' },
+  { id: 'accent', name: 'Акцент' },
+  { id: 'pill', name: 'Капсула' },
+  { id: 'gradient', name: 'Градиент' },
+  { id: 'marker', name: 'Маркер' },
 ];
 
 /** Сетка «N в ряд» и соответствующая ширина показателя. */

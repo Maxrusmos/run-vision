@@ -31,6 +31,19 @@ export type ShareRouteStyleOption = {
 export const DEFAULT_ROUTE_STYLE: ShareRouteStyle = 'solid';
 
 /**
+ * Объём «выдавливанием»: много полупрозрачных копий со сдвигом, которые
+ * сливаются в сплошную боковую грань. Идут от дальней к ближней.
+ */
+function extrude(steps: number, dx: number, dy: number, opacity: number): RouteStrokeLayer[] {
+  return Array.from({ length: steps }, (_, index) => {
+    const distance = steps - index;
+    return { dx: dx * distance, dy: dy * distance, opacity };
+  });
+}
+
+const RAINBOW = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#0a84ff', '#bf5af2'] as const;
+
+/**
  * Пресеты трека. Эффекты собраны из обычных линий (без SVG-фильтров и режимов
  * наложения), поэтому в PNG выглядят так же, как в редакторе.
  */
@@ -80,6 +93,50 @@ export const SHARE_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
   { id: 'gradient', name: 'Градиент', layers: [{ width: 1.2, gradient: true }] },
   { id: 'dashed', name: 'Пунктир', layers: [{ dash: 'dash' }] },
   { id: 'dotted', name: 'Точки', layers: [{ width: 1.4, dash: 'dot' }] },
+  {
+    id: 'wall',
+    name: 'Стена',
+    layers: [
+      // Тень у основания, грань стены, верх с бликом.
+      { dy: 44, width: 1.4, color: '#000000', opacity: 0.3 },
+      ...extrude(14, 0, 3, 0.22),
+      {},
+      { width: 0.35, color: '#ffffff', opacity: 0.85 },
+    ],
+  },
+  {
+    id: 'iso',
+    name: 'Изометрия',
+    layers: [...extrude(12, -2, 2.5, 0.2), {}, { width: 0.35, color: '#ffffff', opacity: 0.8 }],
+  },
+  {
+    id: 'tube',
+    name: 'Трубка',
+    layers: [
+      { width: 5, opacity: 0.14 },
+      { width: 3, opacity: 0.32 },
+      { width: 1.6 },
+      { width: 0.45, color: '#ffffff', opacity: 0.9 },
+    ],
+  },
+  {
+    id: 'ribbon',
+    name: 'Лента',
+    layers: [
+      { dy: 7, width: 3.2, color: '#000000', opacity: 0.3 },
+      { width: 3 },
+      { width: 1, color: 'background', opacity: 0.35 },
+    ],
+  },
+  {
+    id: 'rainbow',
+    name: 'Радуга',
+    layers: RAINBOW.map((color, index) => ({
+      dy: (index - (RAINBOW.length - 1) / 2) * 7,
+      width: 0.9,
+      color,
+    })),
+  },
 ];
 
 export function findRouteStyle(id: ShareRouteStyle): ShareRouteStyleOption {

@@ -24,7 +24,19 @@ export type ShareStatWidth = 'third' | 'half' | 'full';
 
 /** Пресет внешнего вида показателей (эффект). */
 export type ShareStatStyle =
-  'classic' | 'borderless' | 'glass' | 'speed' | 'tile' | 'neon' | 'minimal';
+  | 'classic'
+  | 'borderless'
+  | 'glass'
+  | 'speed'
+  | 'tile'
+  | 'neon'
+  | 'minimal'
+  | 'inverted'
+  | 'retro'
+  | 'accent'
+  | 'pill'
+  | 'gradient'
+  | 'marker';
 
 /** Пресет оформления трека. */
 export type ShareRouteStyle =
@@ -39,7 +51,12 @@ export type ShareRouteStyle =
   | 'glitch'
   | 'gradient'
   | 'dashed'
-  | 'dotted';
+  | 'dotted'
+  | 'wall'
+  | 'iso'
+  | 'tube'
+  | 'ribbon'
+  | 'rainbow';
 
 /** Ячейка показателя в сетке из 6 колонок: строка и первая колонка. */
 export type ShareStatPosition = {
