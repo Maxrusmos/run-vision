@@ -36,7 +36,10 @@ export type ShareStatStyle =
   | 'accent'
   | 'pill'
   | 'gradient'
-  | 'marker';
+  | 'marker'
+  | 'brackets'
+  | 'outline'
+  | 'dashed';
 
 /** Пресет оформления трека. */
 export type ShareRouteStyle =
@@ -103,6 +106,8 @@ export type ShareMapSettings = {
   layout: ShareMapLayout;
   style: ShareMapStyle;
   pitch: ShareMapPitch;
+  /** Поворот карты вокруг трека, градусы (0 — север сверху). Трек всегда вписан целиком. */
+  bearing: number;
   /** Флажки на треке: отметки километров (шаг — по дистанции) и старт/финиш. */
   kmMarkers: boolean;
   startFinish: boolean;
@@ -110,7 +115,22 @@ export type ShareMapSettings = {
 
 /** Вид графика высоты. */
 export type ShareElevationStyle =
-  'area' | 'line' | 'silhouette' | 'bars' | 'climbs' | 'steps' | 'strokes' | 'dots' | 'wave';
+  | 'area'
+  | 'line'
+  | 'silhouette'
+  | 'bars'
+  | 'climbs'
+  | 'steps'
+  | 'strokes'
+  | 'dots'
+  | 'wave'
+  | 'glow'
+  | 'gradient'
+  | 'mountain'
+  | 'ridges'
+  | 'lollipop'
+  | 'dashed'
+  | 'contour';
 
 export type ShareElevationSize = 'small' | 'medium' | 'large';
 

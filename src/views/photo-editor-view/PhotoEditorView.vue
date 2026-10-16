@@ -71,6 +71,7 @@ const {
   setElevationRow,
   setMapKmMarkers,
   setMapStartFinish,
+  setMapBearing,
   undo,
   redo,
   canUndo,
@@ -219,6 +220,7 @@ function goBack() {
         @remove-title="setTitleVisible(false)"
         @remove-elevation="setElevationVisible(false)"
         @move-elevation="moveElevation"
+        @rotate-map="setMapBearing"
       />
     </FitToBox>
 
@@ -250,11 +252,13 @@ function goBack() {
             @set-pitch="setMapPitch"
             @set-km-markers="setMapKmMarkers"
             @set-start-finish="setMapStartFinish"
+            @set-bearing="setMapBearing"
           />
           <ElevationPanel
             v-else-if="displayedTool === 'elevation' && settings.elevation"
             :elevation="settings.elevation"
             :route-color="settings.routeColor"
+            :text-color="settings.textColor"
             :background-color="settings.backgroundColor"
             :track="activity.track"
             @set-style="setElevationStyle"

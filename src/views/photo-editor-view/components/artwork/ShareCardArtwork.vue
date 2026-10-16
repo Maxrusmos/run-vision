@@ -53,6 +53,7 @@ const emit = defineEmits<{
   removeTitle: [];
   removeElevation: [];
   moveElevation: [row: number, layout: StatLayout];
+  rotateMap: [bearing: number];
 }>();
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
@@ -118,6 +119,36 @@ watch(mapArea, (area) => {
 
 onBeforeUnmount(() => areaObserver?.disconnect());
 
+/**
+ * Вращение карты двумя пальцами — по всей карточке: карта лежит под названием
+ * и показателями, и попасть по ней пальцами было бы трудно.
+ */
+let twist: { angle: number; bearing: number } | null = null;
+
+function touchAngle(event: TouchEvent): number | null {
+  const [a, b] = [event.touches[0], event.touches[1]];
+  if (!a || !b) return null;
+  return (Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX) * 180) / Math.PI;
+}
+
+function handleTouchStart(event: TouchEvent) {
+  const angle = props.settings.map ? touchAngle(event) : null;
+  twist = angle === null ? null : { angle, bearing: props.settings.map!.bearing };
+}
+
+function handleTouchMove(event: TouchEvent) {
+  const angle = touchAngle(event);
+  if (!twist || angle === null) return;
+  // Иначе браузер масштабирует страницу.
+  event.preventDefault();
+  // Пальцы по часовой — карта тоже по часовой, то есть угол (bearing) уменьшается.
+  emit('rotateMap', twist.bearing - (angle - twist.angle));
+}
+
+function handleTouchEnd(event: TouchEvent) {
+  if (event.touches.length < 2) twist = null;
+}
+
 function removeElevation() {
   selected.value = null;
   emit('removeElevation');
@@ -180,10 +211,15 @@ function removeRoute() {
     :class="{
       'share-artwork--transparent': settings.transparentBackground && !settings.map,
       'share-artwork--map-full': mapLayout === 'full',
+      'share-artwork--map': settings.map,
       'share-artwork--exporting': exporting,
     }"
     :style="cssVariables"
     @click="handleClick"
+    @touchstart.passive="handleTouchStart"
+    @touchmove="handleTouchMove"
+    @touchend.passive="handleTouchEnd"
+    @touchcancel.passive="handleTouchEnd"
   >
     <!-- Карта во весь фон: под всеми элементами, снизу — затемнение под показатели. -->
     <template v-if="settings.map && mapLayout === 'full'">
@@ -272,6 +308,7 @@ function removeRoute() {
             :track="activity.track"
             :settings="elevation"
             :color="elevation.color ?? settings.routeColor"
+            :text-color="settings.textColor"
             :selected="selected === 'elevation'"
             @select="selected = selected === 'elevation' ? null : 'elevation'"
             @remove="removeElevation"
@@ -323,6 +360,11 @@ function removeRoute() {
   font-family: Inter, Arial, sans-serif;
   color: var(--share-text);
   background: var(--share-background);
+}
+
+.share-artwork--map {
+  /* Два пальца по карточке с картой — вращение карты, а не масштаб страницы. */
+  touch-action: pan-x pan-y;
 }
 
 .share-artwork--transparent {

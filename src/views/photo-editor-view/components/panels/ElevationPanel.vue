@@ -22,6 +22,7 @@ const PREVIEW = { width: 64, height: 34, unit: 0.22 };
 const props = defineProps<{
   elevation: ShareElevationSettings;
   routeColor: string;
+  textColor: string;
   backgroundColor: string;
   track: ITrackPoint[];
 }>();
@@ -105,6 +106,7 @@ const labelOptions = [
               :track="track"
               :style-id="style.id"
               :color="color"
+              :accent-color="textColor"
               :width="PREVIEW.width"
               :height="PREVIEW.height"
               :unit="PREVIEW.unit"

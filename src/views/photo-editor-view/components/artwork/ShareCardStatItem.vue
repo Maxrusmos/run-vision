@@ -221,6 +221,46 @@ const emit = defineEmits<{
   -webkit-box-decoration-break: clone;
 }
 
+/* Уголки: только углы рамки — как прицел, без лишних линий. */
+.stat--style-brackets {
+  --bracket: color-mix(in srgb, var(--share-text) 70%, transparent);
+  --bracket-size: 10px;
+
+  border-color: transparent;
+  border-radius: 2px;
+  background:
+    linear-gradient(var(--bracket) 0 0) top left / var(--bracket-size) 2px no-repeat,
+    linear-gradient(var(--bracket) 0 0) top left / 2px var(--bracket-size) no-repeat,
+    linear-gradient(var(--bracket) 0 0) top right / var(--bracket-size) 2px no-repeat,
+    linear-gradient(var(--bracket) 0 0) top right / 2px var(--bracket-size) no-repeat,
+    linear-gradient(var(--bracket) 0 0) bottom left / var(--bracket-size) 2px no-repeat,
+    linear-gradient(var(--bracket) 0 0) bottom left / 2px var(--bracket-size) no-repeat,
+    linear-gradient(var(--bracket) 0 0) bottom right / var(--bracket-size) 2px no-repeat,
+    linear-gradient(var(--bracket) 0 0) bottom right / 2px var(--bracket-size) no-repeat;
+}
+
+/* Контур: значение — полыми буквами с обводкой цвета текста. */
+.stat--style-outline {
+  border-color: transparent;
+}
+
+.stat--style-outline .stat__value {
+  color: transparent;
+  -webkit-text-stroke: 1.2px var(--share-text);
+  paint-order: stroke fill;
+}
+
+/* Пунктир: штриховая рамка и подпись цвета трека. */
+.stat--style-dashed {
+  border: 1.5px dashed color-mix(in srgb, var(--share-text) 45%, transparent);
+  border-radius: 10px;
+}
+
+.stat--style-dashed .stat__label {
+  color: var(--share-route);
+  opacity: 1;
+}
+
 .stat--selected {
   z-index: 2;
   /* Выделенный показатель перетаскивается сразу, без прокрутки страницы. */

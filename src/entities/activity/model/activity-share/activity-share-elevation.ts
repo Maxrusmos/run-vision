@@ -20,6 +20,13 @@ export const SHARE_ELEVATION_STYLES: readonly { id: ShareElevationStyle; name: s
   { id: 'strokes', name: 'Штрихи' },
   { id: 'dots', name: 'Точки' },
   { id: 'wave', name: 'Волна' },
+  { id: 'glow', name: 'Свечение' },
+  { id: 'gradient', name: 'Градиент' },
+  { id: 'mountain', name: 'Горы' },
+  { id: 'ridges', name: 'Хребты' },
+  { id: 'lollipop', name: 'Пины' },
+  { id: 'dashed', name: 'Пунктир' },
+  { id: 'contour', name: 'Изолинии' },
 ];
 
 export const SHARE_ELEVATION_SIZES: readonly {
@@ -142,6 +149,13 @@ export const ELEVATION_STYLE_SAMPLES: Record<ShareElevationStyle, number> = {
   strokes: 72,
   dots: 36,
   wave: 64,
+  glow: 120,
+  gradient: 120,
+  mountain: 120,
+  ridges: 120,
+  lollipop: 32,
+  dashed: 120,
+  contour: 120,
 };
 
 export type ElevationRect = {
@@ -191,7 +205,13 @@ export function buildElevationShapes(
   switch (style) {
     case 'area':
     case 'line':
-    case 'silhouette': {
+    case 'silhouette':
+    case 'glow':
+    case 'gradient':
+    case 'mountain':
+    case 'ridges':
+    case 'dashed':
+    case 'contour': {
       const xs = values.map((_, index) => (index / Math.max(1, count - 1)) * width);
       const ys = values.map(y);
       shapes.line = lineThrough(xs, ys);
@@ -238,6 +258,24 @@ export function buildElevationShapes(
           width: round(barWidth),
           height: round(half * 2),
         });
+      });
+      break;
+    }
+    case 'lollipop': {
+      // Тонкая ножка и кружок на вершине — как булавки на карте.
+      const step = width / count;
+      const r = Math.min(step * 0.24, usable * 0.08);
+      values.forEach((value, index) => {
+        const cx = round(index * step + step / 2);
+        const cy = round(Math.max(top + r, y(value)));
+        const stem = Math.max(1, step * 0.1);
+        shapes.rects.push({
+          x: round(cx - stem / 2),
+          y: cy,
+          width: round(stem),
+          height: round(height - cy),
+        });
+        shapes.dots.push({ cx, cy, r: round(r) });
       });
       break;
     }

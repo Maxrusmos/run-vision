@@ -23,9 +23,15 @@ import {
 import { DEFAULT_ROUTE_SCALE } from '@/entities/activity/model/activity-share/activity-share-route';
 import { DEFAULT_ROUTE_STYLE } from '@/entities/activity/model/activity-share/activity-share-route-styles';
 import { DEFAULT_STAT_STYLE } from '@/entities/activity/model/activity-share/activity-share-stat-styles';
-import { createShareMapSettings } from '@/entities/activity/model/activity-share/activity-share-map';
+import {
+  createShareMapSettings,
+  normalizeMapBearing,
+} from '@/entities/activity/model/activity-share/activity-share-map';
 import { createShareElevationSettings } from '@/entities/activity/model/activity-share/activity-share-elevation';
-import { DEFAULT_VISIBLE_SHARE_STATS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
+import {
+  DEFAULT_SHARE_STAT_WIDTH,
+  DEFAULT_VISIBLE_SHARE_STATS,
+} from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
 export const STAT_SPACING_MIN = 0;
 export const STAT_SPACING_MAX = 24;
@@ -125,9 +131,22 @@ export function useShareCardSettings(
     settings.value.transparentBackground = false;
   }
 
+  /**
+   * Новый показатель получает ширину текущей сетки: если все показатели одной
+   * ширины (выбрана сетка «N в ряд»), он встаёт таким же, а не по умолчанию — ½.
+   */
   function addStat(key: ShareStatKey) {
-    if (settings.value.visibleStats.includes(key)) return;
-    settings.value.visibleStats.push(key);
+    const { visibleStats, statWidths } = settings.value;
+    if (visibleStats.includes(key)) return;
+
+    const widths = new Set(
+      visibleStats.map((stat) => statWidths[stat] ?? DEFAULT_SHARE_STAT_WIDTH),
+    );
+    const [gridWidth] = widths;
+    if (widths.size === 1 && gridWidth) statWidths[key] = gridWidth;
+    else delete statWidths[key];
+
+    visibleStats.push(key);
   }
 
   function removeStat(key: ShareStatKey) {
@@ -227,6 +246,10 @@ export function useShareCardSettings(
     updateMap({ pitch });
   }
 
+  function setMapBearing(bearing: number) {
+    updateMap({ bearing: normalizeMapBearing(bearing) });
+  }
+
   function setMapKmMarkers(kmMarkers: boolean) {
     updateMap({ kmMarkers });
   }
@@ -292,6 +315,7 @@ export function useShareCardSettings(
     setElevationRow,
     setMapKmMarkers,
     setMapStartFinish,
+    setMapBearing,
     applyPresetById,
     setColor,
     setBackgroundColor,

@@ -12,6 +12,7 @@ const props = defineProps<{
   track: ITrackPoint[];
   settings: ShareElevationSettings;
   color: string;
+  textColor: string;
   selected: boolean;
 }>();
 
@@ -79,6 +80,7 @@ const unit = computed(() => (box.value.width + 32) / ROUTE_LAYER_WIDTH);
           :track="track"
           :style-id="settings.style"
           :color="color"
+          :accent-color="textColor"
           :width="box.width"
           :height="box.height"
           :unit="unit"

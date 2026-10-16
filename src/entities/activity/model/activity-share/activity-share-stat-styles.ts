@@ -22,6 +22,9 @@ export const SHARE_STAT_STYLES: readonly ShareStatStyleOption[] = [
   { id: 'pill', name: 'Капсула' },
   { id: 'gradient', name: 'Градиент' },
   { id: 'marker', name: 'Маркер' },
+  { id: 'brackets', name: 'Уголки' },
+  { id: 'outline', name: 'Контур' },
+  { id: 'dashed', name: 'Пунктир' },
 ];
 
 /** Сетка «N в ряд» и соответствующая ширина показателя. */

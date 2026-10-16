@@ -26,6 +26,8 @@ const READY_TIMEOUT_MS = 8000;
 /** Итерации подгонки камеры под наклон: обычно хватает двух-трёх. */
 const FIT_ITERATIONS = 4;
 const MAX_FIT_ZOOM = 16;
+/** Точек трека для подгонки камеры: хватает для рамки, а считается быстро (и при вращении пальцами). */
+const FIT_SAMPLE_POINTS = 400;
 /** Минимальное расстояние между флажками, в единицах слоя трека (≈ ширина флажка). */
 const MARKER_SPACING = 64;
 
@@ -62,17 +64,25 @@ const finish = computed(() => projected.value[projected.value.length - 1] ?? nul
 const unit = computed(() => size.value.width / ROUTE_LAYER_WIDTH);
 const viewBox = computed(() => `0 0 ${size.value.width} ${size.value.height}`);
 
-function project(map: maplibregl.Map): RoutePoint[] {
-  return lngLats.value.map((lngLat) => {
+const fitSample = computed(() => {
+  const all = lngLats.value;
+  const stride = Math.max(1, Math.floor(all.length / FIT_SAMPLE_POINTS));
+  return all.filter((_, index) => index % stride === 0 || index === all.length - 1);
+});
+
+function project(map: maplibregl.Map, points = lngLats.value): RoutePoint[] {
+  return points.map((lngLat) => {
     const point = map.project(lngLat);
     return { x: point.x, y: point.y };
   });
 }
 
 /**
- * Вписывает трек в карту целиком. При наклоне перспектива искажает трек,
- * поэтому после первого приближения камера подгоняется по реальной проекции:
- * зум — по размеру, центр — по смещению проекции от центра свободной области.
+ * Вписывает трек в карту целиком при любом наклоне и повороте. `cameraForBounds`
+ * вписывает рамку широт и долгот (при повороте — с запасом) и не знает о перспективе,
+ * поэтому дальше камера подгоняется по реальной проекции трека: зум — по размеру,
+ * центр — по смещению проекции от центра свободной области. Поворот — всегда вокруг
+ * трека: он остаётся по центру и целиком в кадре.
  */
 function fitRoute(map: maplibregl.Map) {
   const { width, height } = size.value;
@@ -84,17 +94,18 @@ function fitRoute(map: maplibregl.Map) {
     left: props.fitPadding.left * width,
     right: props.fitPadding.right * width,
   };
-  const camera = map.cameraForBounds(bounds.value, { padding, maxZoom: MAX_FIT_ZOOM });
+  const bearing = props.map.bearing;
+  const camera = map.cameraForBounds(bounds.value, { padding, maxZoom: MAX_FIT_ZOOM, bearing });
   if (!camera) return;
-  map.jumpTo({ ...camera, bearing: 0, pitch: pitch.value });
+  map.jumpTo({ ...camera, bearing, pitch: pitch.value });
 
   const areaWidth = width - padding.left - padding.right;
   const areaHeight = height - padding.top - padding.bottom;
   const areaX = padding.left + areaWidth / 2;
   const areaY = padding.top + areaHeight / 2;
 
-  for (let step = 0; step < FIT_ITERATIONS && pitch.value; step++) {
-    const box = getBox(project(map));
+  for (let step = 0; step < FIT_ITERATIONS && (pitch.value || bearing); step++) {
+    const box = getBox(project(map, fitSample.value));
     const ratio = Math.max((box.maxX - box.minX) / areaWidth, (box.maxY - box.minY) / areaHeight);
     if (!Number.isFinite(ratio) || ratio <= 0) break;
 
@@ -181,6 +192,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  cancelAnimationFrame(fitFrame);
   resizeObserver?.disconnect();
   instance.value?.remove();
   instance.value = null;
@@ -191,10 +203,16 @@ watch(
   () => instance.value?.setStyle(createShareMapStyle(props.map, props.backgroundColor)),
 );
 
+// Вращение пальцами меняет угол на каждом кадре — подгоняем камеру не чаще кадра.
+let fitFrame = 0;
 watch(
-  () => [props.map.pitch, props.fitPadding, props.track] as const,
+  () => [props.map.pitch, props.map.bearing, props.fitPadding, props.track] as const,
   () => {
-    if (instance.value) fitRoute(instance.value);
+    if (fitFrame) return;
+    fitFrame = requestAnimationFrame(() => {
+      fitFrame = 0;
+      if (instance.value) fitRoute(instance.value);
+    });
   },
 );
 
