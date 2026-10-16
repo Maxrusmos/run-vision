@@ -10,7 +10,7 @@ export const DEFAULT_STAT_STYLE: ShareStatStyle = 'classic';
 /** Пресеты внешнего вида показателей. Сами стили — в ShareCardStatItem.vue. */
 export const SHARE_STAT_STYLES: readonly ShareStatStyleOption[] = [
   { id: 'classic', name: 'Классика' },
-  { id: 'borderless', name: 'Без границ' },
+  { id: 'borderless', name: 'Без рамки' },
   { id: 'glass', name: 'Стекло' },
   { id: 'speed', name: 'Скорость' },
   { id: 'tile', name: 'Плитка' },

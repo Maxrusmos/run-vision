@@ -20,7 +20,7 @@ const emit = defineEmits<{
   <header class="editor-top-bar">
     <v-btn
       class="editor-top-bar__back"
-      variant="text"
+      variant="tonal"
       size="small"
       aria-label="Назад к выбору стиля"
       @click="emit('back')"
@@ -64,11 +64,6 @@ const emit = defineEmits<{
 
 .editor-top-bar__history {
   margin: 0 auto;
-}
-
-.editor-top-bar__back {
-  /* Серая, как неактивные кнопки истории: второстепенное действие. */
-  color: color-mix(in srgb, var(--app-on-surface) 60%, transparent);
 }
 
 .editor-top-bar__back,

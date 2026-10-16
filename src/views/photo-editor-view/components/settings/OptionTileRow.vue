@@ -15,6 +15,8 @@
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
+  /* Иначе привязка прокрутки прижимает первую плитку к краю, игнорируя отступ. */
+  scroll-padding-inline: 16px;
   scrollbar-width: none;
 }
 

@@ -53,8 +53,9 @@ withDefaults(
     opacity 0.15s;
 }
 
-.option-tile:focus-within,
-.option-tile:focus-visible {
+/* Обводка фокуса — только для клавиатуры, не после тапа. */
+.option-tile:focus-visible,
+.option-tile:has(:focus-visible) {
   outline: 2px solid var(--app-primary);
   outline-offset: 2px;
 }
