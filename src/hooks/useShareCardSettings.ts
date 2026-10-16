@@ -4,6 +4,10 @@ import type {
   ShareCardSettings,
   ShareColorKey,
   ShareColorPreset,
+  ShareElevationSettings,
+  ShareMapLayout,
+  ShareMapPitch,
+  ShareMapStyle,
   ShareRoutePosition,
   ShareRouteStyle,
   ShareStatKey,
@@ -19,6 +23,8 @@ import {
 import { DEFAULT_ROUTE_SCALE } from '@/entities/activity/model/activity-share/activity-share-route';
 import { DEFAULT_ROUTE_STYLE } from '@/entities/activity/model/activity-share/activity-share-route-styles';
 import { DEFAULT_STAT_STYLE } from '@/entities/activity/model/activity-share/activity-share-stat-styles';
+import { createShareMapSettings } from '@/entities/activity/model/activity-share/activity-share-map';
+import { createShareElevationSettings } from '@/entities/activity/model/activity-share/activity-share-elevation';
 import { DEFAULT_VISIBLE_SHARE_STATS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
 export const STAT_SPACING_MIN = 0;
@@ -26,7 +32,15 @@ export const STAT_SPACING_MAX = 24;
 
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 
-function createSettings(preset: ShareColorPreset): ShareCardSettings {
+type ShareCardSettingsOptions = {
+  /** Карточка с картой (шаблон «Топография»). */
+  withMap?: boolean;
+};
+
+function createSettings(
+  preset: ShareColorPreset,
+  options: ShareCardSettingsOptions,
+): ShareCardSettings {
   return {
     title: null,
     titleVisible: true,
@@ -47,6 +61,8 @@ function createSettings(preset: ShareColorPreset): ShareCardSettings {
     routeScale: DEFAULT_ROUTE_SCALE,
     routeStyle: DEFAULT_ROUTE_STYLE,
     routePosition: null,
+    map: options.withMap ? createShareMapSettings() : null,
+    elevation: options.withMap ? createShareElevationSettings() : null,
   };
 }
 
@@ -54,11 +70,14 @@ function createSettings(preset: ShareColorPreset): ShareCardSettings {
  * Состояние редактора карточки. Object URL фонового фото освобождается
  * только при уничтожении области видимости: старое фото может понадобиться при отмене.
  */
-export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRESET_ID) {
+export function useShareCardSettings(
+  initialPresetId: string = DEFAULT_SHARE_PRESET_ID,
+  options: ShareCardSettingsOptions = {},
+) {
   const initialPreset =
     findSharePreset(initialPresetId) ?? findSharePreset(DEFAULT_SHARE_PRESET_ID)!;
 
-  const settings = ref<ShareCardSettings>(createSettings(initialPreset));
+  const settings = ref<ShareCardSettings>(createSettings(initialPreset, options));
   const history = useUndoRedo(settings, { limit: 10 });
 
   // Object URL всех загруженных фото: отмена может вернуть любое из них.
@@ -191,9 +210,66 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     settings.value.title = title || null;
   }
 
+  function updateMap(patch: Partial<NonNullable<ShareCardSettings['map']>>) {
+    if (!settings.value.map) return;
+    settings.value.map = { ...settings.value.map, ...patch };
+  }
+
+  function setMapLayout(layout: ShareMapLayout) {
+    updateMap({ layout });
+  }
+
+  function setMapStyle(style: ShareMapStyle) {
+    updateMap({ style });
+  }
+
+  function setMapPitch(pitch: ShareMapPitch) {
+    updateMap({ pitch });
+  }
+
+  function setMapKmMarkers(kmMarkers: boolean) {
+    updateMap({ kmMarkers });
+  }
+
+  function setMapStartFinish(startFinish: boolean) {
+    updateMap({ startFinish });
+  }
+
+  function updateElevation(patch: Partial<ShareElevationSettings>) {
+    if (!settings.value.elevation) return;
+    settings.value.elevation = { ...settings.value.elevation, ...patch };
+  }
+
+  function setElevationVisible(visible: boolean) {
+    updateElevation({ visible });
+  }
+
+  function setElevationStyle(style: ShareElevationSettings['style']) {
+    updateElevation({ style });
+  }
+
+  function setElevationSize(size: ShareElevationSettings['size']) {
+    updateElevation({ size });
+  }
+
+  function setElevationLabels(labels: boolean) {
+    updateElevation({ labels });
+  }
+
+  /** Строка графика в сетке показателей. */
+  function setElevationRow(row: number) {
+    updateElevation({ row });
+  }
+
+  /** null — цвет трека. */
+  function setElevationColor(color: string | null) {
+    if (color !== null && !HEX_COLOR_PATTERN.test(color)) return;
+    updateElevation({ color });
+  }
+
   /** Возвращает карточку к исходному виду выбранного шаблона. */
   function resetSettings() {
-    settings.value = createSettings(initialPreset);
+    settings.value = createSettings(initialPreset, options);
   }
 
   return {
@@ -205,6 +281,17 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     setTitle,
     setTitleVisible,
     resetSettings,
+    setMapLayout,
+    setMapStyle,
+    setMapPitch,
+    setElevationVisible,
+    setElevationStyle,
+    setElevationSize,
+    setElevationLabels,
+    setElevationColor,
+    setElevationRow,
+    setMapKmMarkers,
+    setMapStartFinish,
     applyPresetById,
     setColor,
     setBackgroundColor,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue';
+import { computed, ref, useTemplateRef, watch } from 'vue';
 import type { CSSProperties } from 'vue';
 import type {
   ShareCardElement,
@@ -17,6 +17,7 @@ import {
   getStatSpan,
   resolveStatLayout,
   applyStatDrop,
+  moveLayoutRow,
   type StatDropCell,
   type StatDropTarget,
   type StatLayout,
@@ -33,13 +34,25 @@ const props = defineProps<{
   statStyle: ShareStatStyle;
   /** Высота места под трек (доля ширины) — эти строки сверху по умолчанию свободны. */
   reservedHeightRatio: number;
+  /**
+   * Полоса на всю ширину (график высоты) — занимает строку сетки целиком,
+   * высота строки — по полосе (`ratio` — высота к ширине). Содержимое — слот `band`.
+   */
+  band?: { row: number | null; ratio: number } | null;
 }>();
 
 const emit = defineEmits<{
   remove: [key: ShareStatKey];
   setWidth: [key: ShareStatKey, width: ShareStatWidth];
   setLayout: [layout: StatLayout];
+  /** Высота строк над показателями (место под трек или карту), px раскладки. */
+  reservedHeight: [height: number];
+  /** Полосу перенесли на строку `row`; `layout` — показатели после переноса. */
+  moveBand: [row: number, layout: StatLayout];
 }>();
+
+/** Элемент карточки, который выделяется вместе с полосой. */
+const BAND_ELEMENT: ShareCardElement = 'elevation';
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
 
@@ -97,11 +110,55 @@ const startRow = computed(() => {
   return Math.ceil((reservedHeight + gap.value) / (rowHeight.value + gap.value));
 });
 
-const layout = computed(() =>
-  resolveStatLayout(items.value, props.statPositions, { startRow: startRow.value }),
+// Место под трек округляется до целых строк — блок карты подгоняется под него.
+watch(
+  () => (startRow.value ? startRow.value * (rowHeight.value + gap.value) - gap.value : 0),
+  (height) => emit('reservedHeight', height),
+  { immediate: true },
 );
 
-const rows = computed(() => Math.max(getStatLayoutRows(layout.value), startRow.value));
+/** Желаемая строка полосы: не выше первой строки под картой. */
+const desiredBandRow = computed(() =>
+  props.band ? Math.max(startRow.value, props.band.row ?? startRow.value) : null,
+);
+
+const layout = computed(() =>
+  resolveStatLayout(items.value, props.statPositions, {
+    startRow: startRow.value,
+    blockedRows: desiredBandRow.value === null ? [] : [desiredBandRow.value],
+  }),
+);
+
+/** Строка полосы: без пустых строк между ней и последним показателем. */
+const bandRow = computed(() => {
+  const desired = desiredBandRow.value;
+  if (desired === null) return null;
+  return Math.max(startRow.value, Math.min(desired, getStatLayoutRows(layout.value)));
+});
+
+const blockedRows = computed(() => (bandRow.value === null ? [] : [bandRow.value]));
+
+const rows = computed(() =>
+  Math.max(getStatLayoutRows(layout.value), startRow.value, (bandRow.value ?? -1) + 1),
+);
+
+type BandDragState = {
+  dy: number;
+  scale: number;
+  /** Строка, куда встанет полоса, если отпустить сейчас. */
+  target: number;
+};
+
+const bandDrag = ref<BandDragState | null>(null);
+
+/** Пока полосу тащат, показатели сразу расступаются — видно, куда она встанет. */
+const displayLayout = computed(() => {
+  const drag = bandDrag.value;
+  if (!drag || bandRow.value === null) return layout.value;
+  return moveLayoutRow(layout.value, bandRow.value, drag.target);
+});
+
+const displayBandRow = computed(() => bandDrag.value?.target ?? bandRow.value);
 
 const gridStyle = computed<CSSProperties>(() => ({
   gridTemplateColumns: `repeat(${STAT_GRID_COLUMNS}, minmax(0, 1fr))`,
@@ -115,7 +172,7 @@ function placementStyle({ row, col }: ShareStatPosition, span: number): CSSPrope
 }
 
 function itemStyle(key: ShareStatKey): CSSProperties {
-  const style = placementStyle(layout.value[key], getStatSpan(getWidth(key)));
+  const style = placementStyle(displayLayout.value[key], getStatSpan(getWidth(key)));
   if (drag.value?.key === key) {
     const { dx, dy, scale } = drag.value;
     style.transform = `translate(${dx / scale}px, ${dy / scale}px)`;
@@ -128,7 +185,13 @@ function itemStyle(key: ShareStatKey): CSSProperties {
 const dropCells = computed<DropCell[]>(() => {
   if (!drag.value) return [];
 
-  return getStatDropCells(items.value, layout.value, drag.value.key, rows.value).map((cell) => ({
+  return getStatDropCells(
+    items.value,
+    layout.value,
+    drag.value.key,
+    rows.value,
+    blockedRows.value,
+  ).map((cell) => ({
     ...cell,
     span: getStatSpan(cell.width),
     id: `${cell.row}:${cell.col}`,
@@ -149,7 +212,7 @@ function isSwapTarget(key: ShareStatKey): boolean {
 useFlipAnimation(gridElement, () => ({
   keys: props.stats.map((stat) => stat.key).sort(),
   widths: props.statWidths,
-  layout: layout.value,
+  layout: displayLayout.value,
 }));
 
 /** Ближайшая к центру перетаскиваемого показателя цель: свободное место или другой показатель. */
@@ -219,7 +282,14 @@ const { start: startDrag, isClickSuppressed } = useLongPressDrag<ShareStatKey>({
 
     if (!dropped || !target) return;
 
-    const result = applyStatDrop(items.value, layout.value, key, target, startRow.value);
+    const result = applyStatDrop(
+      items.value,
+      layout.value,
+      key,
+      target,
+      startRow.value,
+      blockedRows.value,
+    );
     result.widths.forEach((width, statKey) => {
       if (width !== getWidth(statKey)) emit('setWidth', statKey, width);
     });
@@ -245,10 +315,70 @@ function setWidth(key: ShareStatKey, width: ShareStatWidth) {
     resolveStatLayout(
       items.value.map((item) => (item.key === key ? { key, width } : item)),
       layout.value,
-      { startRow: startRow.value, priorityKey: key },
+      { startRow: startRow.value, priorityKey: key, blockedRows: blockedRows.value },
     ),
   );
 }
+
+// Перенос полосы: пальцем — после долгого нажатия, мышью и выделенную — сразу.
+const bandElement = useTemplateRef<HTMLElement>('bandElement');
+
+const { start: startBandDrag, isClickSuppressed: isBandClickSuppressed } = useLongPressDrag<'band'>(
+  {
+    onStart: () => {
+      const element = bandElement.value;
+      if (!element || bandRow.value === null) return;
+      const rect = element.getBoundingClientRect();
+      selected.value = null;
+      bandDrag.value = {
+        dy: 0,
+        scale: element.offsetWidth ? rect.width / element.offsetWidth : 1,
+        target: bandRow.value,
+      };
+    },
+    onMove: (_id, _dx, dy) => {
+      const drag = bandDrag.value;
+      if (!drag || bandRow.value === null) return;
+      drag.dy = dy;
+      // Ближайшая строка: строки между стартом и целью — обычной высоты.
+      const step = rowHeight.value + gap.value;
+      const shift = step ? Math.round(dy / drag.scale / step) : 0;
+      const last = Math.max(startRow.value, rows.value - 1);
+      drag.target = Math.min(last, Math.max(startRow.value, bandRow.value + shift));
+    },
+    onEnd: (_id, dropped) => {
+      const drag = bandDrag.value;
+      bandDrag.value = null;
+      if (!dropped || !drag || bandRow.value === null || drag.target === bandRow.value) return;
+      emit('moveBand', drag.target, moveLayoutRow(layout.value, bandRow.value, drag.target));
+    },
+  },
+);
+
+function handleBandPointerDown(event: PointerEvent) {
+  startBandDrag(event, 'band', event.pointerType === 'mouse' || selected.value === BAND_ELEMENT);
+}
+
+// Отпустили после перетаскивания — это не тап: выделение не переключаем.
+function handleBandClickCapture(event: MouseEvent) {
+  if (isBandClickSuppressed()) event.stopPropagation();
+}
+
+const bandStyle = computed<CSSProperties>(() => {
+  const row = displayBandRow.value ?? 0;
+  const style: CSSProperties = {
+    gridRow: `${row + 1}`,
+    gridColumn: '1 / -1',
+    aspectRatio: props.band ? `${1 / props.band.ratio}` : undefined,
+  };
+  const drag = bandDrag.value;
+  if (drag && bandRow.value !== null) {
+    // Полоса уже стоит в целевой строке — сдвигаем её обратно под палец.
+    const offset = (drag.target - bandRow.value) * (rowHeight.value + gap.value);
+    style.transform = `translateY(${drag.dy / drag.scale - offset}px)`;
+  }
+  return style;
+});
 
 function remove(key: ShareStatKey) {
   if (selected.value === key) {
@@ -259,7 +389,12 @@ function remove(key: ShareStatKey) {
 </script>
 
 <template>
-  <div ref="grid" class="stats-grid" :class="{ 'stats-grid--dragging': drag }" :style="gridStyle">
+  <div
+    ref="grid"
+    class="stats-grid"
+    :class="{ 'stats-grid--dragging': drag || bandDrag, 'stats-grid--stat-dragging': drag }"
+    :style="gridStyle"
+  >
     <div
       v-for="cell in dropCells"
       :key="cell.id"
@@ -289,6 +424,26 @@ function remove(key: ShareStatKey) {
       :stat-style="statStyle"
       @set-width="setWidth(stat.key, $event)"
     />
+
+    <template v-if="band && displayBandRow !== null">
+      <!-- Место, которое займёт полоса, если отпустить сейчас. -->
+      <div
+        v-if="bandDrag"
+        class="stats-grid__band-slot export-hidden"
+        :style="{ gridRow: `${displayBandRow + 1}`, gridColumn: '1 / -1' }"
+        aria-hidden="true"
+      />
+      <div
+        ref="bandElement"
+        class="stats-grid__band"
+        :class="{ 'stats-grid__band--dragging': bandDrag }"
+        :style="bandStyle"
+        @pointerdown="handleBandPointerDown"
+        @click.capture="handleBandClickCapture"
+      >
+        <slot name="band" />
+      </div>
+    </template>
 
     <!-- Эталон для высоты строки сетки. -->
     <ShareCardStatItem
@@ -355,6 +510,47 @@ function remove(key: ShareStatKey) {
   box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
   cursor: grabbing;
   transition: none;
+}
+
+.stats-grid__band {
+  z-index: 1;
+  min-width: 0;
+  pointer-events: auto;
+  /* Долгое нажатие пальцем — перенос, а не выделение текста или меню. */
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.stats-grid__band > :deep(*) {
+  height: 100%;
+}
+
+.stats-grid__band--dragging {
+  z-index: 10;
+  transition: none;
+  cursor: grabbing;
+}
+
+.stats-grid__band--dragging > :deep(*) {
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--share-background) 88%, transparent);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+}
+
+/* Сколько места займёт график — пунктиром на его будущем месте. */
+.stats-grid__band-slot {
+  z-index: 0;
+  border: 1px dashed color-mix(in srgb, var(--share-text) 70%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--share-text) 8%, transparent);
+  pointer-events: none;
+}
+
+.stats-grid--stat-dragging .stats-grid__band {
+  /* Пока тащат показатель, график — просто занятое место. */
+  pointer-events: none;
 }
 
 .stats-grid__probe {

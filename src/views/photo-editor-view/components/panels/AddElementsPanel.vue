@@ -16,6 +16,7 @@ const emit = defineEmits<{
   addTitle: [];
   addRoute: [];
   addStat: [key: ShareStatKey];
+  addElevation: [];
 }>();
 
 const availableStats = computed(() =>
@@ -29,7 +30,11 @@ const availableStats = computed(() =>
   ),
 );
 
-const hasElements = computed(() => !props.settings.titleVisible || !props.settings.routeVisible);
+const canAddElevation = computed(() => props.settings.elevation?.visible === false);
+
+const hasElements = computed(
+  () => !props.settings.titleVisible || !props.settings.routeVisible || canAddElevation.value,
+);
 </script>
 
 <template>
@@ -52,6 +57,15 @@ const hasElements = computed(() => !props.settings.titleVisible || !props.settin
       >
         <v-icon icon="mdi-map-marker-path" size="18" />
         <span class="add-panel__label">Трек</span>
+      </button>
+      <button
+        v-if="canAddElevation"
+        type="button"
+        class="add-panel__item"
+        @click="emit('addElevation')"
+      >
+        <v-icon icon="mdi-chart-areaspline-variant" size="18" />
+        <span class="add-panel__label">График высоты</span>
       </button>
     </div>
 
