@@ -37,27 +37,29 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
 </script>
 
 <template>
+  <!-- Капсула: отменить · повторить │ сбросить. -->
   <div class="history-actions">
-    <v-btn
-      icon="mdi-arrow-u-left-top"
-      variant="text"
-      size="small"
-      density="comfortable"
+    <button
+      type="button"
+      class="history-actions__button"
       :disabled="!canUndo"
       aria-label="Отменить действие"
       title="Отменить действие"
       @click="emit('undo')"
-    />
-    <v-btn
-      icon="mdi-arrow-u-right-top"
-      variant="text"
-      size="small"
-      density="comfortable"
+    >
+      <v-icon icon="mdi-undo" size="20" />
+    </button>
+    <button
+      type="button"
+      class="history-actions__button"
       :disabled="!canRedo"
       aria-label="Повторить действие"
       title="Повторить действие"
       @click="emit('redo')"
-    />
+    >
+      <v-icon icon="mdi-redo" size="20" />
+    </button>
+    <span class="history-actions__separator" aria-hidden="true" />
     <ResetCardButton @confirm="emit('reset')" />
   </div>
 </template>
@@ -68,5 +70,47 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
   flex: 0 0 auto;
   align-items: center;
   gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-on-surface) 8%, transparent);
+}
+
+.history-actions__separator {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: color-mix(in srgb, var(--app-on-surface) 18%, transparent);
+}
+
+/* Общий вид кнопок капсулы — и для сброса (ResetCardButton). */
+.history-actions :deep(.history-actions__button) {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  padding: 0;
+  color: var(--app-on-surface);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color 0.15s,
+    background-color 0.15s;
+}
+
+.history-actions :deep(.history-actions__button:active:not(:disabled)) {
+  background: color-mix(in srgb, var(--app-on-surface) 12%, transparent);
+}
+
+.history-actions :deep(.history-actions__button:disabled) {
+  color: color-mix(in srgb, var(--app-on-surface) 32%, transparent);
+  cursor: default;
+}
+
+.history-actions :deep(.history-actions__button:focus-visible) {
+  outline: 2px solid var(--app-primary);
+  outline-offset: 1px;
 }
 </style>
