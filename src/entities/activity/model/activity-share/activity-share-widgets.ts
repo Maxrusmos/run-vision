@@ -51,9 +51,6 @@ export function getWidgetRatio(kind: ShareWidgetKind, size: ShareElevationSize):
 /** Строка «в конце» для нового виджета: дальше `compactBands` подтянет его под последний элемент. */
 export const WIDGET_END_ROW = 1000;
 
-/** Ширина боковой колонки виджетов, доля ширины контента карточки. */
-export const SIDE_WIDGET_WIDTH = 0.26;
-
 /** Положения виджета по кругу (кнопка на панели выделенного виджета). */
 export const SHARE_WIDGET_PLACEMENTS = [
   { value: 'row', label: '▬', title: 'Строкой' },
