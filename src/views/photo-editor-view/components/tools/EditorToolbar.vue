@@ -34,7 +34,7 @@ function toggle(id: EditorToolId) {
       :disabled="isDisabled(tool.id)"
       @click="toggle(tool.id)"
     >
-      <v-icon :icon="tool.icon" size="24" />
+      <v-icon :icon="tool.icon" size="22" />
       <span class="editor-toolbar__label">{{ tool.label }}</span>
     </button>
   </nav>
@@ -45,7 +45,8 @@ function toggle(id: EditorToolId) {
   display: flex;
   justify-content: center;
   gap: 4px;
-  padding: 6px 8px max(6px, env(safe-area-inset-bottom));
+  /* Снизу — небольшой отступ от края экрана (и от «полоски» на iPhone). */
+  padding: 4px 6px max(12px, calc(env(safe-area-inset-bottom) + 4px));
   border-top: 1px solid var(--app-border);
   background: var(--app-background);
 }
@@ -55,10 +56,10 @@ function toggle(id: EditorToolId) {
   flex: 1 1 0;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  max-width: 96px;
-  min-height: 52px;
-  padding: 6px 4px;
+  gap: 1px;
+  max-width: 88px;
+  min-height: 46px;
+  padding: 4px 2px;
   color: color-mix(in srgb, var(--app-on-surface) 70%, transparent);
   border: 0;
   border-radius: 12px;
@@ -86,7 +87,7 @@ function toggle(id: EditorToolId) {
 }
 
 .editor-toolbar__label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   white-space: nowrap;
 }

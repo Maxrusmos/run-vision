@@ -20,9 +20,8 @@ const emit = defineEmits<{
   <header class="editor-top-bar">
     <v-btn
       class="editor-top-bar__back"
-      variant="text"
+      variant="tonal"
       size="small"
-      prepend-icon="mdi-chevron-left"
       aria-label="Назад к выбору стиля"
       @click="emit('back')"
     >

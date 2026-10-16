@@ -13,6 +13,21 @@ export const SHARE_COLOR_PRESETS: readonly ShareColorPreset[] = [
   { id: 'neon', name: 'Неон', background: '#19152E', route: '#C6FF00', text: '#FFFFFF' },
   { id: 'sakura', name: 'Сакура', background: '#FCE7F3', route: '#DB2777', text: '#831843' },
   { id: 'graphite', name: 'Графитовый', background: '#27272A', route: '#A1A1AA', text: '#FFFFFF' },
+  // Яркие
+  { id: 'fire', name: 'Огонь', background: '#FF4D00', route: '#FFF3B0', text: '#FFFFFF' },
+  { id: 'electric', name: 'Электрик', background: '#1B4DFF', route: '#FFE600', text: '#FFFFFF' },
+  { id: 'fuchsia', name: 'Фуксия', background: '#FF1F8E', route: '#FFFFFF', text: '#FFFFFF' },
+  { id: 'lime', name: 'Лайм', background: '#C6FF00', route: '#111111', text: '#111111' },
+  { id: 'sun', name: 'Солнце', background: '#FFD60A', route: '#E63946', text: '#1D1D1D' },
+  { id: 'mint', name: 'Мята', background: '#00E0B0', route: '#0B3D3A', text: '#0B3D3A' },
+  {
+    id: 'ultraviolet',
+    name: 'Ультрафиолет',
+    background: '#6A00F4',
+    route: '#00F5D4',
+    text: '#FFFFFF',
+  },
+  { id: 'coral', name: 'Коралл', background: '#FF6B6B', route: '#FFF1D6', text: '#FFFFFF' },
 ];
 
 export function findSharePreset(id: string | null): ShareColorPreset | undefined {

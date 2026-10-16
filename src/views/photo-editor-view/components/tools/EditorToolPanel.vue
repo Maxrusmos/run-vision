@@ -15,17 +15,15 @@ const emit = defineEmits<{
 
 <template>
   <section class="tool-panel" :aria-label="title" :style="{ maxHeight }">
-    <header class="tool-panel__header">
-      <h2 class="tool-panel__title">{{ title }}</h2>
-      <v-btn
-        icon="mdi-chevron-down"
-        variant="text"
-        size="small"
-        density="comfortable"
-        aria-label="Свернуть панель"
-        @click="emit('close')"
-      />
-    </header>
+    <!-- Вместо заголовка — тонкая «ручка»: экономит высоту. Активный инструмент и так подсвечен. -->
+    <button
+      type="button"
+      class="tool-panel__handle"
+      :aria-label="`Свернуть панель «${title}»`"
+      @click="emit('close')"
+    >
+      <span class="tool-panel__grip" aria-hidden="true" />
+    </button>
 
     <div class="tool-panel__content">
       <slot />
@@ -47,23 +45,27 @@ const emit = defineEmits<{
   box-shadow: 0 -6px 18px rgb(0 0 0 / 25%);
 }
 
-.tool-panel__header {
-  display: flex;
+.tool-panel__handle {
+  display: grid;
   flex: 0 0 auto;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 8px 0 16px;
+  height: 16px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
-.tool-panel__title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
+.tool-panel__grip {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--app-on-surface) 30%, transparent);
 }
 
 .tool-panel__content {
   min-height: 0;
-  padding: 8px 16px 12px;
+  padding: 0 16px 8px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
