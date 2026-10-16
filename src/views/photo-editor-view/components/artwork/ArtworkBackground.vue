@@ -21,6 +21,7 @@ defineProps<{
     class="artwork-background__layer artwork-background__image"
     :src="image"
     :style="{ objectFit: imageFit, objectPosition: imagePosition }"
+    data-export-backdrop
     alt=""
     aria-hidden="true"
   />
