@@ -16,14 +16,13 @@ function confirm() {
 <template>
   <v-btn
     class="reset-card-button"
-    icon="mdi-restore"
     variant="text"
     size="small"
-    density="comfortable"
-    aria-label="Сбросить оформление"
-    title="Сбросить оформление"
+    prepend-icon="mdi-restore"
     @click="isDialogOpen = true"
-  />
+  >
+    Сбросить
+  </v-btn>
 
   <v-dialog v-model="isDialogOpen" max-width="360">
     <v-card class="reset-card-dialog">
@@ -44,7 +43,9 @@ function confirm() {
 <style scoped>
 .reset-card-button {
   flex: 0 0 auto;
-  margin: -6px -6px -6px 0;
+  margin: -4px -8px -4px 0;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .reset-card-dialog {

@@ -13,7 +13,7 @@ export const DEFAULT_ROUTE_SIZE: ShareRouteSize = 'medium';
 export const ROUTE_SIZE_SCALE: Record<ShareRouteSize, number> = {
   small: 0.75,
   medium: 1,
-  large: 1.5,
+  large: 1.4,
 };
 
 export const ROUTE_SIZE_OPTIONS: readonly {

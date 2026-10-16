@@ -16,88 +16,80 @@ export type StatLayoutItem = {
 
 export type StatLayout = Record<ShareStatKey, ShareStatPosition>;
 
+/** Место для перетаскиваемого показателя и ширина, которую он там получит. */
+export type StatDropCell = ShareStatPosition & {
+  width: ShareStatWidth;
+};
+
 export function getStatSpan(width: ShareStatWidth): number {
   return STAT_SPAN[width];
 }
 
-/** Занятость ячеек сетки: строка → 6 флагов. */
-class OccupancyGrid {
-  private readonly rows = new Map<number, boolean[]>();
+/** Привязывает колонку к сетке ширины: треть — 0/2/4, половина — 0/3, вся ширина — 0. */
+export function snapStatColumn(col: number, width: ShareStatWidth): number {
+  const span = STAT_SPAN[width];
+  return Math.min(STAT_GRID_COLUMNS - span, Math.max(0, Math.round(col / span) * span));
+}
 
-  getRow(row: number): boolean[] {
-    let cells = this.rows.get(row);
-    if (!cells) {
-      cells = Array.from({ length: STAT_GRID_COLUMNS }, () => false);
-      this.rows.set(row, cells);
+type RowState = {
+  /** Ширина показателей строки; null — строка пустая. */
+  width: ShareStatWidth | null;
+  cells: boolean[];
+};
+
+/**
+ * Занятость сетки. Правило: в строке все показатели одной ширины
+ * и стоят по её сетке — так раскладка всегда остаётся ровной.
+ */
+class LayoutGrid {
+  private readonly rows = new Map<number, RowState>();
+
+  private getRow(row: number): RowState {
+    let state = this.rows.get(row);
+    if (!state) {
+      state = { width: null, cells: Array.from({ length: STAT_GRID_COLUMNS }, () => false) };
+      this.rows.set(row, state);
     }
-    return cells;
+    return state;
   }
 
-  isFree(row: number, col: number, span: number): boolean {
-    const cells = this.getRow(row);
+  getRowWidth(row: number): ShareStatWidth | null {
+    return this.getRow(row).width;
+  }
+
+  canPlace(row: number, col: number, width: ShareStatWidth): boolean {
+    const span = STAT_SPAN[width];
+    const state = this.getRow(row);
+
     return (
-      col >= 0 && col + span <= STAT_GRID_COLUMNS && cells.slice(col, col + span).every((c) => !c)
+      col % span === 0 &&
+      col + span <= STAT_GRID_COLUMNS &&
+      (state.width === null || state.width === width) &&
+      state.cells.slice(col, col + span).every((cell) => !cell)
     );
   }
 
-  occupy(row: number, col: number, span: number) {
-    this.getRow(row).fill(true, col, col + span);
-  }
-}
-
-/**
- * Свободные места для показателя ширины `span` в строке.
- *
- * В каждом свободном промежутке помещаем столько мест, сколько влезает.
- * Промежуток у левого края, ограниченный показателем справа, заполняем с правой
- * стороны — чтобы новое место стояло вплотную к уже выставленному показателю.
- */
-export function getFreeColumnsInRow(occupied: boolean[], span: number): number[] {
-  const columns: number[] = [];
-  let col = 0;
-
-  while (col < STAT_GRID_COLUMNS) {
-    if (occupied[col]) {
-      col += 1;
-      continue;
-    }
-
-    const start = col;
-    while (col < STAT_GRID_COLUMNS && !occupied[col]) col += 1;
-    const end = col;
-
-    const count = Math.floor((end - start) / span);
-    if (!count) continue;
-
-    const alignRight = start === 0 && end < STAT_GRID_COLUMNS;
-    const first = alignRight ? end - count * span : start;
-    for (let index = 0; index < count; index += 1) {
-      columns.push(first + index * span);
-    }
+  place(row: number, col: number, width: ShareStatWidth) {
+    const state = this.getRow(row);
+    state.width = width;
+    state.cells.fill(true, col, col + STAT_SPAN[width]);
   }
 
-  return columns;
-}
-
-function occupyLayout(
-  grid: OccupancyGrid,
-  items: StatLayoutItem[],
-  layout: Partial<StatLayout>,
-  excludeKey?: ShareStatKey,
-) {
-  for (const item of items) {
-    const position = layout[item.key];
-    if (position && item.key !== excludeKey) {
-      grid.occupy(position.row, position.col, STAT_SPAN[item.width]);
+  /** Свободные места в строке для показателя этой ширины. */
+  getFreeColumns(row: number, width: ShareStatWidth): number[] {
+    const columns: number[] = [];
+    for (let col = 0; col < STAT_GRID_COLUMNS; col += STAT_SPAN[width]) {
+      if (this.canPlace(row, col, width)) columns.push(col);
     }
+    return columns;
   }
-}
 
-function findFreeCell(grid: OccupancyGrid, fromRow: number, span: number): ShareStatPosition {
-  // Ищем вниз от строки; сетка растёт, поэтому место всегда найдётся.
-  for (let row = Math.max(0, fromRow); ; row += 1) {
-    const [col] = getFreeColumnsInRow(grid.getRow(row), span);
-    if (col !== undefined) return { row, col };
+  findFreeCell(fromRow: number, width: ShareStatWidth): ShareStatPosition {
+    // Ищем вниз от строки; сетка растёт, поэтому место всегда найдётся.
+    for (let row = Math.max(0, fromRow); ; row += 1) {
+      const [col] = this.getFreeColumns(row, width);
+      if (col !== undefined) return { row, col };
+    }
   }
 }
 
@@ -112,15 +104,16 @@ type ResolveOptions = {
  * Раскладывает показатели по сетке без наложений.
  *
  * Показатели с позицией остаются на месте (сначала priorityKey, затем по порядку строк),
- * при конфликте сдвигаются на ближайшее свободное место ниже. Показатели без позиции
- * встают в первые свободные места, начиная со `startRow`, в порядке списка.
+ * а если место занято или строка другой ширины — сдвигаются на ближайшее подходящее
+ * место ниже. Показатели без позиции встают в первые свободные места, начиная со
+ * `startRow`, в порядке списка.
  */
 export function resolveStatLayout(
   items: StatLayoutItem[],
   positions: Partial<Record<ShareStatKey, ShareStatPosition>>,
   { startRow = 0, priorityKey }: ResolveOptions = {},
 ): StatLayout {
-  const grid = new OccupancyGrid();
+  const grid = new LayoutGrid();
   const layout = {} as StatLayout;
 
   const placed = items
@@ -134,20 +127,20 @@ export function resolveStatLayout(
     });
 
   for (const item of placed) {
-    const span = STAT_SPAN[item.width];
     const desired = positions[item.key]!;
     const row = Math.max(0, Math.floor(desired.row));
-    const col = Math.min(STAT_GRID_COLUMNS - span, Math.max(0, Math.floor(desired.col)));
+    const col = snapStatColumn(desired.col, item.width);
 
-    const position = grid.isFree(row, col, span) ? { row, col } : findFreeCell(grid, row, span);
-    grid.occupy(position.row, position.col, span);
+    const position = grid.canPlace(row, col, item.width)
+      ? { row, col }
+      : grid.findFreeCell(row, item.width);
+    grid.place(position.row, position.col, item.width);
     layout[item.key] = position;
   }
 
   for (const item of items.filter((entry) => !positions[entry.key])) {
-    const span = STAT_SPAN[item.width];
-    const position = findFreeCell(grid, startRow, span);
-    grid.occupy(position.row, position.col, span);
+    const position = grid.findFreeCell(startRow, item.width);
+    grid.place(position.row, position.col, item.width);
     layout[item.key] = position;
   }
 
@@ -160,27 +153,35 @@ export function getStatLayoutRows(layout: StatLayout): number {
 }
 
 /**
- * Места, куда можно поставить перетаскиваемый показатель: свободные ячейки
- * с учётом уже выставленных показателей (сам перетаскиваемый не учитывается).
+ * Места, куда можно поставить перетаскиваемый показатель.
+ *
+ * Пустая строка размечается по ширине перетаскиваемого показателя. В строке, где уже
+ * стоят показатели, свободные места повторяют их ширину (рядом с половиной — половина,
+ * рядом с третью — трети), и показатель, попав туда, принимает эту ширину.
  */
 export function getStatDropCells(
   items: StatLayoutItem[],
   layout: StatLayout,
   dragKey: ShareStatKey,
   rows: number,
-): ShareStatPosition[] {
+): StatDropCell[] {
   const dragged = items.find((item) => item.key === dragKey);
   if (!dragged) return [];
 
-  const grid = new OccupancyGrid();
-  occupyLayout(grid, items, layout, dragKey);
+  const grid = new LayoutGrid();
+  for (const item of items) {
+    const position = layout[item.key];
+    if (position && item.key !== dragKey) {
+      grid.place(position.row, position.col, item.width);
+    }
+  }
 
-  const span = STAT_SPAN[dragged.width];
-  const cells: ShareStatPosition[] = [];
+  const cells: StatDropCell[] = [];
 
   for (let row = 0; row < rows; row += 1) {
-    for (const col of getFreeColumnsInRow(grid.getRow(row), span)) {
-      cells.push({ row, col });
+    const width = grid.getRowWidth(row) ?? dragged.width;
+    for (const col of grid.getFreeColumns(row, width)) {
+      cells.push({ row, col, width });
     }
   }
 
