@@ -11,6 +11,7 @@ import type {
 import { DEFAULT_SHARE_STAT_WIDTH } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 import {
   STAT_GRID_COLUMNS,
+  getStatDropCells,
   getStatLayoutRows,
   getStatSpan,
   resolveStatLayout,
@@ -113,20 +114,17 @@ function itemStyle(key: ShareStatKey): CSSProperties {
   return style;
 }
 
-// Сетка-подсказка: столько колонок, сколько показателей этой ширины влезает в строку.
+// Сетка-подсказка: свободные места под ширину перетаскиваемого показателя
+// с учётом уже выставленных (занятые места не рисуются).
 const dropCells = computed<DropCell[]>(() => {
   if (!drag.value) return [];
 
   const span = getStatSpan(getWidth(drag.value.key));
-  const cells: DropCell[] = [];
-
-  for (let row = 0; row < rows.value; row += 1) {
-    for (let col = 0; col + span <= STAT_GRID_COLUMNS; col += span) {
-      cells.push({ row, col, span, id: `${row}:${col}` });
-    }
-  }
-
-  return cells;
+  return getStatDropCells(items.value, layout.value, drag.value.key, rows.value).map((cell) => ({
+    ...cell,
+    span,
+    id: `${cell.row}:${cell.col}`,
+  }));
 });
 
 function isTarget(cell: DropCell): boolean {
@@ -167,32 +165,6 @@ function findNearestCell(): ShareStatPosition | null {
   return nearest;
 }
 
-/** Если цель занята одним показателем той же ширины — меняем их местами. */
-function getSwapPositions(key: ShareStatKey, target: ShareStatPosition): StatLayout {
-  const positions = { ...layout.value, [key]: target };
-  const width = getWidth(key);
-  const origin = layout.value[key];
-  const span = getStatSpan(width);
-
-  const overlapping = items.value.filter((item) => {
-    if (item.key === key) return false;
-    const position = layout.value[item.key];
-    const itemSpan = getStatSpan(item.width);
-    return (
-      position.row === target.row &&
-      position.col < target.col + span &&
-      target.col < position.col + itemSpan
-    );
-  });
-
-  const [single] = overlapping;
-  if (overlapping.length === 1 && single && single.width === width) {
-    positions[single.key] = origin;
-  }
-
-  return positions;
-}
-
 const { start: startDrag, isClickSuppressed } = useLongPressDrag<ShareStatKey>({
   onStart: (key) => {
     const element = gridElement.value?.querySelector<HTMLElement>(`[data-flip-key="${key}"]`);
@@ -222,10 +194,14 @@ const { start: startDrag, isClickSuppressed } = useLongPressDrag<ShareStatKey>({
 
     emit(
       'setLayout',
-      resolveStatLayout(items.value, getSwapPositions(key, target), {
-        startRow: startRow.value,
-        priorityKey: key,
-      }),
+      resolveStatLayout(
+        items.value,
+        { ...layout.value, [key]: target },
+        {
+          startRow: startRow.value,
+          priorityKey: key,
+        },
+      ),
     );
   },
 });
@@ -312,6 +288,8 @@ function remove(key: ShareStatKey) {
   display: grid;
   gap: var(--share-stat-gap, 12px);
   min-width: 0;
+  /* Сетка занимает всю высоту карточки: пустые места пропускают касания к треку. */
+  pointer-events: none;
 }
 
 /* Перетаскиваемый показатель поднимаем над треком. */
@@ -321,6 +299,7 @@ function remove(key: ShareStatKey) {
 
 .stats-grid__cell {
   z-index: 0;
+  pointer-events: none;
   border: 1px dashed color-mix(in srgb, var(--share-text) 28%, transparent);
   border-radius: 12px;
   transition:
@@ -335,6 +314,7 @@ function remove(key: ShareStatKey) {
 
 .stats-grid :deep(.stat) {
   z-index: 1;
+  pointer-events: auto;
 }
 
 .stats-grid :deep(.stat--dragging) {

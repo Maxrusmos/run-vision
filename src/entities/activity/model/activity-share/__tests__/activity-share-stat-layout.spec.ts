@@ -1,28 +1,37 @@
 import { describe, expect, it } from 'vitest';
 import {
-  getStatGridColumns,
+  getFreeColumnsInRow,
+  getStatDropCells,
   getStatLayoutRows,
   resolveStatLayout,
-  snapStatColumn,
   type StatLayoutItem,
 } from '../activity-share-stat-layout';
 
 const half = (key: StatLayoutItem['key']): StatLayoutItem => ({ key, width: 'half' });
+const third = (key: StatLayoutItem['key']): StatLayoutItem => ({ key, width: 'third' });
+const full = (key: StatLayoutItem['key']): StatLayoutItem => ({ key, width: 'full' });
 
-describe('snapStatColumn', () => {
-  it('привязывает колонку к сетке ширины показателя', () => {
-    expect(snapStatColumn(5, 'third')).toBe(4);
-    expect(snapStatColumn(2, 'half')).toBe(0);
-    expect(snapStatColumn(4, 'half')).toBe(3);
-    expect(snapStatColumn(5, 'full')).toBe(0);
+const row = (...occupied: number[]) =>
+  Array.from({ length: 6 }, (_, col) => occupied.includes(col));
+
+describe('getFreeColumnsInRow', () => {
+  it('в пустой строке — обычная сетка: 3 места по трети, 2 по половине, 1 во всю ширину', () => {
+    expect(getFreeColumnsInRow(row(), 2)).toEqual([0, 2, 4]);
+    expect(getFreeColumnsInRow(row(), 3)).toEqual([0, 3]);
+    expect(getFreeColumnsInRow(row(), 6)).toEqual([0]);
   });
-});
 
-describe('getStatGridColumns', () => {
-  it('показывает столько колонок, сколько показателей этой ширины влезает в строку', () => {
-    expect(getStatGridColumns('third')).toBe(3);
-    expect(getStatGridColumns('half')).toBe(2);
-    expect(getStatGridColumns('full')).toBe(1);
+  it('рядом с половиной слева помещается одна треть — вплотную к ней', () => {
+    expect(getFreeColumnsInRow(row(0, 1, 2), 2)).toEqual([3]);
+  });
+
+  it('рядом с половиной справа треть тоже встаёт вплотную', () => {
+    expect(getFreeColumnsInRow(row(3, 4, 5), 2)).toEqual([1]);
+  });
+
+  it('в занятой строке мест нет', () => {
+    expect(getFreeColumnsInRow(row(0, 1, 2, 3, 4, 5), 2)).toEqual([]);
+    expect(getFreeColumnsInRow(row(2, 3), 3)).toEqual([]);
   });
 });
 
@@ -54,10 +63,7 @@ describe('resolveStatLayout', () => {
 
   it('не допускает наложений при смене ширины', () => {
     const layout = resolveStatLayout(
-      [
-        { key: 'distance', width: 'full' },
-        { key: 'duration', width: 'third' },
-      ],
+      [full('distance'), third('duration')],
       { distance: { row: 1, col: 0 }, duration: { row: 1, col: 2 } },
       { priorityKey: 'distance' },
     );
@@ -67,13 +73,30 @@ describe('resolveStatLayout', () => {
     expect(getStatLayoutRows(layout)).toBe(3);
   });
 
-  it('показатели без позиции занимают свободные места рядом с выставленными', () => {
-    const layout = resolveStatLayout(
-      [half('distance'), half('duration')],
-      { distance: { row: 2, col: 0 } },
-      { startRow: 2 },
-    );
+  it('сохраняет треть рядом с половиной (колонка 3)', () => {
+    const layout = resolveStatLayout([half('distance'), third('duration')], {
+      distance: { row: 0, col: 0 },
+      duration: { row: 0, col: 3 },
+    });
 
-    expect(layout.duration).toEqual({ row: 2, col: 3 });
+    expect(layout.duration).toEqual({ row: 0, col: 3 });
+  });
+});
+
+describe('getStatDropCells', () => {
+  it('учитывает выставленные показатели и не рисует места на занятых', () => {
+    const items = [half('distance'), full('duration'), third('averagePace')];
+    const layout = resolveStatLayout(items, {
+      distance: { row: 0, col: 0 },
+      duration: { row: 1, col: 0 },
+      averagePace: { row: 2, col: 0 },
+    });
+
+    expect(getStatDropCells(items, layout, 'averagePace', 3)).toEqual([
+      { row: 0, col: 3 },
+      { row: 2, col: 0 },
+      { row: 2, col: 2 },
+      { row: 2, col: 4 },
+    ]);
   });
 });

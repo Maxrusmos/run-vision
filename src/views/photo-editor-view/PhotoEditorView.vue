@@ -12,7 +12,6 @@ import { useShareCardExport } from '@/hooks/useShareCardExport';
 import { ROUTE_NAMES } from '@/router/routes';
 import { delay, waitForNextPaint } from '@/shared/lib/dom/wait';
 import StepPage from '@/shared/ui/StepPage.vue';
-import SectionHeading from '@/shared/ui/SectionHeading.vue';
 import PhotoEditorSidebar from '@/views/photo-editor-view/components/PhotoEditorSidebar.vue';
 import ShareCardArtwork from '@/views/photo-editor-view/components/artwork/ShareCardArtwork.vue';
 import AddElementButton from '@/views/photo-editor-view/components/AddElementButton.vue';
@@ -116,10 +115,7 @@ function goBack() {
 
       <section class="photo-editor__main">
         <div class="photo-editor__heading">
-          <SectionHeading
-            title="Редактирование карточки"
-            description="Нажмите на название, трек или показатель, чтобы изменить их"
-          />
+          <h2 class="photo-editor__title">Редактирование карточки</h2>
           <ResetCardButton @confirm="handleReset" />
         </div>
 
@@ -203,9 +199,15 @@ function goBack() {
 
 .photo-editor__heading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.photo-editor__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .photo-editor__add-actions {
