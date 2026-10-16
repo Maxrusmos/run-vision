@@ -4,9 +4,15 @@ import type {
   EditorToolId,
 } from '@/views/photo-editor-view/components/tools/editor-tools';
 
-defineProps<{
+const props = defineProps<{
   tools: readonly EditorTool[];
+  /** Инструменты, которые сейчас нечем применять (например, нет показателей). */
+  disabledTools?: EditorToolId[];
 }>();
+
+function isDisabled(id: EditorToolId): boolean {
+  return props.disabledTools?.includes(id) ?? false;
+}
 
 const active = defineModel<EditorToolId | null>({ required: true });
 
@@ -25,6 +31,7 @@ function toggle(id: EditorToolId) {
       class="editor-toolbar__tool"
       :class="{ 'editor-toolbar__tool--active': active === tool.id }"
       :aria-pressed="active === tool.id"
+      :disabled="isDisabled(tool.id)"
       @click="toggle(tool.id)"
     >
       <v-icon :icon="tool.icon" size="24" />
@@ -61,6 +68,11 @@ function toggle(id: EditorToolId) {
   transition:
     color 0.15s,
     background-color 0.15s;
+}
+
+.editor-toolbar__tool:disabled {
+  cursor: default;
+  opacity: 0.35;
 }
 
 .editor-toolbar__tool--active {

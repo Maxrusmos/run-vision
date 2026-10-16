@@ -106,12 +106,10 @@ function removeRoute() {
     @click="handleClick"
   >
     <ArtworkBackground
-      :color="settings.backgroundColor"
       :transparent="settings.transparentBackground"
       :image="settings.backgroundImage"
       :image-fit="settings.backgroundImageFit"
       :image-position="settings.backgroundImagePosition"
-      @change-color="emit('setColor', 'backgroundColor', $event)"
     />
 
     <div v-if="settings.titleVisible" class="share-artwork__header">
@@ -144,6 +142,7 @@ function removeRoute() {
         @remove="emit('removeStat', $event)"
         @set-width="(key, width) => emit('setStatWidth', key, width)"
         :text-color="settings.textColor"
+        :stat-style="settings.statStyle"
         @set-layout="emit('setStatPositions', $event)"
         @change-text-color="emit('setColor', 'textColor', $event)"
       />
@@ -199,8 +198,6 @@ function removeRoute() {
 .share-artwork__header {
   position: relative;
   z-index: 4;
-  /* Справа — место под пипетку цвета фона в углу карточки. */
-  padding-right: 44px;
 }
 
 /* Без z-index: тело не создаёт свой контекст наложения,

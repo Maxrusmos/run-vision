@@ -1,7 +1,12 @@
 <script setup lang="ts">
-defineProps<{
-  title: string;
-}>();
+withDefaults(
+  defineProps<{
+    title: string;
+    /** Ограничение высоты панели (по умолчанию — 42% экрана). */
+    maxHeight?: string;
+  }>(),
+  { maxHeight: '42dvh' },
+);
 
 const emit = defineEmits<{
   close: [];
@@ -9,7 +14,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <section class="tool-panel" :aria-label="title">
+  <section class="tool-panel" :aria-label="title" :style="{ maxHeight }">
     <header class="tool-panel__header">
       <h2 class="tool-panel__title">{{ title }}</h2>
       <v-btn
@@ -36,7 +41,6 @@ const emit = defineEmits<{
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  max-height: 42dvh;
   border-top: 1px solid var(--app-border);
   border-radius: 16px 16px 0 0;
   background: var(--app-surface);

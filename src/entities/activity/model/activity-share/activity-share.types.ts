@@ -22,6 +22,9 @@ export type ShareStatKey =
 
 export type ShareStatWidth = 'third' | 'half' | 'full';
 
+/** Пресет внешнего вида показателей (эффект). */
+export type ShareStatStyle = 'classic' | 'glass' | 'speed' | 'tile' | 'neon' | 'minimal';
+
 /** Ячейка показателя в сетке из 6 колонок: строка и первая колонка. */
 export type ShareStatPosition = {
   row: number;
@@ -66,6 +69,7 @@ export type ShareCardSettings = {
   statPositions: Partial<Record<ShareStatKey, ShareStatPosition>>;
   transparentBackground: boolean;
   showStatBorders: boolean;
+  statStyle: ShareStatStyle;
   backgroundImage: string | null;
   backgroundImageFit: ShareBackgroundImageFit;
   backgroundImagePosition: string;

@@ -7,6 +7,7 @@ import type {
   ShareRoutePosition,
   ShareStatKey,
   ShareStatPosition,
+  ShareStatStyle,
   ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import {
@@ -15,6 +16,7 @@ import {
   findSharePresetByColors,
 } from '@/entities/activity/model/activity-share/activity-share-presets';
 import { DEFAULT_ROUTE_SCALE } from '@/entities/activity/model/activity-share/activity-share-route';
+import { DEFAULT_STAT_STYLE } from '@/entities/activity/model/activity-share/activity-share-stat-styles';
 import { DEFAULT_VISIBLE_SHARE_STATS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
 export const STAT_SPACING_MIN = 0;
@@ -35,6 +37,7 @@ function createSettings(preset: ShareColorPreset): ShareCardSettings {
     statPositions: {},
     transparentBackground: false,
     showStatBorders: true,
+    statStyle: DEFAULT_STAT_STYLE,
     backgroundImage: null,
     backgroundImageFit: 'cover',
     backgroundImagePosition: 'center',
@@ -95,6 +98,12 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
       })?.id ?? null;
   }
 
+  /** Цвет фона из меню; выбор цвета выключает прозрачность. */
+  function setBackgroundColor(value: string) {
+    setColor('backgroundColor', value);
+    settings.value.transparentBackground = false;
+  }
+
   function addStat(key: ShareStatKey) {
     if (settings.value.visibleStats.includes(key)) return;
     settings.value.visibleStats.push(key);
@@ -119,6 +128,29 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
 
   function setShowStatBorders(value: boolean) {
     settings.value.showStatBorders = value;
+  }
+
+  function setStatStyle(style: ShareStatStyle) {
+    settings.value.statStyle = style;
+  }
+
+  /**
+   * Сетка «N в ряд»: все показатели получают одну ширину и заново
+   * раскладываются по порядку — сохраняется текущий порядок на карточке.
+   */
+  function setStatColumns(width: ShareStatWidth) {
+    const { visibleStats, statPositions } = settings.value;
+    const order = (key: ShareStatKey) => {
+      const position = statPositions[key];
+      return position ? position.row * 100 + position.col : Infinity;
+    };
+
+    // Infinity у показателей без позиции: они остаются в конце в прежнем порядке.
+    settings.value.visibleStats = [...visibleStats].sort((a, b) =>
+      order(a) === order(b) ? 0 : order(a) < order(b) ? -1 : 1,
+    );
+    settings.value.statWidths = Object.fromEntries(visibleStats.map((key) => [key, width]));
+    settings.value.statPositions = {};
   }
 
   function setTransparentBackground(value: boolean) {
@@ -172,12 +204,15 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     resetSettings,
     applyPresetById,
     setColor,
+    setBackgroundColor,
     addStat,
     removeStat,
     setStatPositions,
     setStatWidth,
     setStatSpacing,
     setShowStatBorders,
+    setStatStyle,
+    setStatColumns,
     setTransparentBackground,
     setBackgroundImage,
     removeBackgroundImage,

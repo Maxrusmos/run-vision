@@ -19,13 +19,15 @@ const emit = defineEmits<{
 <template>
   <header class="editor-top-bar">
     <v-btn
-      icon="mdi-arrow-left"
+      class="editor-top-bar__back"
       variant="text"
       size="small"
-      density="comfortable"
+      prepend-icon="mdi-chevron-left"
       aria-label="Назад к выбору стиля"
       @click="emit('back')"
-    />
+    >
+      Назад
+    </v-btn>
 
     <EditorHistoryActions
       class="editor-top-bar__history"
@@ -65,6 +67,7 @@ const emit = defineEmits<{
   margin: 0 auto;
 }
 
+.editor-top-bar__back,
 .editor-top-bar__save {
   letter-spacing: 0;
   text-transform: none;

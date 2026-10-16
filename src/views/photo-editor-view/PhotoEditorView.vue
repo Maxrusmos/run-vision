@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useTemplateRef } from 'vue';
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import type { ShareCardElement } from '@/entities/activity/model/activity-share/activity-share.types';
@@ -38,12 +38,15 @@ const {
   settings,
   applyPresetById,
   setColor,
+  setBackgroundColor,
   addStat,
   removeStat,
   setStatPositions,
   setStatWidth,
   setStatSpacing,
   setShowStatBorders,
+  setStatStyle,
+  setStatColumns,
   setTransparentBackground,
   setBackgroundImage,
   removeBackgroundImage,
@@ -67,9 +70,27 @@ const isExporting = ref(false);
 const isResultOpen = ref(false);
 const activeTool = ref<EditorToolId | null>(null);
 
-const activeToolTitle = computed(
-  () => EDITOR_TOOLS.find((tool) => tool.id === activeTool.value)?.label ?? '',
+// Инструмент, чья панель показана. Не сбрасывается при закрытии, чтобы панель
+// доиграла анимацию закрытия со своим содержимым.
+const displayedTool = ref<EditorToolId | null>(null);
+watch(activeTool, (tool) => {
+  if (tool) displayedTool.value = tool;
+});
+
+const displayedToolTitle = computed(
+  () => EDITOR_TOOLS.find((tool) => tool.id === displayedTool.value)?.label ?? '',
 );
+
+// Без показателей настраивать их внешний вид нечего.
+const disabledTools = computed<EditorToolId[]>(() =>
+  settings.value.visibleStats.length ? [] : ['stats'],
+);
+watch(disabledTools, (tools) => {
+  if (activeTool.value && tools.includes(activeTool.value)) activeTool.value = null;
+});
+
+/** Панель «Добавить» на строку ниже остальных — карточке остаётся больше места. */
+const ADD_PANEL_MAX_HEIGHT = 'calc(42dvh - 56px)';
 
 // Тап по пустому месту вокруг карточки снимает выделение.
 function handleCanvasClick(event: MouseEvent) {
@@ -168,36 +189,49 @@ function goBack() {
       />
     </FitToBox>
 
-    <EditorToolPanel v-if="activeTool" :title="activeToolTitle" @close="activeTool = null">
-      <AddElementsPanel
-        v-if="activeTool === 'add'"
-        :settings="settings"
-        :stat-values="statValues"
-        @add-title="setTitleVisible(true)"
-        @add-route="setRouteVisible(true)"
-        @add-stat="addStat"
-      />
-      <BackgroundPanel
-        v-else-if="activeTool === 'background'"
-        :settings="settings"
-        @set-transparent-background="setTransparentBackground"
-        @set-background-image="setBackgroundImage"
-        @remove-background-image="removeBackgroundImage"
-      />
-      <PresetsPanel
-        v-else-if="activeTool === 'presets'"
-        :settings="settings"
-        @apply-preset="applyPresetById"
-      />
-      <StatsAppearancePanel
-        v-else-if="activeTool === 'stats'"
-        :settings="settings"
-        @set-stat-spacing="setStatSpacing"
-        @set-show-stat-borders="setShowStatBorders"
-      />
-    </EditorToolPanel>
+    <!-- Панель выезжает, только когда открывается из закрытого состояния;
+         при переключении между инструментами она остаётся на месте. -->
+    <Transition name="tool-panel">
+      <div v-if="activeTool" class="photo-editor__panel">
+        <EditorToolPanel
+          :title="displayedToolTitle"
+          :max-height="displayedTool === 'add' ? ADD_PANEL_MAX_HEIGHT : undefined"
+          @close="activeTool = null"
+        >
+          <AddElementsPanel
+            v-if="displayedTool === 'add'"
+            :settings="settings"
+            :stat-values="statValues"
+            @add-title="setTitleVisible(true)"
+            @add-route="setRouteVisible(true)"
+            @add-stat="addStat"
+          />
+          <BackgroundPanel
+            v-else-if="displayedTool === 'background'"
+            :settings="settings"
+            @set-background-color="setBackgroundColor"
+            @set-transparent-background="setTransparentBackground"
+            @set-background-image="setBackgroundImage"
+            @remove-background-image="removeBackgroundImage"
+          />
+          <PresetsPanel
+            v-else-if="displayedTool === 'presets'"
+            :settings="settings"
+            @apply-preset="applyPresetById"
+          />
+          <StatsAppearancePanel
+            v-else-if="displayedTool === 'stats'"
+            :settings="settings"
+            @set-stat-columns="setStatColumns"
+            @set-stat-style="setStatStyle"
+            @set-stat-spacing="setStatSpacing"
+            @set-show-stat-borders="setShowStatBorders"
+          />
+        </EditorToolPanel>
+      </div>
+    </Transition>
 
-    <EditorToolbar v-model="activeTool" :tools="EDITOR_TOOLS" />
+    <EditorToolbar v-model="activeTool" :tools="EDITOR_TOOLS" :disabled-tools="disabledTools" />
   </div>
 
   <ShareCardResultDialog
@@ -215,6 +249,38 @@ function goBack() {
   flex-direction: column;
   min-height: 0;
   background: var(--app-background);
+}
+
+.photo-editor__panel {
+  display: grid;
+  grid-template-rows: 1fr;
+  min-height: 0;
+}
+
+.photo-editor__panel > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Высота анимируется через grid-template-rows: 0fr → 1fr, карточка плавно ужимается. */
+.tool-panel-enter-active,
+.tool-panel-leave-active {
+  transition:
+    grid-template-rows 240ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 200ms ease;
+}
+
+.tool-panel-enter-from,
+.tool-panel-leave-to {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-panel-enter-active,
+  .tool-panel-leave-active {
+    transition: none;
+  }
 }
 
 .photo-editor__canvas {

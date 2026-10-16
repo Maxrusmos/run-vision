@@ -6,6 +6,7 @@ import type {
   ShareStat,
   ShareStatKey,
   ShareStatPosition,
+  ShareStatStyle,
   ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import { DEFAULT_SHARE_STAT_WIDTH } from '@/entities/activity/model/activity-share/activity-share-stat-options';
@@ -31,6 +32,7 @@ const props = defineProps<{
   statPositions: Partial<Record<ShareStatKey, ShareStatPosition>>;
   showBorders: boolean;
   textColor: string;
+  statStyle: ShareStatStyle;
   /** Высота места под трек (доля ширины) — эти строки сверху по умолчанию свободны. */
   reservedHeightRatio: number;
 }>();
@@ -289,6 +291,7 @@ function remove(key: ShareStatKey) {
       @select="toggleSelected(stat.key)"
       @remove="remove(stat.key)"
       :text-color="textColor"
+      :stat-style="statStyle"
       @set-width="setWidth(stat.key, $event)"
       @change-text-color="emit('changeTextColor', $event)"
     />
@@ -303,6 +306,7 @@ function remove(key: ShareStatKey) {
       :selected="false"
       :show-border="showBorders"
       :text-color="textColor"
+      :stat-style="statStyle"
       aria-hidden="true"
       inert
     />
