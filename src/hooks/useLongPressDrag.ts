@@ -10,6 +10,29 @@ type LongPressDragOptions<T> = {
   onEnd: (id: T, dropped: boolean) => void;
 };
 
+/**
+ * Пальцы на экране — общий учёт для всех перетаскиваний (показатели, полосы):
+ * пока пальцев больше одного, это жест двумя пальцами (поворот карты, щипок),
+ * и новое перетаскивание не начинается. Слушаем на window в фазе захвата —
+ * до обработчиков элементов.
+ */
+const pressedPointers = new Set<number>();
+
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'pointerdown',
+    (event) => {
+      // Первый палец новой серии касаний — сбрасываем учёт (на случай потерянного pointerup).
+      if (event.isPrimary) pressedPointers.clear();
+      pressedPointers.add(event.pointerId);
+    },
+    true,
+  );
+  const release = (event: PointerEvent) => pressedPointers.delete(event.pointerId);
+  window.addEventListener('pointerup', release, true);
+  window.addEventListener('pointercancel', release, true);
+}
+
 /** Сдвиг пальца до долгого нажатия — это прокрутка, а не перетаскивание. */
 const SCROLL_TOLERANCE = 8;
 /** Сдвиг мыши, после которого начинается перетаскивание. */
@@ -17,6 +40,8 @@ const MOUSE_THRESHOLD = 4;
 
 type DragSession<T> = {
   id: T;
+  /** Палец (указатель), которым начали: движения других пальцев не учитываются. */
+  pointerId: number;
   startX: number;
   startY: number;
   immediate: boolean;
@@ -51,7 +76,7 @@ export function useLongPressDrag<T>({
   }
 
   function handleMove(event: PointerEvent) {
-    if (!session) return;
+    if (!session || event.pointerId !== session.pointerId) return;
 
     const dx = event.clientX - session.startX;
     const dy = event.clientY - session.startY;
@@ -72,18 +97,29 @@ export function useLongPressDrag<T>({
     onMove(session.id, dx, dy);
   }
 
-  function handleUp() {
+  function handleUp(event: PointerEvent) {
+    if (session && event.pointerId !== session.pointerId) return;
     finish(true);
   }
 
-  function handleCancel() {
+  function handleCancel(event: PointerEvent) {
+    if (session && event.pointerId !== session.pointerId) return;
     finish(false);
+  }
+
+  /**
+   * Второй палец — это жест двумя пальцами (поворот карты, щипок), а не перенос:
+   * отменяем перенос, ничего не сохраняя.
+   */
+  function handleOtherPointerDown(event: PointerEvent) {
+    if (session && event.pointerId !== session.pointerId) finish(false);
   }
 
   function removeListeners() {
     window.removeEventListener('pointermove', handleMove);
     window.removeEventListener('pointerup', handleUp);
     window.removeEventListener('pointercancel', handleCancel);
+    window.removeEventListener('pointerdown', handleOtherPointerDown, true);
     document.removeEventListener('touchmove', preventTouchScroll);
   }
 
@@ -107,10 +143,12 @@ export function useLongPressDrag<T>({
    * @param immediate начинать без долгого нажатия (мышь или уже выделенный элемент).
    */
   function start(event: PointerEvent, id: T, immediate = event.pointerType === 'mouse') {
-    if (event.button !== 0 || session) return;
+    // Второй палец — не начало переноса, а жест двумя пальцами.
+    if (event.button !== 0 || session || pressedPointers.size > 1) return;
 
     session = {
       id,
+      pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
       immediate,
@@ -125,6 +163,7 @@ export function useLongPressDrag<T>({
     window.addEventListener('pointermove', handleMove);
     window.addEventListener('pointerup', handleUp);
     window.addEventListener('pointercancel', handleCancel);
+    window.addEventListener('pointerdown', handleOtherPointerDown, true);
     document.addEventListener('touchmove', preventTouchScroll, { passive: false });
   }
 

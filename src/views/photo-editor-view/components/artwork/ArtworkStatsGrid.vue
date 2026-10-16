@@ -145,19 +145,70 @@ const sides = computed<Record<BandSide, string[]>>(() => ({
 /** Клетки под боковыми колонками — показатели туда не встают. */
 const blockedCells = computed(() => getSideBlockedCells(sides.value, startRow.value));
 
+/*
+ * Строки в настройках (позиции показателей и строки полос) хранятся ОТНОСИТЕЛЬНО
+ * первой строки под треком (`startRow`): она меняется, когда убирают или возвращают трек
+ * и меняют плотность, — и раскладка должна ехать вместе с ней, а не налезать на трек
+ * или оставлять дыру. Внутри сетки — абсолютные строки; наружу — снова относительные.
+ */
+function shiftLayoutRows<L extends Partial<Record<string, ShareStatPosition>>>(
+  layout: L,
+  shift: number,
+): L {
+  return Object.fromEntries(
+    Object.entries(layout).map(([key, position]) => [
+      key,
+      position ? { row: position.row + shift, col: position.col } : position,
+    ]),
+  ) as L;
+}
+
+function relativeRows(rows: Record<string, number>): Record<string, number> {
+  return Object.fromEntries(Object.entries(rows).map(([key, row]) => [key, row - startRow.value]));
+}
+
+const absolutePositions = computed(() => shiftLayoutRows(props.statPositions, startRow.value));
+
 /** Желаемые строки полос: по порядку, не выше первой строки под треком/картой. */
-const desiredBandRows = computed(() => placeBands(rowBands.value, startRow.value));
+const desiredBandRows = computed(() =>
+  placeBands(
+    rowBands.value.map((band) => ({
+      key: band.key,
+      row: band.row === null ? null : band.row + startRow.value,
+    })),
+    startRow.value,
+  ),
+);
+
+/**
+ * Строки полос без пустых строк над ними. Поджатие считается по черновой раскладке,
+ * а итоговая раскладка показателей — уже с поджатыми строками: иначе места для броска
+ * (по поджатым) и раскладка (по исходным) расходятся и показатель «отскакивает».
+ */
+const bandRows = computed(() =>
+  compactBands(
+    desiredBandRows.value,
+    resolveStatLayout(items.value, absolutePositions.value, {
+      startRow: startRow.value,
+      blockedRows: Object.values(desiredBandRows.value),
+      blockedCells: blockedCells.value,
+    }),
+    startRow.value,
+  ),
+);
 
 const layout = computed(() =>
-  resolveStatLayout(items.value, props.statPositions, {
+  resolveStatLayout(items.value, absolutePositions.value, {
     startRow: startRow.value,
-    blockedRows: Object.values(desiredBandRows.value),
+    blockedRows: Object.values(bandRows.value),
     blockedCells: blockedCells.value,
   }),
 );
 
-/** Строки полос: без пустых строк над ними. */
-const bandRows = computed(() => compactBands(desiredBandRows.value, layout.value, startRow.value));
+/** Раскладку — в настройки: строки относительно первой строки под треком. */
+function emitLayout(next: StatLayout) {
+  emit('setLayout', shiftLayoutRows(next, -startRow.value));
+}
 
 const blockedRows = computed(() => Object.values(bandRows.value));
 
@@ -181,6 +232,8 @@ type BandDragState = {
   rowHeights: number[];
   sideCenters: Record<string, number>;
   side: BandSide | null;
+  /** Исходное место: отпустили там же — ничего не меняем (пустой шаг истории). */
+  originTarget: BandTarget;
   target: BandTarget;
 };
 
@@ -322,6 +375,18 @@ const { start: startDrag, isClickSuppressed } = useLongPressDrag<ShareStatKey>({
     drag.value = null;
 
     if (!dropped || !target) return;
+    // Отпустили на своём же месте (долгое нажатие без движения) — ничего не меняем,
+    // иначе в историю попал бы пустой шаг.
+    const current = layout.value[key];
+    if (
+      target.kind === 'cell' &&
+      current &&
+      target.row === current.row &&
+      target.col === current.col &&
+      target.width === getWidth(key)
+    ) {
+      return;
+    }
 
     const result = applyStatDrop(
       items.value,
@@ -335,7 +400,7 @@ const { start: startDrag, isClickSuppressed } = useLongPressDrag<ShareStatKey>({
     result.widths.forEach((width, statKey) => {
       if (width !== getWidth(statKey)) emit('setWidth', statKey, width);
     });
-    emit('setLayout', result.layout);
+    emitLayout(result.layout);
   },
 });
 
@@ -352,8 +417,7 @@ function toggleSelected(key: ShareStatKey) {
 function setWidth(key: ShareStatKey, width: ShareStatWidth) {
   emit('setWidth', key, width);
   // Показатель с новой шириной остаётся на месте, соседи сдвигаются при необходимости.
-  emit(
-    'setLayout',
+  emitLayout(
     resolveStatLayout(
       items.value.map((item) => (item.key === key ? { key, width } : item)),
       layout.value,
@@ -440,6 +504,10 @@ const { start: startBandDrag, isClickSuppressed: isBandClickSuppressed } = useLo
           ? 'right'
           : null;
       const row = bandRows.value[key];
+      const initial: BandTarget =
+        side !== null
+          ? { kind: 'side', side, index: sides.value[side].indexOf(key) }
+          : { kind: 'row', row: row ?? startRow.value };
       selected.value = null;
       bandDrag.value = {
         key,
@@ -451,10 +519,8 @@ const { start: startBandDrag, isClickSuppressed: isBandClickSuppressed } = useLo
         rowHeights,
         sideCenters,
         side,
-        target:
-          side !== null
-            ? { kind: 'side', side, index: sides.value[side].indexOf(key) }
-            : { kind: 'row', row: row ?? startRow.value },
+        originTarget: initial,
+        target: initial,
       };
     },
     onMove: (_key, dx, dy) => {
@@ -465,10 +531,16 @@ const { start: startBandDrag, isClickSuppressed: isBandClickSuppressed } = useLo
       drag.target = findBandTarget(drag);
     },
     onEnd: (_key, dropped) => {
+      const drag = bandDrag.value;
       const result = preview.value;
-      const changed = bandDrag.value !== null;
       bandDrag.value = null;
-      if (dropped && changed) emit('dropBands', result);
+      if (!dropped || !drag) return;
+      if (JSON.stringify(drag.target) === JSON.stringify(drag.originTarget)) return;
+      emit('dropBands', {
+        rows: relativeRows(result.rows),
+        sides: result.sides,
+        layout: shiftLayoutRows(result.layout, -startRow.value),
+      });
     },
   },
 );
