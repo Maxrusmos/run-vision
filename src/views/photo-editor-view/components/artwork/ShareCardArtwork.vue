@@ -13,6 +13,7 @@ import type {
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import { getShareStatCardLabel } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 import { ROUTE_SLOT_HEIGHT_RATIO } from '@/entities/activity/model/activity-share/activity-share-route';
+import { eventPathMatches } from '@/shared/lib/dom/event-path';
 import ArtworkBackground from '@/views/photo-editor-view/components/artwork/ArtworkBackground.vue';
 import ArtworkTitle from '@/views/photo-editor-view/components/artwork/ArtworkTitle.vue';
 import ArtworkRoute from '@/views/photo-editor-view/components/artwork/ArtworkRoute.vue';
@@ -77,7 +78,7 @@ const cssVariables = computed(() => {
 
 // Тап мимо выделенного элемента снимает выделение.
 function handleClick(event: MouseEvent) {
-  if (!(event.target as Element).closest('[data-selectable]')) {
+  if (!eventPathMatches(event, '[data-selectable]')) {
     selected.value = null;
   }
 }

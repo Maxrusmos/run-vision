@@ -11,13 +11,21 @@ import { useShareCardSettings } from '@/hooks/useShareCardSettings';
 import { useShareCardExport } from '@/hooks/useShareCardExport';
 import { ROUTE_NAMES } from '@/router/routes';
 import { delay, waitForNextPaint } from '@/shared/lib/dom/wait';
-import StepPage from '@/shared/ui/StepPage.vue';
-import PhotoEditorSidebar from '@/views/photo-editor-view/components/PhotoEditorSidebar.vue';
+import { eventPathMatches } from '@/shared/lib/dom/event-path';
+import FitToBox from '@/shared/ui/FitToBox.vue';
 import ShareCardArtwork from '@/views/photo-editor-view/components/artwork/ShareCardArtwork.vue';
-import AddElementButton from '@/views/photo-editor-view/components/AddElementButton.vue';
-import EditorHistoryActions from '@/views/photo-editor-view/components/EditorHistoryActions.vue';
-import ShareCardStatAdd from '@/views/photo-editor-view/components/ShareCardStatAdd.vue';
+import EditorTopBar from '@/views/photo-editor-view/components/EditorTopBar.vue';
 import ShareCardResultDialog from '@/views/photo-editor-view/components/ShareCardResultDialog.vue';
+import EditorToolbar from '@/views/photo-editor-view/components/tools/EditorToolbar.vue';
+import EditorToolPanel from '@/views/photo-editor-view/components/tools/EditorToolPanel.vue';
+import {
+  EDITOR_TOOLS,
+  type EditorToolId,
+} from '@/views/photo-editor-view/components/tools/editor-tools';
+import AddElementsPanel from '@/views/photo-editor-view/components/panels/AddElementsPanel.vue';
+import BackgroundPanel from '@/views/photo-editor-view/components/panels/BackgroundPanel.vue';
+import PresetsPanel from '@/views/photo-editor-view/components/panels/PresetsPanel.vue';
+import StatsAppearancePanel from '@/views/photo-editor-view/components/panels/StatsAppearancePanel.vue';
 
 /** Время на анимацию снятия выделения с показателя перед рендером. */
 const DESELECT_ANIMATION_MS = 160;
@@ -57,6 +65,18 @@ const artwork = useTemplateRef<InstanceType<typeof ShareCardArtwork>>('artwork')
 const selected = ref<ShareCardElement | null>(null);
 const isExporting = ref(false);
 const isResultOpen = ref(false);
+const activeTool = ref<EditorToolId | null>(null);
+
+const activeToolTitle = computed(
+  () => EDITOR_TOOLS.find((tool) => tool.id === activeTool.value)?.label ?? '',
+);
+
+// Тап по пустому месту вокруг карточки снимает выделение.
+function handleCanvasClick(event: MouseEvent) {
+  if (!eventPathMatches(event, '.share-artwork')) {
+    selected.value = null;
+  }
+}
 
 const statValues = computed(() => (activity.value ? getActivityShareStats(activity.value) : null));
 
@@ -115,80 +135,70 @@ function goBack() {
 </script>
 
 <template>
-  <StepPage v-if="activity && statValues" max-width="1280px">
-    <div class="photo-editor">
-      <PhotoEditorSidebar
-        class="photo-editor__sidebar"
+  <div v-if="activity && statValues" class="photo-editor">
+    <EditorTopBar
+      :can-undo="canUndo"
+      :can-redo="canRedo"
+      :saving="isBusy"
+      @back="goBack"
+      @undo="handleUndo"
+      @redo="handleRedo"
+      @reset="handleReset"
+      @save="createImage"
+    />
+
+    <!-- Карточка всегда видна целиком: уменьшается под свободное место. -->
+    <FitToBox class="photo-editor__canvas" @click="handleCanvasClick">
+      <ShareCardArtwork
+        ref="artwork"
+        v-model:selected="selected"
+        :activity="activity"
         :settings="settings"
-        @set-stat-spacing="setStatSpacing"
-        @set-show-stat-borders="setShowStatBorders"
+        :stat-values="statValues"
+        :exporting="isExporting"
+        @set-color="setColor"
+        @remove-stat="removeStat"
+        @set-stat-positions="setStatPositions"
+        @set-stat-width="setStatWidth"
+        @set-route-scale="setRouteScale"
+        @set-route-position="setRoutePosition"
+        @remove-route="setRouteVisible(false)"
+        @set-title="setTitle"
+        @remove-title="setTitleVisible(false)"
+      />
+    </FitToBox>
+
+    <EditorToolPanel v-if="activeTool" :title="activeToolTitle" @close="activeTool = null">
+      <AddElementsPanel
+        v-if="activeTool === 'add'"
+        :settings="settings"
+        :stat-values="statValues"
+        @add-title="setTitleVisible(true)"
+        @add-route="setRouteVisible(true)"
+        @add-stat="addStat"
+      />
+      <BackgroundPanel
+        v-else-if="activeTool === 'background'"
+        :settings="settings"
         @set-transparent-background="setTransparentBackground"
         @set-background-image="setBackgroundImage"
         @remove-background-image="removeBackgroundImage"
+      />
+      <PresetsPanel
+        v-else-if="activeTool === 'presets'"
+        :settings="settings"
         @apply-preset="applyPresetById"
       />
+      <StatsAppearancePanel
+        v-else-if="activeTool === 'stats'"
+        :settings="settings"
+        @set-stat-spacing="setStatSpacing"
+        @set-show-stat-borders="setShowStatBorders"
+      />
+    </EditorToolPanel>
 
-      <section class="photo-editor__main">
-        <div class="photo-editor__heading">
-          <h2 class="photo-editor__title">Редактирование карточки</h2>
-          <EditorHistoryActions
-            :can-undo="canUndo"
-            :can-redo="canRedo"
-            @undo="handleUndo"
-            @redo="handleRedo"
-            @reset="handleReset"
-          />
-        </div>
-
-        <div class="photo-editor__canvas">
-          <ShareCardArtwork
-            ref="artwork"
-            v-model:selected="selected"
-            :activity="activity"
-            :settings="settings"
-            :stat-values="statValues"
-            :exporting="isExporting"
-            @set-color="setColor"
-            @remove-stat="removeStat"
-            @set-stat-positions="setStatPositions"
-            @set-stat-width="setStatWidth"
-            @set-route-scale="setRouteScale"
-            @set-route-position="setRoutePosition"
-            @set-title="setTitle"
-            @remove-title="setTitleVisible(false)"
-            @remove-route="setRouteVisible(false)"
-          />
-        </div>
-
-        <div class="photo-editor__add-actions">
-          <AddElementButton
-            v-if="!settings.titleVisible"
-            label="Добавить название"
-            icon="mdi-format-title"
-            @click="setTitleVisible(true)"
-          />
-          <AddElementButton
-            v-if="!settings.routeVisible"
-            label="Добавить трек"
-            icon="mdi-map-marker-path"
-            @click="setRouteVisible(true)"
-          />
-          <ShareCardStatAdd
-            :visible-stats="settings.visibleStats"
-            :stat-values="statValues"
-            @add="addStat"
-          />
-        </div>
-      </section>
-    </div>
-
-    <template #footer>
-      <v-btn variant="tonal" @click="goBack">Назад</v-btn>
-      <v-btn color="primary" variant="flat" :loading="isBusy" @click="createImage">
-        Продолжить
-      </v-btn>
-    </template>
-  </StepPage>
+    <EditorToolbar v-model="activeTool" :tools="EDITOR_TOOLS" />
+  </div>
 
   <ShareCardResultDialog
     v-model="isResultOpen"
@@ -200,66 +210,15 @@ function goBack() {
 
 <style scoped>
 .photo-editor {
-  display: grid;
-  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
-  align-items: start;
-  gap: 24px;
-}
-
-.photo-editor__main {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: 16px;
-  min-width: 0;
+  min-height: 0;
+  background: var(--app-background);
 }
 
 .photo-editor__canvas {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  padding: clamp(12px, 2vw, 36px);
-  border-radius: 16px;
-  background-color: var(--app-hover-bg);
-}
-
-.photo-editor__heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.photo-editor__title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.photo-editor__add-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.photo-editor__add-actions > * {
-  flex: 1 1 200px;
-}
-
-@media (max-width: 800px) {
-  .photo-editor {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
-  }
-
-  .photo-editor__sidebar {
-    order: 2;
-  }
-
-  .photo-editor__main {
-    order: 1;
-  }
+  flex: 1 1 0;
+  background: color-mix(in srgb, var(--app-on-surface) 3%, var(--app-background));
 }
 </style>

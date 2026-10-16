@@ -53,6 +53,8 @@ type DragState = {
   /** Центр элемента в момент начала перетаскивания (координаты экрана). */
   originX: number;
   originY: number;
+  /** Масштаб карточки на экране: смещение пальца делим на него. */
+  scale: number;
   target: DropTarget | null;
 };
 
@@ -116,7 +118,8 @@ function placementStyle({ row, col }: ShareStatPosition, span: number): CSSPrope
 function itemStyle(key: ShareStatKey): CSSProperties {
   const style = placementStyle(layout.value[key], getStatSpan(getWidth(key)));
   if (drag.value?.key === key) {
-    style.transform = `translate(${drag.value.dx}px, ${drag.value.dy}px)`;
+    const { dx, dy, scale } = drag.value;
+    style.transform = `translate(${dx / scale}px, ${dy / scale}px)`;
   }
   return style;
 }
@@ -201,6 +204,7 @@ const { start: startDrag, isClickSuppressed } = useLongPressDrag<ShareStatKey>({
       dy: 0,
       originX: rect ? rect.left + rect.width / 2 : 0,
       originY: rect ? rect.top + rect.height / 2 : 0,
+      scale: rect && element?.offsetWidth ? rect.width / element.offsetWidth : 1,
       target: { kind: 'cell', ...layout.value[key], width: getWidth(key) },
     };
   },

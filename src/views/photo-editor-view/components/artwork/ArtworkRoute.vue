@@ -146,7 +146,9 @@ const toolbarPlacement = computed<'top' | 'bottom' | 'inside'>(() => {
   return frame.value.bottom <= layer.value.height - TOOLBAR_SPACE ? 'bottom' : 'inside';
 });
 
-const unitsPerPixel = () => ROUTE_LAYER_WIDTH / (layerElement.value?.clientWidth || 1);
+// По экранной ширине (getBoundingClientRect), а не clientWidth: карточка может быть уменьшена.
+const unitsPerPixel = () =>
+  ROUTE_LAYER_WIDTH / (layerElement.value?.getBoundingClientRect().width || 1);
 
 /** Ставит трек с новым масштабом и центром, не выпуская его за пределы слоя. */
 function applyTransform(nextScale: number, nextCenter: ShareRoutePosition) {

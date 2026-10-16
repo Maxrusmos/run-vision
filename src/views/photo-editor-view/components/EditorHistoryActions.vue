@@ -68,6 +68,5 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
   flex: 0 0 auto;
   align-items: center;
   gap: 2px;
-  margin: -6px 0;
 }
 </style>

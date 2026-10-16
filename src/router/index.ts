@@ -6,6 +6,8 @@ declare module 'vue-router' {
   interface RouteMeta {
     /** Страница доступна только после загрузки GPX. */
     requiresActivity?: boolean;
+    /** Страница со своей верхней панелью — шапка приложения скрыта. */
+    hideAppHeader?: boolean;
   }
 }
 
@@ -28,7 +30,7 @@ const router = createRouter({
       path: '/share/photo/editor',
       name: ROUTE_NAMES.photoEditor,
       component: () => import('@/views/photo-editor-view/PhotoEditorView.vue'),
-      meta: { requiresActivity: true },
+      meta: { requiresActivity: true, hideAppHeader: true },
     },
     // Страница с 3D-картой (`@/views/activity-view/ActivityView.vue`) временно скрыта.
     // Чтобы вернуть её, добавьте маршрут:
