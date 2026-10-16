@@ -3,25 +3,28 @@ import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch
 import { maplibregl } from '@/shared/lib/map/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { ITrackPoint } from '@/entities/activity/model/activity.types';
+import type { RoutePoint } from '@/entities/activity/lib/route-projection';
+import { toSvgPolylinePoints } from '@/entities/activity/lib/route-projection';
 import type {
   ShareMapSettings,
-  ShareMapView,
   ShareRouteStyle,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import {
   SHARE_MAP_TILT_PITCH,
-  createRouteGeoJson,
   createShareMapStyle,
-  getRouteLngLatBounds,
-  getShareMapAttribution,
+  getLngLatBounds,
+  getRouteLngLats,
 } from '@/entities/activity/model/activity-share/activity-share-map';
 import { ROUTE_LAYER_WIDTH } from '@/entities/activity/model/activity-share/activity-share-route';
-
-/** При наклоне дальняя часть трека уходит вдаль — приближаем, чтобы он не мельчал. */
-const TILTED_FIT_ZOOM_BOOST = 0.5;
+import RouteStyleLayers from '@/views/photo-editor-view/components/artwork/RouteStyleLayers.vue';
 
 /** Время ожидания тайлов перед экспортом: дальше рендерим то, что успело загрузиться. */
 const READY_TIMEOUT_MS = 8000;
+/** Итерации подгонки камеры под наклон: обычно хватает двух-трёх. */
+const FIT_ITERATIONS = 4;
+const MAX_FIT_ZOOM = 16;
+
+export type MapFitPadding = { top: number; right: number; bottom: number; left: number };
 
 const props = defineProps<{
   map: ShareMapSettings;
@@ -31,82 +34,86 @@ const props = defineProps<{
   routeColor: string;
   textColor: string;
   backgroundColor: string;
-  /** Отступы вписывания трека в долях высоты/ширины карты: место под название и показатели. */
-  fitPadding: { top: number; right: number; bottom: number; left: number };
-}>();
-
-const emit = defineEmits<{
-  setView: [view: ShareMapView];
+  /** Поля, в которые трек не заходит, в долях ширины/высоты карты (место под название и показатели). */
+  fitPadding: MapFitPadding;
 }>();
 
 const container = useTemplateRef<HTMLElement>('container');
 const instance = shallowRef<maplibregl.Map | null>(null);
-/** Ширина карты в пикселях раскладки (не экрана: карточка масштабируется transform). */
-const width = shallowRef(0);
+/** Размер карты в пикселях раскладки (не экрана: карточка масштабируется transform). */
+const size = shallowRef({ width: 0, height: 0 });
+/** Трек в пикселях карты — рисуется поверх SVG теми же стилями, что и без карты. */
+const projected = shallowRef<RoutePoint[]>([]);
 
-const route = computed(() => createRouteGeoJson(props.track));
-const bounds = computed(() => getRouteLngLatBounds(route.value));
-const attribution = computed(() => getShareMapAttribution(props.map));
-
-const style = computed(() =>
-  createShareMapStyle(props.map, route.value, {
-    visible: props.routeVisible,
-    style: props.routeStyle,
-    routeColor: props.routeColor,
-    textColor: props.textColor,
-    backgroundColor: props.backgroundColor,
-    unit: width.value / ROUTE_LAYER_WIDTH,
-  }),
-);
-
+const lngLats = computed(() => getRouteLngLats(props.track));
+const bounds = computed(() => getLngLatBounds(lngLats.value));
 const pitch = computed(() => (props.map.tilted ? SHARE_MAP_TILT_PITCH : 0));
 
-function fitPaddingPx(element: HTMLElement) {
-  const { offsetWidth: w, offsetHeight: h } = element;
-  return {
-    top: props.fitPadding.top * h,
-    bottom: props.fitPadding.bottom * h,
-    left: props.fitPadding.left * w,
-    right: props.fitPadding.right * w,
-  };
+const points = computed(() => toSvgPolylinePoints(projected.value));
+const start = computed(() => projected.value[0] ?? null);
+/** Сколько пикселей карты в одной единице слоя трека (ширина карточки = 1000). */
+const unit = computed(() => size.value.width / ROUTE_LAYER_WIDTH);
+const viewBox = computed(() => `0 0 ${size.value.width} ${size.value.height}`);
+
+function project(map: maplibregl.Map): RoutePoint[] {
+  return lngLats.value.map((lngLat) => {
+    const point = map.project(lngLat);
+    return { x: point.x, y: point.y };
+  });
 }
 
-/** Камера по настройкам: сохранённый вид или трек целиком. */
-function applyView(map: maplibregl.Map, animate: boolean) {
-  const view = props.map.view;
-  if (view) {
-    const options = {
-      center: view.center,
-      zoom: view.zoom,
-      bearing: view.bearing,
-      pitch: pitch.value,
-    };
-    if (animate) map.easeTo({ ...options, duration: 400 });
-    else map.jumpTo(options);
-    return;
+/**
+ * Вписывает трек в карту целиком. При наклоне перспектива искажает трек,
+ * поэтому после первого приближения камера подгоняется по реальной проекции:
+ * зум — по размеру, центр — по смещению проекции от центра свободной области.
+ */
+function fitRoute(map: maplibregl.Map) {
+  const { width, height } = size.value;
+  if (!bounds.value || !width || !height) return;
+
+  const padding = {
+    top: props.fitPadding.top * height,
+    bottom: props.fitPadding.bottom * height,
+    left: props.fitPadding.left * width,
+    right: props.fitPadding.right * width,
+  };
+  const camera = map.cameraForBounds(bounds.value, { padding, maxZoom: MAX_FIT_ZOOM });
+  if (!camera) return;
+  map.jumpTo({ ...camera, bearing: 0, pitch: pitch.value });
+
+  const areaWidth = width - padding.left - padding.right;
+  const areaHeight = height - padding.top - padding.bottom;
+  const areaX = padding.left + areaWidth / 2;
+  const areaY = padding.top + areaHeight / 2;
+
+  for (let step = 0; step < FIT_ITERATIONS && pitch.value; step++) {
+    const box = getBox(project(map));
+    const ratio = Math.max((box.maxX - box.minX) / areaWidth, (box.maxY - box.minY) / areaHeight);
+    if (!Number.isFinite(ratio) || ratio <= 0) break;
+
+    // Сдвигаем центр так, чтобы середина проекции трека встала в середину области.
+    const shift = map.unproject([
+      width / 2 + (box.minX + box.maxX) / 2 - areaX,
+      height / 2 + (box.minY + box.maxY) / 2 - areaY,
+    ]);
+    map.jumpTo({
+      center: shift,
+      zoom: Math.min(MAX_FIT_ZOOM, map.getZoom() - Math.log2(ratio)),
+    });
   }
 
-  if (!bounds.value || !container.value) return;
-  const camera = map.cameraForBounds(bounds.value, {
-    padding: fitPaddingPx(container.value),
-    maxZoom: 16,
-  });
-  if (!camera) return;
-  const zoom = (camera.zoom ?? map.getZoom()) + (props.map.tilted ? TILTED_FIT_ZOOM_BOOST : 0);
-  const options = { ...camera, zoom, bearing: 0, pitch: pitch.value };
-  if (animate) map.easeTo({ ...options, duration: 400 });
-  else map.jumpTo(options);
+  projected.value = project(map);
 }
 
-function isSameView(map: maplibregl.Map, view: ShareMapView | null) {
-  if (!view) return false;
-  const center = map.getCenter();
-  return (
-    Math.abs(center.lng - view.center[0]) < 1e-7 &&
-    Math.abs(center.lat - view.center[1]) < 1e-7 &&
-    Math.abs(map.getZoom() - view.zoom) < 1e-4 &&
-    Math.abs(map.getBearing() - view.bearing) < 1e-3
-  );
+function getBox(list: RoutePoint[]) {
+  const box = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  for (const { x, y } of list) {
+    box.minX = Math.min(box.minX, x);
+    box.maxX = Math.max(box.maxX, x);
+    box.minY = Math.min(box.minY, y);
+    box.maxY = Math.max(box.maxY, y);
+  }
+  return box;
 }
 
 let resizeObserver: ResizeObserver | null = null;
@@ -114,41 +121,28 @@ let resizeObserver: ResizeObserver | null = null;
 onMounted(() => {
   const element = container.value;
   if (!element) return;
-  width.value = element.offsetWidth;
+  size.value = { width: element.offsetWidth, height: element.offsetHeight };
 
   const map = new maplibregl.Map({
     container: element,
-    style: style.value,
+    style: createShareMapStyle(props.map, props.backgroundColor),
     attributionControl: false,
+    // Карта — фиксированная картинка под треком.
+    interactive: false,
     // Иначе WebGL-холст пуст при снимке карточки в PNG.
     canvasContextAttributes: { preserveDrawingBuffer: true, antialias: true },
-    // Наклон задаётся переключателем в меню, не жестом.
-    pitchWithRotate: false,
-    touchPitch: false,
     maxPitch: SHARE_MAP_TILT_PITCH,
     fadeDuration: 0,
   });
   instance.value = map;
-  applyView(map, false);
+  fitRoute(map);
 
-  // Положение, выставленное пальцами, сохраняем в настройки (и в историю отмены).
-  map.on('moveend', (event) => {
-    if (!('originalEvent' in event) || !event.originalEvent) return;
-    const center = map.getCenter();
-    emit('setView', {
-      center: [center.lng, center.lat],
-      zoom: map.getZoom(),
-      bearing: map.getBearing(),
-    });
-  });
-
-  let height = element.offsetHeight;
   resizeObserver = new ResizeObserver(() => {
-    if (element.offsetWidth === width.value && element.offsetHeight === height) return;
-    width.value = element.offsetWidth;
-    height = element.offsetHeight;
+    const next = { width: element.offsetWidth, height: element.offsetHeight };
+    if (next.width === size.value.width && next.height === size.value.height) return;
+    size.value = next;
     map.resize();
-    if (!props.map.view) applyView(map, false);
+    fitRoute(map);
   });
   resizeObserver.observe(element);
 });
@@ -159,22 +153,15 @@ onBeforeUnmount(() => {
   instance.value = null;
 });
 
-watch(style, (value) => instance.value?.setStyle(value));
-
-// Отмена/сброс/переключение наклона и вида карточки — камера догоняет настройки.
 watch(
-  () => [props.map.view, props.map.tilted, props.map.layout] as const,
+  () => [props.map.base, props.backgroundColor] as const,
+  () => instance.value?.setStyle(createShareMapStyle(props.map, props.backgroundColor)),
+);
+
+watch(
+  () => [props.map.tilted, props.fitPadding, props.track] as const,
   () => {
-    const map = instance.value;
-    if (map && !props.map.view) {
-      applyView(map, true);
-      return;
-    }
-    if (!map || isSameView(map, props.map.view)) {
-      if (map && map.getPitch() !== pitch.value) map.easeTo({ pitch: pitch.value, duration: 400 });
-      return;
-    }
-    applyView(map, true);
+    if (instance.value) fitRoute(instance.value);
   },
 );
 
@@ -198,7 +185,22 @@ defineExpose({ whenReady });
 <template>
   <div class="artwork-map">
     <div ref="container" class="artwork-map__canvas" />
-    <span class="artwork-map__attribution">{{ attribution }}</span>
+    <svg
+      v-if="routeVisible && projected.length"
+      class="artwork-map__route"
+      :viewBox="viewBox"
+      aria-hidden="true"
+    >
+      <RouteStyleLayers
+        :points="points"
+        :start="start"
+        :style-id="routeStyle"
+        :route-color="routeColor"
+        :text-color="textColor"
+        :background-color="backgroundColor"
+        :unit="unit"
+      />
+    </svg>
   </div>
 </template>
 
@@ -208,20 +210,16 @@ defineExpose({ whenReady });
   overflow: hidden;
 }
 
-.artwork-map__canvas {
+.artwork-map__canvas,
+.artwork-map__route {
   position: absolute;
   inset: 0;
 }
 
-.artwork-map__attribution {
-  position: absolute;
-  right: 6px;
-  bottom: 4px;
-  z-index: 1;
-  font-size: 7px;
-  line-height: 1;
-  color: rgb(255 255 255 / 80%);
-  text-shadow: 0 0 2px rgb(0 0 0 / 70%);
+.artwork-map__route {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
   pointer-events: none;
 }
 </style>

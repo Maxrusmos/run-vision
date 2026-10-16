@@ -61,10 +61,7 @@ const {
   resetSettings,
   setMapLayout,
   setMapBase,
-  setMapDetailed,
-  setMapTerrain,
   setMapTilted,
-  setMapView,
   undo,
   redo,
   canUndo,
@@ -204,7 +201,6 @@ function goBack() {
         @remove-route="setRouteVisible(false)"
         @set-title="setTitle"
         @remove-title="setTitleVisible(false)"
-        @set-map-view="setMapView"
       />
     </FitToBox>
 
@@ -230,10 +226,7 @@ function goBack() {
             :map="settings.map"
             @set-layout="setMapLayout"
             @set-base="setMapBase"
-            @set-detailed="setMapDetailed"
-            @set-terrain="setMapTerrain"
             @set-tilted="setMapTilted"
-            @fit-route="setMapView(null)"
           />
           <BackgroundPanel
             v-else-if="displayedTool === 'background'"

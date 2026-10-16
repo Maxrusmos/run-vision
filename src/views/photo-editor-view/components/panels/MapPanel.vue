@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import type {
   ShareMapBase,
   ShareMapLayout,
@@ -12,27 +11,20 @@ import {
 import OptionTile from '@/views/photo-editor-view/components/settings/OptionTile.vue';
 import OptionTileRow from '@/views/photo-editor-view/components/settings/OptionTileRow.vue';
 
-const props = defineProps<{
+defineProps<{
   map: ShareMapSettings;
 }>();
 
 const emit = defineEmits<{
   setLayout: [layout: ShareMapLayout];
   setBase: [base: ShareMapBase];
-  setDetailed: [value: boolean];
-  setTerrain: [value: boolean];
   setTilted: [value: boolean];
-  fitRoute: [];
 }>();
-
-const canSimplify = computed(
-  () => SHARE_MAP_BASES.find((base) => base.id === props.map.base)?.canSimplify ?? true,
-);
 </script>
 
 <template>
   <div class="map-panel">
-    <!-- Вид карточки и переключатели карты. -->
+    <!-- Вид карточки и наклон. -->
     <OptionTileRow>
       <template #fixed>
         <OptionTile
@@ -51,22 +43,8 @@ const canSimplify = computed(
         </OptionTile>
       </template>
 
-      <OptionTile
-        label="Подробная"
-        :active="map.detailed || !canSimplify"
-        :disabled="!canSimplify"
-        @click="emit('setDetailed', !map.detailed)"
-      >
-        <template #preview><v-icon icon="mdi-map-legend" size="22" /></template>
-      </OptionTile>
-      <OptionTile label="Рельеф" :active="map.terrain" @click="emit('setTerrain', !map.terrain)">
-        <template #preview><v-icon icon="mdi-terrain" size="22" /></template>
-      </OptionTile>
       <OptionTile label="Наклон 3D" :active="map.tilted" @click="emit('setTilted', !map.tilted)">
         <template #preview><v-icon icon="mdi-angle-acute" size="22" /></template>
-      </OptionTile>
-      <OptionTile label="По треку" :disabled="!map.view" @click="emit('fitRoute')">
-        <template #preview><v-icon icon="mdi-fit-to-screen-outline" size="22" /></template>
       </OptionTile>
     </OptionTileRow>
 

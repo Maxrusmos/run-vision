@@ -5,7 +5,6 @@ import type {
   ShareCardElement,
   ShareCardSettings,
   ShareColorKey,
-  ShareMapView,
   ShareRoutePosition,
   ShareStat,
   ShareStatKey,
@@ -47,7 +46,6 @@ const emit = defineEmits<{
   removeRoute: [];
   setTitle: [value: string];
   removeTitle: [];
-  setMapView: [view: ShareMapView];
 }>();
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
@@ -136,7 +134,6 @@ function removeRoute() {
         :text-color="settings.textColor"
         :background-color="settings.backgroundColor"
         :fit-padding="FULL_MAP_FIT_PADDING"
-        @set-view="emit('setMapView', $event)"
       />
       <div class="share-artwork__map-scrim" aria-hidden="true" />
     </template>
@@ -185,7 +182,6 @@ function removeRoute() {
         :text-color="settings.textColor"
         :background-color="settings.backgroundColor"
         :fit-padding="BLOCK_MAP_FIT_PADDING"
-        @set-view="emit('setMapView', $event)"
       />
 
       <!-- Показатели раскладываются по сетке на всей высоте — от названия до низа. -->

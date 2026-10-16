@@ -83,26 +83,14 @@ export type ShareBackgroundImageFit = 'cover' | 'contain';
 export type ShareMapLayout = 'block' | 'full';
 
 /** Подложка карты. */
-export type ShareMapBase = 'light' | 'dark' | 'topo' | 'satellite';
+export type ShareMapBase = 'topo' | 'satellite';
 
-/** Положение карты, выставленное пользователем жестами. */
-export type ShareMapView = {
-  center: [lng: number, lat: number];
-  zoom: number;
-  bearing: number;
-};
-
+/** Карта — фиксированная картинка: трек всегда вписан целиком, жестами не двигается. */
 export type ShareMapSettings = {
   layout: ShareMapLayout;
   base: ShareMapBase;
-  /** Подписи и мелкие объекты на карте; false — упрощённый вид. */
-  detailed: boolean;
-  /** Тени рельефа (а при наклоне — объёмный рельеф). */
-  terrain: boolean;
   /** Наклон карты — эффект 3D. */
   tilted: boolean;
-  /** null — карта вписана по треку. */
-  view: ShareMapView | null;
 };
 
 export type ShareColorPreset = {

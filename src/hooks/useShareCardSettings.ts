@@ -6,7 +6,6 @@ import type {
   ShareColorPreset,
   ShareMapBase,
   ShareMapLayout,
-  ShareMapView,
   ShareRoutePosition,
   ShareRouteStyle,
   ShareStatKey,
@@ -213,29 +212,15 @@ export function useShareCardSettings(
   }
 
   function setMapLayout(layout: ShareMapLayout) {
-    // Карта вписывается заново: место под трек у блока и у фона разное.
-    updateMap({ layout, view: null });
+    updateMap({ layout });
   }
 
   function setMapBase(base: ShareMapBase) {
     updateMap({ base });
   }
 
-  function setMapDetailed(detailed: boolean) {
-    updateMap({ detailed });
-  }
-
-  function setMapTerrain(terrain: boolean) {
-    updateMap({ terrain });
-  }
-
   function setMapTilted(tilted: boolean) {
     updateMap({ tilted });
-  }
-
-  /** null — снова вписать карту по треку. */
-  function setMapView(view: ShareMapView | null) {
-    updateMap({ view });
   }
 
   /** Возвращает карточку к исходному виду выбранного шаблона. */
@@ -254,10 +239,7 @@ export function useShareCardSettings(
     resetSettings,
     setMapLayout,
     setMapBase,
-    setMapDetailed,
-    setMapTerrain,
     setMapTilted,
-    setMapView,
     applyPresetById,
     setColor,
     setBackgroundColor,
