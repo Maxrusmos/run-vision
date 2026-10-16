@@ -164,6 +164,17 @@ export function useShareCardSettings(
     visibleStats.push(key);
   }
 
+  /** Добавляет сразу несколько показателей (каждый — шириной текущей сетки). */
+  function addStats(keys: readonly ShareStatKey[]) {
+    keys.forEach(addStat);
+  }
+
+  /** Убирает все показатели с карточки. */
+  function removeAllStats() {
+    settings.value.visibleStats = [];
+    settings.value.statPositions = {};
+  }
+
   function removeStat(key: ShareStatKey) {
     settings.value.visibleStats = settings.value.visibleStats.filter((item) => item !== key);
     delete settings.value.statPositions[key];
@@ -409,7 +420,9 @@ export function useShareCardSettings(
     setColor,
     setBackgroundColor,
     addStat,
+    addStats,
     removeStat,
+    removeAllStats,
     setStatPositions,
     setStatWidth,
     setStatSpacing,

@@ -18,6 +18,7 @@ const emit = defineEmits<{
   addTitle: [];
   addRoute: [];
   addStat: [key: ShareStatKey];
+  addStats: [keys: ShareStatKey[]];
   addElevation: [];
   addWidget: [kind: ShareWidgetKind];
 }>();
@@ -41,6 +42,11 @@ const availableStats = computed(() =>
       hasData: props.statValues[option.key] !== SHARE_STAT_EMPTY_VALUE,
     }),
   ),
+);
+
+/** Показатели с данными, которых ещё нет на карточке, — для «Добавить все». */
+const addableStats = computed(() =>
+  availableStats.value.filter((stat) => stat.hasData).map((stat) => stat.key),
 );
 
 const canAddElevation = computed(() => props.settings.elevation?.visible === false);
@@ -99,6 +105,17 @@ const hasElements = computed(
       </button>
     </div>
 
+    <button
+      v-if="addableStats.length > 1"
+      type="button"
+      class="add-panel__item add-panel__item--all"
+      @click="emit('addStats', addableStats)"
+    >
+      <v-icon icon="mdi-playlist-plus" size="18" />
+      <span class="add-panel__label">Добавить все показатели</span>
+      <span class="add-panel__count">{{ addableStats.length }}</span>
+    </button>
+
     <div v-if="availableStats.length" class="add-panel__group">
       <button
         v-for="stat in availableStats"
@@ -151,6 +168,23 @@ const hasElements = computed(
   border-radius: 10px;
   background: var(--app-hover-bg);
   cursor: pointer;
+}
+
+.add-panel__item--all {
+  justify-content: center;
+  color: var(--app-primary);
+  border-color: color-mix(in srgb, var(--app-primary) 45%, transparent);
+  background: var(--app-primary-bg);
+}
+
+.add-panel__count {
+  min-width: 20px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-primary) 18%, transparent);
 }
 
 .add-panel__item:disabled {

@@ -46,7 +46,9 @@ const {
   setColor,
   setBackgroundColor,
   addStat,
+  addStats,
   removeStat,
+  removeAllStats,
   setStatPositions,
   setStatWidth,
   setStatSpacing,
@@ -257,6 +259,7 @@ function goBack() {
             @add-title="setTitleVisible(true)"
             @add-route="setRouteVisible(true)"
             @add-stat="addStat"
+            @add-stats="addStats"
             @add-elevation="setElevationVisible(true)"
             @add-widget="setWidgetVisible($event, true)"
           />
@@ -320,6 +323,7 @@ function goBack() {
           />
           <StatsAppearancePanel
             v-else-if="displayedTool === 'stats'"
+            @remove-all="removeAllStats"
             :settings="settings"
             @set-stat-columns="setStatColumns"
             @set-stat-style="setStatStyle"

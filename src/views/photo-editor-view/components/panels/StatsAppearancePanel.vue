@@ -21,6 +21,7 @@ const emit = defineEmits<{
   setStatSpacing: [value: number];
   setStatStyle: [style: ShareStatStyle];
   setTextColor: [color: string];
+  removeAll: [];
 }>();
 
 const widths = computed(() =>
@@ -32,12 +33,25 @@ const widths = computed(() =>
 
 <template>
   <div class="stats-panel">
-    <StatLayoutControls
-      :widths="widths"
-      :spacing="settings.statSpacing"
-      @set-columns="emit('setStatColumns', $event)"
-      @set-spacing="emit('setStatSpacing', $event)"
-    />
+    <div class="stats-panel__controls">
+      <StatLayoutControls
+        class="stats-panel__layout"
+        :widths="widths"
+        :spacing="settings.statSpacing"
+        @set-columns="emit('setStatColumns', $event)"
+        @set-spacing="emit('setStatSpacing', $event)"
+      />
+      <!-- Убрать все показатели разом (отменяется стрелкой «назад»). -->
+      <button
+        type="button"
+        class="stats-panel__remove-all"
+        aria-label="Удалить все показатели"
+        title="Удалить все показатели"
+        @click="emit('removeAll')"
+      >
+        <v-icon icon="mdi-delete-sweep-outline" size="20" />
+      </button>
+    </div>
 
     <OptionTileRow>
       <template #fixed>
@@ -63,6 +77,29 @@ const widths = computed(() =>
 </template>
 
 <style scoped>
+.stats-panel__controls {
+  display: flex;
+  gap: 8px;
+}
+
+.stats-panel__layout {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.stats-panel__remove-all {
+  display: grid;
+  flex: 0 0 36px;
+  height: 36px;
+  place-items: center;
+  padding: 0;
+  color: #f27474;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+
 .stats-panel {
   display: flex;
   flex-direction: column;
