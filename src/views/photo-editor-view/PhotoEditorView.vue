@@ -25,6 +25,7 @@ import {
 import AddElementsPanel from '@/views/photo-editor-view/components/panels/AddElementsPanel.vue';
 import BackgroundPanel from '@/views/photo-editor-view/components/panels/BackgroundPanel.vue';
 import PresetsPanel from '@/views/photo-editor-view/components/panels/PresetsPanel.vue';
+import TrackPanel from '@/views/photo-editor-view/components/panels/TrackPanel.vue';
 import StatsAppearancePanel from '@/views/photo-editor-view/components/panels/StatsAppearancePanel.vue';
 
 /** Время на анимацию снятия выделения с показателя перед рендером. */
@@ -44,7 +45,6 @@ const {
   setStatPositions,
   setStatWidth,
   setStatSpacing,
-  setShowStatBorders,
   setStatStyle,
   setStatColumns,
   setTransparentBackground,
@@ -52,6 +52,7 @@ const {
   removeBackgroundImage,
   setRouteVisible,
   setRouteScale,
+  setRouteStyle,
   setRoutePosition,
   setTitle,
   setTitleVisible,
@@ -81,10 +82,13 @@ const displayedToolTitle = computed(
   () => EDITOR_TOOLS.find((tool) => tool.id === displayedTool.value)?.label ?? '',
 );
 
-// Без показателей настраивать их внешний вид нечего.
-const disabledTools = computed<EditorToolId[]>(() =>
-  settings.value.visibleStats.length ? [] : ['stats'],
-);
+// Нечего настраивать, если элемента нет на карточке: нет показателей или трека.
+const disabledTools = computed<EditorToolId[]>(() => {
+  const tools: EditorToolId[] = [];
+  if (!settings.value.visibleStats.length) tools.push('stats');
+  if (!settings.value.routeVisible) tools.push('track');
+  return tools;
+});
 watch(disabledTools, (tools) => {
   if (activeTool.value && tools.includes(activeTool.value)) activeTool.value = null;
 });
@@ -219,13 +223,20 @@ function goBack() {
             :settings="settings"
             @apply-preset="applyPresetById"
           />
+          <TrackPanel
+            v-else-if="displayedTool === 'track'"
+            :settings="settings"
+            :track="activity.track"
+            @set-route-color="setColor('routeColor', $event)"
+            @set-route-style="setRouteStyle"
+          />
           <StatsAppearancePanel
             v-else-if="displayedTool === 'stats'"
             :settings="settings"
             @set-stat-columns="setStatColumns"
             @set-stat-style="setStatStyle"
             @set-stat-spacing="setStatSpacing"
-            @set-show-stat-borders="setShowStatBorders"
+            @set-text-color="setColor('textColor', $event)"
           />
         </EditorToolPanel>
       </div>

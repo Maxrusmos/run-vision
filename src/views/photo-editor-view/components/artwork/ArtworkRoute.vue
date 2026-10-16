@@ -2,7 +2,10 @@
 import { computed, ref, useTemplateRef } from 'vue';
 import type { CSSProperties } from 'vue';
 import type { ITrackPoint } from '@/entities/activity/model/activity.types';
-import type { ShareRoutePosition } from '@/entities/activity/model/activity-share/activity-share.types';
+import type {
+  ShareRoutePosition,
+  ShareRouteStyle,
+} from '@/entities/activity/model/activity-share/activity-share.types';
 import {
   ROUTE_LAYER_WIDTH,
   clampRoutePosition,
@@ -17,12 +20,10 @@ import {
 import { usePinchDrag } from '@/hooks/usePinchDrag';
 import { usePointerDrag } from '@/hooks/usePointerDrag';
 import { useResizeObserver } from '@/hooks/useResizeObserver';
-import ColorPickerButton from '@/shared/ui/ColorPickerButton.vue';
 import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
 import SelectionFrame from '@/views/photo-editor-view/components/artwork/SelectionFrame.vue';
+import RouteStyleLayers from '@/views/photo-editor-view/components/artwork/RouteStyleLayers.vue';
 
-const STROKE_WIDTH = 8;
-const START_RADIUS = 11;
 /** Толщина невидимой линии, по которой удобно попасть пальцем. */
 const HIT_STROKE_WIDTH = 56;
 /** Отступ трека от краёв места под трек. */
@@ -39,6 +40,9 @@ type SlotBox = { left: number; top: number; width: number; height: number };
 const props = defineProps<{
   track: ITrackPoint[];
   color: string;
+  textColor: string;
+  backgroundColor: string;
+  routeStyle: ShareRouteStyle;
   scale: number;
   position: ShareRoutePosition | null;
   selected: boolean;
@@ -48,7 +52,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [];
-  changeColor: [color: string];
   setScale: [scale: number];
   setPosition: [position: ShareRoutePosition];
   remove: [];
@@ -217,15 +220,15 @@ function handleWheel(event: WheelEvent) {
       xmlns="http://www.w3.org/2000/svg"
     >
       <g v-if="polylinePoints" :transform="transform">
-        <polyline
+        <RouteStyleLayers
           :points="polylinePoints"
-          fill="none"
-          :stroke="color"
-          :stroke-width="STROKE_WIDTH / scale"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+          :start="start"
+          :style-id="routeStyle"
+          :route-color="color"
+          :text-color="textColor"
+          :background-color="backgroundColor"
+          :unit="1 / scale"
         />
-        <circle v-if="start" :cx="start.x" :cy="start.y" :r="START_RADIUS / scale" :fill="color" />
       </g>
     </svg>
 
@@ -274,13 +277,7 @@ function handleWheel(event: WheelEvent) {
         :class="`route-layer__toolbar--${toolbarPlacement}`"
         remove-label="Удалить трек"
         @remove="emit('remove')"
-      >
-        <ColorPickerButton
-          label="Цвет трека"
-          :color="color"
-          @change="emit('changeColor', $event)"
-        />
-      </ArtworkElementToolbar>
+      />
     </div>
   </div>
 </template>

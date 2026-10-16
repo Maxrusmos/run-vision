@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { ShareCardSettings } from '@/entities/activity/model/activity-share/activity-share.types';
 import { SHARE_COLOR_PRESETS } from '@/entities/activity/model/activity-share/activity-share-presets';
-import ShareColorPresetCard from '@/views/photo-editor-view/components/settings/ShareColorPresetCard.vue';
+import OptionTile from '@/views/photo-editor-view/components/settings/OptionTile.vue';
+import OptionTileRow from '@/views/photo-editor-view/components/settings/OptionTileRow.vue';
 
 defineProps<{
   settings: ShareCardSettings;
@@ -13,41 +14,73 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <!-- Горизонтальная карусель: свайп по пресетам, карточка над ней сразу меняется. -->
-  <div class="presets-carousel">
-    <ShareColorPresetCard
+  <OptionTileRow>
+    <OptionTile
       v-for="preset in SHARE_COLOR_PRESETS"
       :key="preset.id"
-      class="presets-carousel__item"
-      :preset="preset"
+      :label="preset.name"
       :active="settings.presetId === preset.id"
-      :transparent="settings.transparentBackground"
-      :background-image="settings.backgroundImage"
-      :background-image-fit="settings.backgroundImageFit"
-      :background-image-position="settings.backgroundImagePosition"
-      @select="emit('applyPreset', preset.id)"
-    />
-  </div>
+      @click="emit('applyPreset', preset.id)"
+    >
+      <!-- Мини-карточка в цветах пресета (поверх фото или прозрачности, если они включены). -->
+      <template #preview>
+        <span
+          class="preset-preview"
+          :class="{ checkerboard: settings.transparentBackground && !settings.backgroundImage }"
+          :style="{
+            backgroundColor:
+              settings.backgroundImage || settings.transparentBackground
+                ? undefined
+                : preset.background,
+          }"
+        >
+          <img
+            v-if="settings.backgroundImage"
+            class="preset-preview__image"
+            :src="settings.backgroundImage"
+            alt=""
+          />
+          <span class="preset-preview__line" :style="{ backgroundColor: preset.route }" />
+          <span class="preset-preview__dot" :style="{ backgroundColor: preset.text }" />
+        </span>
+      </template>
+    </OptionTile>
+  </OptionTileRow>
 </template>
 
 <style scoped>
-.presets-carousel {
-  display: flex;
-  gap: 10px;
-  margin: 0 -16px;
-  padding: 2px 16px 6px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
-  scrollbar-width: none;
+.preset-preview {
+  --checkerboard-size: 12px;
+
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
 }
 
-.presets-carousel::-webkit-scrollbar {
-  display: none;
+.preset-preview__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.presets-carousel__item {
-  flex: 0 0 104px;
-  scroll-snap-align: start;
+.preset-preview__line {
+  position: relative;
+  width: 56%;
+  height: 4px;
+  border-radius: 4px;
+  transform: rotate(-20deg);
+}
+
+.preset-preview__dot {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
 }
 </style>

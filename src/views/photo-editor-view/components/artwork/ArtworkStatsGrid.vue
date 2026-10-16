@@ -30,8 +30,6 @@ const props = defineProps<{
   stats: ShareStat[];
   statWidths: Partial<Record<ShareStatKey, ShareStatWidth>>;
   statPositions: Partial<Record<ShareStatKey, ShareStatPosition>>;
-  showBorders: boolean;
-  textColor: string;
   statStyle: ShareStatStyle;
   /** Высота места под трек (доля ширины) — эти строки сверху по умолчанию свободны. */
   reservedHeightRatio: number;
@@ -41,7 +39,6 @@ const emit = defineEmits<{
   remove: [key: ShareStatKey];
   setWidth: [key: ShareStatKey, width: ShareStatWidth];
   setLayout: [layout: StatLayout];
-  changeTextColor: [color: string];
 }>();
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
@@ -281,7 +278,6 @@ function remove(key: ShareStatKey) {
       :value="stat.value"
       :width="getWidth(stat.key)"
       :selected="selected === stat.key"
-      :show-border="showBorders"
       :class="{
         'stat--dragging': drag?.key === stat.key,
         'stat--swap-target': isSwapTarget(stat.key),
@@ -290,10 +286,8 @@ function remove(key: ShareStatKey) {
       @pointerdown="handlePointerDown($event, stat.key)"
       @select="toggleSelected(stat.key)"
       @remove="remove(stat.key)"
-      :text-color="textColor"
       :stat-style="statStyle"
       @set-width="setWidth(stat.key, $event)"
-      @change-text-color="emit('changeTextColor', $event)"
     />
 
     <!-- Эталон для высоты строки сетки. -->
@@ -304,8 +298,6 @@ function remove(key: ShareStatKey) {
       value="00.00 км"
       width="full"
       :selected="false"
-      :show-border="showBorders"
-      :text-color="textColor"
       :stat-style="statStyle"
       aria-hidden="true"
       inert
@@ -319,6 +311,8 @@ function remove(key: ShareStatKey) {
   z-index: 1;
   display: grid;
   gap: var(--share-stat-gap, 12px);
+  /* Смена плотности — плавно, без рывка. */
+  transition: gap 220ms ease;
   min-width: 0;
   /* Сетка занимает всю высоту карточки: пустые места пропускают касания к треку. */
   pointer-events: none;

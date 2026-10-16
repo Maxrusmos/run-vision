@@ -38,9 +38,9 @@ withDefaults(
   flex: 0 0 auto;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  width: 88px;
-  padding: 6px;
+  gap: 4px;
+  width: 80px;
+  padding: 5px;
   color: inherit;
   border: 1px solid var(--app-border);
   border-radius: 12px;
@@ -73,7 +73,7 @@ withDefaults(
 .option-tile__preview {
   display: grid;
   width: 100%;
-  height: 52px;
+  height: 46px;
   overflow: hidden;
   place-items: center;
   border: 1px solid rgb(255 255 255 / 12%);
@@ -81,8 +81,11 @@ withDefaults(
 }
 
 .option-tile__label {
-  font-size: 12px;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 11px;
   font-weight: 500;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 </style>

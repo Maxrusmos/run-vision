@@ -23,7 +23,23 @@ export type ShareStatKey =
 export type ShareStatWidth = 'third' | 'half' | 'full';
 
 /** Пресет внешнего вида показателей (эффект). */
-export type ShareStatStyle = 'classic' | 'glass' | 'speed' | 'tile' | 'neon' | 'minimal';
+export type ShareStatStyle =
+  'classic' | 'borderless' | 'glass' | 'speed' | 'tile' | 'neon' | 'minimal';
+
+/** Пресет оформления трека. */
+export type ShareRouteStyle =
+  | 'solid'
+  | 'shadow'
+  | 'glow'
+  | 'outline'
+  | 'duo'
+  | 'echo'
+  | 'stack'
+  | 'ghost'
+  | 'glitch'
+  | 'gradient'
+  | 'dashed'
+  | 'dotted';
 
 /** Ячейка показателя в сетке из 6 колонок: строка и первая колонка. */
 export type ShareStatPosition = {
@@ -68,7 +84,6 @@ export type ShareCardSettings = {
   /** Позиции, выставленные пользователем; остальные раскладываются автоматически. */
   statPositions: Partial<Record<ShareStatKey, ShareStatPosition>>;
   transparentBackground: boolean;
-  showStatBorders: boolean;
   statStyle: ShareStatStyle;
   backgroundImage: string | null;
   backgroundImageFit: ShareBackgroundImageFit;
@@ -77,6 +92,7 @@ export type ShareCardSettings = {
   routeVisible: boolean;
   /** Масштаб трека: 1 — заполняет место под трек. */
   routeScale: number;
+  routeStyle: ShareRouteStyle;
   /** null — трек стоит на своём месте между названием и показателями. */
   routePosition: ShareRoutePosition | null;
 };

@@ -4,7 +4,6 @@ import type {
   ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import { SHARE_STAT_WIDTH_OPTIONS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
-import ColorPickerButton from '@/shared/ui/ColorPickerButton.vue';
 import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
 import SelectionFrame from '@/views/photo-editor-view/components/artwork/SelectionFrame.vue';
 
@@ -12,9 +11,7 @@ defineProps<{
   label: string;
   value: string;
   width: ShareStatWidth;
-  showBorder: boolean;
   selected: boolean;
-  textColor: string;
   statStyle: ShareStatStyle;
 }>();
 
@@ -22,7 +19,6 @@ const emit = defineEmits<{
   select: [];
   remove: [];
   setWidth: [width: ShareStatWidth];
-  changeTextColor: [color: string];
 }>();
 </script>
 
@@ -33,7 +29,6 @@ const emit = defineEmits<{
       `stat--${width}`,
       `stat--style-${statStyle}`,
       {
-        'stat--bordered': showBorder,
         'stat--selected': selected,
       },
     ]"
@@ -52,14 +47,7 @@ const emit = defineEmits<{
       :inert="!selected"
       @update:model-value="emit('setWidth', $event!)"
       @remove="emit('remove')"
-    >
-      <!-- Цвет текста меняется для всей карточки. -->
-      <ColorPickerButton
-        label="Цвет текста"
-        :color="textColor"
-        @change="emit('changeTextColor', $event)"
-      />
-    </ArtworkElementToolbar>
+    />
 
     <div class="stat__label">{{ label }}</div>
     <div class="stat__value">{{ value }}</div>
@@ -79,10 +67,13 @@ const emit = defineEmits<{
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
-  transition: border-color 180ms ease;
+  transition:
+    border-color 180ms ease,
+    padding 220ms ease;
 }
 
-.stat--bordered {
+/* Классика: тонкая рамка. «Без границ» — базовый вид без рамки и заливки. */
+.stat--style-classic {
   border-color: color-mix(in srgb, var(--share-text) 18%, transparent);
 }
 

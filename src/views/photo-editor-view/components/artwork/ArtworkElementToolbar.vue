@@ -2,8 +2,8 @@
 import { computed } from 'vue';
 
 /**
- * Панель действий выделенного элемента карточки: слот для своих кнопок
- * (например, пипетки), переключатель вариантов и удаление.
+ * Панель действий выделенного элемента карточки: слот для своих кнопок,
+ * переключатель вариантов и удаление.
  * Переключатель — одна кнопка, которая по нажатию перебирает варианты по кругу.
  */
 const props = defineProps<{
@@ -66,13 +66,6 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-/* Пипетка в панели — того же размера, что и кнопки. */
-.element-toolbar :deep(.color-picker) {
-  --color-picker-size: var(--toolbar-button-size);
-
-  font-size: 12px;
 }
 
 .element-toolbar__cycle,

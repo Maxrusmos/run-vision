@@ -6,10 +6,11 @@ import type {
   ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import { DEFAULT_SHARE_STAT_WIDTH } from '@/entities/activity/model/activity-share/activity-share-stat-options';
-import StatColumnsSetting from '@/views/photo-editor-view/components/settings/StatColumnsSetting.vue';
-import StatStylePresets from '@/views/photo-editor-view/components/settings/StatStylePresets.vue';
-import StatSpacingSetting from '@/views/photo-editor-view/components/settings/StatSpacingSetting.vue';
-import StatBordersToggle from '@/views/photo-editor-view/components/settings/StatBordersToggle.vue';
+import { SHARE_STAT_STYLES } from '@/entities/activity/model/activity-share/activity-share-stat-styles';
+import OptionTileRow from '@/views/photo-editor-view/components/settings/OptionTileRow.vue';
+import ColorOptionTile from '@/views/photo-editor-view/components/settings/ColorOptionTile.vue';
+import StatLayoutControls from '@/views/photo-editor-view/components/settings/StatLayoutControls.vue';
+import StatStyleTile from '@/views/photo-editor-view/components/settings/StatStyleTile.vue';
 
 const props = defineProps<{
   settings: ShareCardSettings;
@@ -17,9 +18,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   setStatColumns: [width: ShareStatWidth];
-  setStatStyle: [style: ShareStatStyle];
   setStatSpacing: [value: number];
-  setShowStatBorders: [value: boolean];
+  setStatStyle: [style: ShareStatStyle];
+  setTextColor: [color: string];
 }>();
 
 const widths = computed(() =>
@@ -31,24 +32,30 @@ const widths = computed(() =>
 
 <template>
   <div class="stats-panel">
-    <section class="stats-panel__section">
-      <h3 class="stats-panel__title">Сетка</h3>
-      <StatColumnsSetting :widths="widths" @select="emit('setStatColumns', $event)" />
-    </section>
-
-    <section class="stats-panel__section">
-      <h3 class="stats-panel__title">Стиль</h3>
-      <StatStylePresets :settings="settings" @select="emit('setStatStyle', $event)" />
-    </section>
-
-    <StatSpacingSetting
-      :model-value="settings.statSpacing"
-      @update:model-value="emit('setStatSpacing', $event)"
+    <StatLayoutControls
+      :widths="widths"
+      :spacing="settings.statSpacing"
+      @set-columns="emit('setStatColumns', $event)"
+      @set-spacing="emit('setStatSpacing', $event)"
     />
-    <StatBordersToggle
-      :model-value="settings.showStatBorders"
-      @update:model-value="emit('setShowStatBorders', $event)"
-    />
+
+    <OptionTileRow>
+      <ColorOptionTile
+        label="Цвет"
+        input-label="Цвет текста показателей и названия"
+        :color="settings.textColor"
+        @change="emit('setTextColor', $event)"
+      />
+      <StatStyleTile
+        v-for="style in SHARE_STAT_STYLES"
+        :key="style.id"
+        :style-id="style.id"
+        :name="style.name"
+        :active="settings.statStyle === style.id"
+        :settings="settings"
+        @click="emit('setStatStyle', style.id)"
+      />
+    </OptionTileRow>
   </div>
 </template>
 
@@ -56,19 +63,6 @@ const widths = computed(() =>
 .stats-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.stats-panel__section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.stats-panel__title {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  opacity: 0.7;
+  gap: 4px;
 }
 </style>

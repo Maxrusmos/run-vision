@@ -5,6 +5,7 @@ import type {
   ShareColorKey,
   ShareColorPreset,
   ShareRoutePosition,
+  ShareRouteStyle,
   ShareStatKey,
   ShareStatPosition,
   ShareStatStyle,
@@ -16,6 +17,7 @@ import {
   findSharePresetByColors,
 } from '@/entities/activity/model/activity-share/activity-share-presets';
 import { DEFAULT_ROUTE_SCALE } from '@/entities/activity/model/activity-share/activity-share-route';
+import { DEFAULT_ROUTE_STYLE } from '@/entities/activity/model/activity-share/activity-share-route-styles';
 import { DEFAULT_STAT_STYLE } from '@/entities/activity/model/activity-share/activity-share-stat-styles';
 import { DEFAULT_VISIBLE_SHARE_STATS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
@@ -36,7 +38,6 @@ function createSettings(preset: ShareColorPreset): ShareCardSettings {
     statWidths: {},
     statPositions: {},
     transparentBackground: false,
-    showStatBorders: true,
     statStyle: DEFAULT_STAT_STYLE,
     backgroundImage: null,
     backgroundImageFit: 'cover',
@@ -44,6 +45,7 @@ function createSettings(preset: ShareColorPreset): ShareCardSettings {
     statSpacing: 12,
     routeVisible: true,
     routeScale: DEFAULT_ROUTE_SCALE,
+    routeStyle: DEFAULT_ROUTE_STYLE,
     routePosition: null,
   };
 }
@@ -126,10 +128,6 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     settings.value.statSpacing = Math.min(STAT_SPACING_MAX, Math.max(STAT_SPACING_MIN, value));
   }
 
-  function setShowStatBorders(value: boolean) {
-    settings.value.showStatBorders = value;
-  }
-
   function setStatStyle(style: ShareStatStyle) {
     settings.value.statStyle = style;
   }
@@ -171,6 +169,10 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     settings.value.routeVisible = value;
   }
 
+  function setRouteStyle(style: ShareRouteStyle) {
+    settings.value.routeStyle = style;
+  }
+
   function setRouteScale(scale: number) {
     settings.value.routeScale = scale;
   }
@@ -198,6 +200,7 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     settings,
     setRouteVisible,
     setRouteScale,
+    setRouteStyle,
     setRoutePosition,
     setTitle,
     setTitleVisible,
@@ -210,7 +213,6 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     setStatPositions,
     setStatWidth,
     setStatSpacing,
-    setShowStatBorders,
     setStatStyle,
     setStatColumns,
     setTransparentBackground,

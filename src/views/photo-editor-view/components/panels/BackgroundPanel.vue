@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { ShareCardSettings } from '@/entities/activity/model/activity-share/activity-share.types';
 import OptionTile from '@/views/photo-editor-view/components/settings/OptionTile.vue';
+import OptionTileRow from '@/views/photo-editor-view/components/settings/OptionTileRow.vue';
+import ColorOptionTile from '@/views/photo-editor-view/components/settings/ColorOptionTile.vue';
 
 const props = defineProps<{
   settings: ShareCardSettings;
@@ -13,10 +15,6 @@ const emit = defineEmits<{
   removeBackgroundImage: [];
 }>();
 
-function handleColorInput(event: Event) {
-  emit('setBackgroundColor', (event.target as HTMLInputElement).value);
-}
-
 function handleFileChange(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -26,34 +24,19 @@ function handleFileChange(event: Event) {
     emit('setBackgroundImage', file);
   }
 }
-
-function toggleTransparent() {
-  emit('setTransparentBackground', !props.settings.transparentBackground);
-}
 </script>
 
 <template>
-  <div class="background-panel">
-    <!-- Цвет: тап открывает системную палитру. Под фото цвет не виден. -->
-    <OptionTile
-      tag="label"
+  <OptionTileRow>
+    <!-- Под фото цвет фона не виден, поэтому плитка неактивна. -->
+    <ColorOptionTile
       label="Цвет"
+      input-label="Цвет фона"
+      :color="settings.backgroundColor"
       :active="!settings.transparentBackground && !settings.backgroundImage"
       :disabled="Boolean(settings.backgroundImage)"
-    >
-      <template #preview>
-        <span class="background-panel__swatch" :style="{ background: settings.backgroundColor }">
-          <v-icon icon="mdi-eyedropper-variant" size="18" />
-        </span>
-      </template>
-      <input
-        class="visually-hidden"
-        type="color"
-        :value="settings.backgroundColor"
-        aria-label="Цвет фона"
-        @input="handleColorInput"
-      />
-    </OptionTile>
+      @change="emit('setBackgroundColor', $event)"
+    />
 
     <!-- Фото: тап — загрузить или заменить, крестик — удалить. -->
     <OptionTile tag="label" label="Фото" :active="Boolean(settings.backgroundImage)">
@@ -64,7 +47,7 @@ function toggleTransparent() {
           :src="settings.backgroundImage"
           alt=""
         />
-        <v-icon v-else icon="mdi-image-plus-outline" size="24" />
+        <v-icon v-else icon="mdi-image-plus-outline" size="22" />
       </template>
       <input
         class="visually-hidden"
@@ -88,7 +71,7 @@ function toggleTransparent() {
       label="Прозрачный"
       :active="settings.transparentBackground"
       :disabled="Boolean(settings.backgroundImage)"
-      @click="toggleTransparent"
+      @click="emit('setTransparentBackground', !props.settings.transparentBackground)"
     >
       <template #preview>
         <span class="background-panel__transparent checkerboard">
@@ -96,38 +79,18 @@ function toggleTransparent() {
         </span>
       </template>
     </OptionTile>
-  </div>
+  </OptionTileRow>
 </template>
 
 <style scoped>
-.background-panel {
-  display: flex;
-  gap: 10px;
-  margin: 0 -16px;
-  padding: 10px 16px 4px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.background-panel::-webkit-scrollbar {
-  display: none;
-}
-
-.background-panel__swatch,
 .background-panel__transparent {
+  --checkerboard-size: 12px;
+
   display: grid;
   width: 100%;
   height: 100%;
   place-items: center;
   color: #fff;
-}
-
-.background-panel__swatch :deep(.v-icon) {
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 70%));
-}
-
-.background-panel__transparent {
-  --checkerboard-size: 12px;
 }
 
 .background-panel__photo {
@@ -141,8 +104,8 @@ function toggleTransparent() {
   top: -8px;
   right: -8px;
   display: grid;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   place-items: center;
   padding: 0;
   color: #fff;
