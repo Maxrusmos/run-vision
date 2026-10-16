@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  getFreeColumnsInRow,
   getStatDropCells,
   getStatLayoutRows,
   resolveStatLayout,
+  snapStatColumn,
   type StatLayoutItem,
 } from '../activity-share-stat-layout';
 
@@ -11,27 +11,13 @@ const half = (key: StatLayoutItem['key']): StatLayoutItem => ({ key, width: 'hal
 const third = (key: StatLayoutItem['key']): StatLayoutItem => ({ key, width: 'third' });
 const full = (key: StatLayoutItem['key']): StatLayoutItem => ({ key, width: 'full' });
 
-const row = (...occupied: number[]) =>
-  Array.from({ length: 6 }, (_, col) => occupied.includes(col));
-
-describe('getFreeColumnsInRow', () => {
-  it('в пустой строке — обычная сетка: 3 места по трети, 2 по половине, 1 во всю ширину', () => {
-    expect(getFreeColumnsInRow(row(), 2)).toEqual([0, 2, 4]);
-    expect(getFreeColumnsInRow(row(), 3)).toEqual([0, 3]);
-    expect(getFreeColumnsInRow(row(), 6)).toEqual([0]);
-  });
-
-  it('рядом с половиной слева помещается одна треть — вплотную к ней', () => {
-    expect(getFreeColumnsInRow(row(0, 1, 2), 2)).toEqual([3]);
-  });
-
-  it('рядом с половиной справа треть тоже встаёт вплотную', () => {
-    expect(getFreeColumnsInRow(row(3, 4, 5), 2)).toEqual([1]);
-  });
-
-  it('в занятой строке мест нет', () => {
-    expect(getFreeColumnsInRow(row(0, 1, 2, 3, 4, 5), 2)).toEqual([]);
-    expect(getFreeColumnsInRow(row(2, 3), 3)).toEqual([]);
+describe('snapStatColumn', () => {
+  it('привязывает колонку к сетке ширины показателя', () => {
+    expect(snapStatColumn(5, 'third')).toBe(4);
+    expect(snapStatColumn(3, 'third')).toBe(4);
+    expect(snapStatColumn(1, 'half')).toBe(0);
+    expect(snapStatColumn(4, 'half')).toBe(3);
+    expect(snapStatColumn(5, 'full')).toBe(0);
   });
 });
 
@@ -50,53 +36,69 @@ describe('resolveStatLayout', () => {
     });
   });
 
-  it('оставляет показатель на выбранной позиции и сдвигает конфликтующий', () => {
-    const layout = resolveStatLayout(
-      [half('distance'), half('duration')],
-      { distance: { row: 0, col: 0 }, duration: { row: 0, col: 0 } },
-      { priorityKey: 'duration' },
-    );
+  it('не ставит в одну строку показатели разной ширины', () => {
+    const layout = resolveStatLayout([half('distance'), third('duration'), third('averagePace')], {
+      distance: { row: 0, col: 0 },
+      duration: { row: 0, col: 4 },
+      averagePace: { row: 1, col: 0 },
+    });
 
-    expect(layout.duration).toEqual({ row: 0, col: 0 });
-    expect(layout.distance).toEqual({ row: 0, col: 3 });
+    expect(layout.distance).toEqual({ row: 0, col: 0 });
+    // Треть не встаёт рядом с половиной — уходит ниже, к другой трети.
+    expect(layout.duration).toEqual({ row: 1, col: 0 });
+    expect(layout.averagePace).toEqual({ row: 1, col: 2 });
   });
 
-  it('не допускает наложений при смене ширины', () => {
+  it('показатель, ширину которого сменили, остаётся на месте, соседи другой ширины уходят ниже', () => {
     const layout = resolveStatLayout(
-      [full('distance'), third('duration')],
-      { distance: { row: 1, col: 0 }, duration: { row: 1, col: 2 } },
+      [third('distance'), half('duration')],
+      { distance: { row: 0, col: 0 }, duration: { row: 0, col: 3 } },
       { priorityKey: 'distance' },
     );
 
-    expect(layout.distance).toEqual({ row: 1, col: 0 });
-    expect(layout.duration).toEqual({ row: 2, col: 0 });
-    expect(getStatLayoutRows(layout)).toBe(3);
+    expect(layout.distance).toEqual({ row: 0, col: 0 });
+    expect(layout.duration).toEqual({ row: 1, col: 0 });
+    expect(getStatLayoutRows(layout)).toBe(2);
   });
 
-  it('сохраняет треть рядом с половиной (колонка 3)', () => {
-    const layout = resolveStatLayout([half('distance'), third('duration')], {
-      distance: { row: 0, col: 0 },
-      duration: { row: 0, col: 3 },
-    });
-
-    expect(layout.duration).toEqual({ row: 0, col: 3 });
+  it('выравнивает старые позиции по сетке ширины', () => {
+    const layout = resolveStatLayout([third('distance')], { distance: { row: 0, col: 3 } });
+    expect(layout.distance).toEqual({ row: 0, col: 4 });
   });
 });
 
 describe('getStatDropCells', () => {
-  it('учитывает выставленные показатели и не рисует места на занятых', () => {
-    const items = [half('distance'), full('duration'), third('averagePace')];
-    const layout = resolveStatLayout(items, {
-      distance: { row: 0, col: 0 },
-      duration: { row: 1, col: 0 },
-      averagePace: { row: 2, col: 0 },
-    });
+  const items = [half('distance'), third('duration'), full('averagePace'), third('maxHeartRate')];
+  const layout = resolveStatLayout(items, {
+    distance: { row: 0, col: 0 },
+    duration: { row: 1, col: 0 },
+    averagePace: { row: 2, col: 0 },
+    maxHeartRate: { row: 4, col: 0 },
+  });
 
-    expect(getStatDropCells(items, layout, 'averagePace', 3)).toEqual([
-      { row: 0, col: 3 },
-      { row: 2, col: 0 },
-      { row: 2, col: 2 },
-      { row: 2, col: 4 },
+  it('рядом с половиной — место под половину, рядом с третью — под трети', () => {
+    const cells = getStatDropCells(items, layout, 'maxHeartRate', 4);
+
+    expect(cells.filter((cell) => cell.row === 0)).toEqual([{ row: 0, col: 3, width: 'half' }]);
+    expect(cells.filter((cell) => cell.row === 1)).toEqual([
+      { row: 1, col: 2, width: 'third' },
+      { row: 1, col: 4, width: 'third' },
+    ]);
+  });
+
+  it('строка с показателем во всю ширину не размечается', () => {
+    const cells = getStatDropCells(items, layout, 'maxHeartRate', 4);
+    expect(cells.some((cell) => cell.row === 2)).toBe(false);
+  });
+
+  it('пустая строка размечается по ширине перетаскиваемого показателя', () => {
+    expect(getStatDropCells(items, layout, 'averagePace', 4).filter((c) => c.row === 3)).toEqual([
+      { row: 3, col: 0, width: 'full' },
+    ]);
+    expect(getStatDropCells(items, layout, 'maxHeartRate', 4).filter((c) => c.row === 3)).toEqual([
+      { row: 3, col: 0, width: 'third' },
+      { row: 3, col: 2, width: 'third' },
+      { row: 3, col: 4, width: 'third' },
     ]);
   });
 });
