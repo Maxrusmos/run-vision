@@ -83,7 +83,7 @@ export type ShareBackgroundImageFit = 'cover' | 'contain';
 export type ShareMapLayout = 'block' | 'full';
 
 /** Подложка карты. */
-export type ShareMapBase = 'topo' | 'satellite';
+export type ShareMapBase = 'light' | 'dark' | 'relief' | 'satellite';
 
 /** Карта — фиксированная картинка: трек всегда вписан целиком, жестами не двигается. */
 export type ShareMapSettings = {

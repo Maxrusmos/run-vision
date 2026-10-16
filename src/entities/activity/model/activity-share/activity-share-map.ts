@@ -6,7 +6,7 @@ import type { ShareMapBase, ShareMapLayout, ShareMapSettings } from './activity-
 export const SHARE_MAP_TILT_PITCH = 55;
 
 export function createShareMapSettings(): ShareMapSettings {
-  return { layout: 'block', base: 'topo', tilted: false };
+  return { layout: 'block', base: 'light', tilted: false };
 }
 
 export const SHARE_MAP_LAYOUTS: readonly { id: ShareMapLayout; name: string }[] = [
@@ -22,26 +22,32 @@ export type ShareMapBaseOption = {
 };
 
 export const SHARE_MAP_BASES: readonly ShareMapBaseOption[] = [
-  { id: 'topo', name: 'Топо', preview: 'linear-gradient(135deg, #e8e0c8, #9fbf86)' },
+  { id: 'light', name: 'Светлая', preview: 'linear-gradient(135deg, #f4f4f2, #d6d6d3)' },
+  { id: 'dark', name: 'Тёмная', preview: 'linear-gradient(135deg, #2b2d30, #46494d)' },
+  { id: 'relief', name: 'Рельеф', preview: 'linear-gradient(135deg, #e9e4d6, #b8b09a)' },
   { id: 'satellite', name: 'Спутник', preview: 'linear-gradient(135deg, #2f4a2a, #6b7d4f)' },
 ];
 
 type RasterBase = { tiles: string[]; tileSize: number; maxzoom: number };
 
-/** Тайлы подложки (сервисы отдают CORS — иначе карта не попадёт в PNG). */
+const esri = (service: string, maxzoom: number): RasterBase => ({
+  tiles: [
+    `https://server.arcgisonline.com/ArcGIS/rest/services/${service}/MapServer/tile/{z}/{y}/{x}`,
+  ],
+  tileSize: 256,
+  maxzoom,
+});
+
+/**
+ * Тайлы подложки — все с серверов Esri (отдают CORS, иначе карта не попадёт в PNG).
+ * Простые подложки без подписей и мелких объектов: трек на них не теряется.
+ */
 const BASE_RASTERS: Record<ShareMapBase, RasterBase> = {
-  topo: {
-    tiles: ['a', 'b', 'c'].map((sub) => `https://${sub}.tile.opentopomap.org/{z}/{x}/{y}.png`),
-    tileSize: 256,
-    maxzoom: 17,
-  },
-  satellite: {
-    tiles: [
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    ],
-    tileSize: 256,
-    maxzoom: 19,
-  },
+  light: esri('Canvas/World_Light_Gray_Base', 16),
+  dark: esri('Canvas/World_Dark_Gray_Base', 16),
+  // Отмывка рельефа без дорог; детальнее 13-го зума тайлов нет — дальше растягивается.
+  relief: esri('World_Terrain_Base', 13),
+  satellite: esri('World_Imagery', 19),
 };
 
 /** Стиль карты: только подложка, трек рисуется поверх SVG. */

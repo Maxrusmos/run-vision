@@ -23,53 +23,48 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="map-panel">
-    <!-- Вид карточки и наклон. -->
-    <OptionTileRow>
-      <template #fixed>
-        <OptionTile
-          v-for="layout in SHARE_MAP_LAYOUTS"
-          :key="layout.id"
-          :label="layout.name"
-          :active="map.layout === layout.id"
-          @click="emit('setLayout', layout.id)"
-        >
-          <template #preview>
-            <span class="map-panel__layout" :class="`map-panel__layout--${layout.id}`">
-              <span class="map-panel__layout-map" />
-              <span class="map-panel__layout-stats" />
-            </span>
-          </template>
-        </OptionTile>
+  <!-- Всё в одну строку — по высоте как остальные панели. -->
+  <OptionTileRow>
+    <OptionTile
+      v-for="layout in SHARE_MAP_LAYOUTS"
+      :key="layout.id"
+      :label="layout.name"
+      :active="map.layout === layout.id"
+      @click="emit('setLayout', layout.id)"
+    >
+      <template #preview>
+        <span class="map-panel__layout" :class="`map-panel__layout--${layout.id}`">
+          <span class="map-panel__layout-map" />
+          <span class="map-panel__layout-stats" />
+        </span>
       </template>
+    </OptionTile>
 
-      <OptionTile label="Наклон 3D" :active="map.tilted" @click="emit('setTilted', !map.tilted)">
-        <template #preview><v-icon icon="mdi-angle-acute" size="22" /></template>
-      </OptionTile>
-    </OptionTileRow>
+    <OptionTile label="Наклон 3D" :active="map.tilted" @click="emit('setTilted', !map.tilted)">
+      <template #preview><v-icon icon="mdi-angle-acute" size="22" /></template>
+    </OptionTile>
 
-    <!-- Подложка. -->
-    <OptionTileRow>
-      <OptionTile
-        v-for="base in SHARE_MAP_BASES"
-        :key="base.id"
-        :label="base.name"
-        :active="map.base === base.id"
-        @click="emit('setBase', base.id)"
-      >
-        <template #preview>
-          <span class="map-panel__base" :style="{ background: base.preview }" />
-        </template>
-      </OptionTile>
-    </OptionTileRow>
-  </div>
+    <span class="map-panel__divider" aria-hidden="true" />
+
+    <OptionTile
+      v-for="base in SHARE_MAP_BASES"
+      :key="base.id"
+      :label="base.name"
+      :active="map.base === base.id"
+      @click="emit('setBase', base.id)"
+    >
+      <template #preview>
+        <span class="map-panel__base" :style="{ background: base.preview }" />
+      </template>
+    </OptionTile>
+  </OptionTileRow>
 </template>
 
 <style scoped>
-.map-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.map-panel__divider {
+  flex: 0 0 1px;
+  align-self: stretch;
+  background: var(--app-border);
 }
 
 .map-panel__base {

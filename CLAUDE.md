@@ -69,8 +69,11 @@ npx vite build
 
 - В `settings.map` (`ShareMapSettings`, null у других шаблонов): вид карточки `layout`
   (`block` — карта блоком на месте трека, `full` — во весь фон с затемнением снизу),
-  подложка `base` (`topo` — OpenTopoMap, `satellite` — Esri), `tilted` (наклон 55°).
-  Светлая/тёмная CARTO и рельеф пробовали — у пользователя не заработали, убраны.
+  подложка `base` (все Esri: `light`/`dark` — Canvas Gray Base, `relief` — World_Terrain_Base,
+  `satellite` — World_Imagery), `tilted` (наклон 55°). Подложки нарочно простые — трек не
+  должен теряться (OpenTopoMap убрали: слишком пёстрая, жд и подписи).
+  CARTO и DEM-рельеф у пользователя не заработали; Esri (server.arcgisonline.com) работает.
+- Меню «Карта» — одна строка плиток (вид, наклон, подложки), высота как у других панелей.
 - Карта — фиксированная картинка (`interactive: false`): трек всегда вписан целиком.
   При наклоне `cameraForBounds` не учитывает перспективу, поэтому `fitRoute` в
   `ArtworkMap` досчитывает зум и центр по реальной проекции трека.
