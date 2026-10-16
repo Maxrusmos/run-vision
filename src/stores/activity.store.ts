@@ -1,16 +1,18 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { markRaw, ref, shallowRef } from 'vue';
 
 import type { IActivity } from '@/entities/activity/model/activity.types';
 import { parseGpx } from '@/entities/activity/parser/gpx.parser';
 
 export const useActivityStore = defineStore('activity', () => {
-  const activity = ref<IActivity | null>(null);
+  // Тренировка не меняется после импорта: без глубокой реактивности — иначе каждое
+  // чтение десятков тысяч точек трека идёт через прокси Vue и редактор тормозит.
+  const activity = shallowRef<IActivity | null>(null);
   const isImporting = ref(false);
   const importError = ref<string | null>(null);
 
   function setActivity(value: IActivity) {
-    activity.value = value;
+    activity.value = markRaw(value);
   }
 
   function clearActivity() {

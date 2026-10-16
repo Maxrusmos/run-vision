@@ -71,6 +71,7 @@ const {
   setElevationLabels,
   setElevationColor,
   setWidgetVisible,
+  setWidgetSide,
   setBandRows,
   setTelemetrySize,
   setTelemetryChartStyle,
@@ -235,6 +236,7 @@ function goBack() {
         @remove-elevation="setElevationVisible(false)"
         @move-bands="moveBands"
         @remove-widget="setWidgetVisible($event, false)"
+        @set-widget-side="setWidgetSide"
         @rotate-map="setMapBearing"
       />
     </FitToBox>

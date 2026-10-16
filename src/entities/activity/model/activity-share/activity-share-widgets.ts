@@ -48,12 +48,30 @@ export function getWidgetRatio(kind: ShareWidgetKind, size: ShareElevationSize):
   return (getElevationSizeRatio(size) + 0.05) * (findShareWidget(kind).heightFactor ?? 1);
 }
 
+/** Строка «в конце» для нового виджета: дальше `compactBands` подтянет его под последний элемент. */
+export const WIDGET_END_ROW = 1000;
+
+/** Ширина боковой колонки виджетов, доля ширины контента карточки. */
+export const SIDE_WIDGET_WIDTH = 0.26;
+
+/** Положения виджета по кругу (кнопка на панели выделенного виджета). */
+export const SHARE_WIDGET_PLACEMENTS = [
+  { value: 'row', label: '▬', title: 'Строкой' },
+  { value: 'left', label: '◧', title: 'Слева' },
+  { value: 'right', label: '◨', title: 'Справа' },
+] as const;
+
 export function createShareTelemetrySettings(hasHeartRate: boolean): ShareTelemetrySettings {
-  const kinds: ShareWidgetKind[] = hasHeartRate
-    ? ['splits', 'pace', 'zones']
-    : ['splits', 'pace', 'elevation'];
+  // По умолчанию одна «лента» справа от трека — чтобы карточка не была стопкой строк.
+  const widgets: ShareTelemetrySettings['widgets'] = [
+    { kind: 'splits', row: null, side: null },
+    { kind: 'pace', row: null, side: null },
+    hasHeartRate
+      ? { kind: 'zones', row: null, side: 'right' }
+      : { kind: 'elevation', row: null, side: 'right' },
+  ];
   return {
-    widgets: kinds.map((kind) => ({ kind, row: null })),
+    widgets,
     size: 'medium',
     chartStyle: 'gradient',
     color: null,

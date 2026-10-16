@@ -78,10 +78,15 @@ export type ShareRoutePosition = {
 /** Виджет «Телеметрии» — полоса на всю ширину сетки показателей. */
 export type ShareWidgetKind = 'splits' | 'zones' | 'pace' | 'heartRate' | 'elevation';
 
+/** Боковая колонка у края области трека. */
+export type ShareWidgetSide = 'left' | 'right';
+
 export type ShareWidget = {
   kind: ShareWidgetKind;
   /** Строка в сетке показателей; null — по порядку сразу под треком. */
   row: number | null;
+  /** Вертикально у края области трека; null — строкой на всю ширину. */
+  side: ShareWidgetSide | null;
 };
 
 /** Шаблон «Телеметрия»: виджеты и общее оформление графиков. */

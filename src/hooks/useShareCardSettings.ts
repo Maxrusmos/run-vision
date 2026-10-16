@@ -7,6 +7,7 @@ import type {
   ShareElevationSettings,
   ShareTelemetrySettings,
   ShareWidgetKind,
+  ShareWidgetSide,
   ShareMapLayout,
   ShareMapPitch,
   ShareMapStyle,
@@ -30,7 +31,10 @@ import {
   normalizeMapBearing,
 } from '@/entities/activity/model/activity-share/activity-share-map';
 import { createShareElevationSettings } from '@/entities/activity/model/activity-share/activity-share-elevation';
-import { createShareTelemetrySettings } from '@/entities/activity/model/activity-share/activity-share-widgets';
+import {
+  WIDGET_END_ROW,
+  createShareTelemetrySettings,
+} from '@/entities/activity/model/activity-share/activity-share-widgets';
 import {
   DEFAULT_SHARE_STAT_WIDTH,
   DEFAULT_VISIBLE_SHARE_STATS,
@@ -311,8 +315,22 @@ export function useShareCardSettings(
     const telemetry = settings.value.telemetry;
     if (!telemetry) return;
     const widgets = telemetry.widgets.filter((widget) => widget.kind !== kind);
-    if (visible) widgets.push({ kind, row: Number.MAX_SAFE_INTEGER });
+    // Не MAX_SAFE_INTEGER: при совпадении строк раскладка прибавляет 1, а 2^53 + 1 === 2^53.
+    if (visible) widgets.push({ kind, row: WIDGET_END_ROW + widgets.length, side: null });
     updateTelemetry({ widgets });
+  }
+
+  /** Виджет у края области трека (вертикально) или строкой на всю ширину. */
+  function setWidgetSide(kind: ShareWidgetKind, side: ShareWidgetSide | null) {
+    const telemetry = settings.value.telemetry;
+    if (!telemetry) return;
+    updateTelemetry({
+      widgets: telemetry.widgets.map((widget) =>
+        widget.kind === kind
+          ? { ...widget, side, row: side ? widget.row : WIDGET_END_ROW }
+          : widget,
+      ),
+    });
   }
 
   /** Строки полос сетки (график высоты, виджеты) после переноса. */
@@ -380,6 +398,7 @@ export function useShareCardSettings(
     setMapStartFinish,
     setMapBearing,
     setWidgetVisible,
+    setWidgetSide,
     setBandRows,
     setTelemetrySize,
     setTelemetryChartStyle,

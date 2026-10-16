@@ -284,7 +284,8 @@ export function placeBands(bands: readonly StatBand[], startRow: number): Record
   const rows: Record<string, number> = {};
   const taken = new Set<number>();
   for (const band of bands) {
-    let row = Math.max(startRow, band.row ?? startRow);
+    // Строка с запасом конечна: иначе +1 ниже не сдвинет число за пределом точности.
+    let row = Math.min(Math.max(startRow, band.row ?? startRow), 1e6);
     while (taken.has(row)) row += 1;
     taken.add(row);
     rows[band.key] = row;

@@ -215,8 +215,19 @@ describe('несколько полос', () => {
 
   it('новый виджет из «конца» подтягивается под последний показатель', () => {
     const layout = { distance: { row: 3, col: 0 } } as StatLayout;
-    const rows = compactBands({ a: 2, b: Number.MAX_SAFE_INTEGER }, layout, 2);
+    const rows = compactBands({ a: 2, b: 1000 }, layout, 2);
     expect(rows).toEqual({ a: 2, b: 4 });
+  });
+
+  it('два виджета «в конец» подряд не зацикливают раскладку', () => {
+    const rows = placeBands(
+      [
+        { key: 'a', row: Number.MAX_SAFE_INTEGER },
+        { key: 'b', row: Number.MAX_SAFE_INTEGER },
+      ],
+      2,
+    );
+    expect(rows.b).toBe(rows.a! + 1);
   });
 
   it('перенос полосы сдвигает показатели и другие полосы', () => {

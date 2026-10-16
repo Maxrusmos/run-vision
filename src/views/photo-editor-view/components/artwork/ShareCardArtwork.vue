@@ -6,6 +6,7 @@ import type {
   ShareCardSettings,
   ShareColorKey,
   ShareWidgetKind,
+  ShareWidgetSide,
   ShareRoutePosition,
   ShareStat,
   ShareStatKey,
@@ -23,6 +24,7 @@ import ArtworkMap from '@/views/photo-editor-view/components/artwork/ArtworkMap.
 import ArtworkElevation from '@/views/photo-editor-view/components/artwork/ArtworkElevation.vue';
 import ArtworkWidget from '@/views/photo-editor-view/components/artwork/ArtworkWidget.vue';
 import {
+  SIDE_WIDGET_WIDTH,
   getWidgetKey,
   getWidgetRatio,
 } from '@/entities/activity/model/activity-share/activity-share-widgets';
@@ -60,6 +62,7 @@ const emit = defineEmits<{
   removeElevation: [];
   moveBands: [rows: Record<string, number>, layout: StatLayout];
   removeWidget: [kind: ShareWidgetKind];
+  setWidgetSide: [kind: ShareWidgetKind, side: ShareWidgetSide | null];
   rotateMap: [bearing: number];
 }>();
 
@@ -82,7 +85,29 @@ const elevationRatio = computed(() =>
 
 /** Место над показателями (доля ширины): трек или карта. */
 const reservedRatio = computed(() =>
-  props.settings.routeVisible || props.settings.map ? ROUTE_SLOT_HEIGHT_RATIO : 0,
+  props.settings.routeVisible || props.settings.map || sideWidgets.value.length
+    ? ROUTE_SLOT_HEIGHT_RATIO
+    : 0,
+);
+
+/** Виджеты «Телеметрии» у краёв области трека — вертикальные «ленты». */
+const sideWidgets = computed(() =>
+  (props.settings.telemetry?.widgets ?? []).filter((widget) => widget.side),
+);
+
+function widgetsAt(side: ShareWidgetSide) {
+  return sideWidgets.value.filter((widget) => widget.side === side);
+}
+
+/** Трек ужимается между боковыми колонками. */
+function sideInset(side: ShareWidgetSide): string {
+  return widgetsAt(side).length ? `calc(${SIDE_WIDGET_WIDTH * 100}% + 8px)` : '0px';
+}
+
+const areaStyle = computed(() =>
+  visualHeight.value
+    ? { height: `${visualHeight.value}px` }
+    : { aspectRatio: `${1 / (reservedRatio.value || ROUTE_SLOT_HEIGHT_RATIO)}` },
 );
 
 /**
@@ -96,6 +121,7 @@ const bands = computed(() => {
   }
   const telemetry = props.settings.telemetry;
   for (const widget of telemetry?.widgets ?? []) {
+    if (widget.side) continue;
     list.push({
       key: getWidgetKey(widget.kind),
       row: widget.row,
@@ -301,8 +327,38 @@ function removeRoute() {
         v-if="settings.routeVisible && !settings.map"
         ref="routeSlot"
         class="share-artwork__route-slot"
-        :style="{ aspectRatio: 1 / ROUTE_SLOT_HEIGHT_RATIO }"
+        :style="{ ...areaStyle, left: sideInset('left'), right: sideInset('right') }"
       />
+
+      <!-- «Телеметрия»: вертикальные виджеты у краёв области трека. -->
+      <div
+        v-if="settings.telemetry && sideWidgets.length"
+        class="share-artwork__sides"
+        :style="areaStyle"
+      >
+        <div
+          v-for="side in ['left', 'right'] as const"
+          :key="side"
+          class="share-artwork__side"
+          :style="{ width: `${SIDE_WIDGET_WIDTH * 100}%` }"
+        >
+          <ArtworkWidget
+            v-for="widget in widgetsAt(side)"
+            :key="widget.kind"
+            class="share-artwork__side-widget"
+            :kind="widget.kind"
+            :side="side"
+            :track="activity.track"
+            :telemetry="settings.telemetry"
+            :color="settings.telemetry.color ?? settings.routeColor"
+            :text-color="settings.textColor"
+            :selected="selected === getWidgetKey(widget.kind)"
+            @select="selectBand(getWidgetKey(widget.kind))"
+            @remove="removeWidget(widget.kind)"
+            @set-side="emit('setWidgetSide', widget.kind, $event)"
+          />
+        </div>
+      </div>
       <!-- Над показателями: карта блоком (или свободная область карты во весь фон).
            Высота — до первой строки показателей. -->
       <div
@@ -352,6 +408,7 @@ function removeRoute() {
             :selected="selected === bandKey"
             @select="selectBand(bandKey)"
             @remove="removeWidget(widgetKind(bandKey)!)"
+            @set-side="emit('setWidgetSide', widgetKind(bandKey)!, $event)"
           />
           <ArtworkElevation
             v-else-if="elevation && bandKey === 'elevation'"
@@ -496,6 +553,28 @@ function removeRoute() {
 .share-artwork__body {
   position: relative;
   margin-top: 16px;
+}
+
+.share-artwork__sides {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.share-artwork__side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.share-artwork__side-widget {
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .share-artwork__route-slot {
