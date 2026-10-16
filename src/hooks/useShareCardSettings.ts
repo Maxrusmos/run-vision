@@ -4,8 +4,10 @@ import type {
   ShareCardSettings,
   ShareColorKey,
   ShareColorPreset,
-  ShareMapBase,
+  ShareElevationSettings,
   ShareMapLayout,
+  ShareMapPitch,
+  ShareMapStyle,
   ShareRoutePosition,
   ShareRouteStyle,
   ShareStatKey,
@@ -22,6 +24,7 @@ import { DEFAULT_ROUTE_SCALE } from '@/entities/activity/model/activity-share/ac
 import { DEFAULT_ROUTE_STYLE } from '@/entities/activity/model/activity-share/activity-share-route-styles';
 import { DEFAULT_STAT_STYLE } from '@/entities/activity/model/activity-share/activity-share-stat-styles';
 import { createShareMapSettings } from '@/entities/activity/model/activity-share/activity-share-map';
+import { createShareElevationSettings } from '@/entities/activity/model/activity-share/activity-share-elevation';
 import { DEFAULT_VISIBLE_SHARE_STATS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
 export const STAT_SPACING_MIN = 0;
@@ -59,6 +62,7 @@ function createSettings(
     routeStyle: DEFAULT_ROUTE_STYLE,
     routePosition: null,
     map: options.withMap ? createShareMapSettings() : null,
+    elevation: options.withMap ? createShareElevationSettings() : null,
   };
 }
 
@@ -215,12 +219,39 @@ export function useShareCardSettings(
     updateMap({ layout });
   }
 
-  function setMapBase(base: ShareMapBase) {
-    updateMap({ base });
+  function setMapStyle(style: ShareMapStyle) {
+    updateMap({ style });
   }
 
-  function setMapTilted(tilted: boolean) {
-    updateMap({ tilted });
+  function setMapPitch(pitch: ShareMapPitch) {
+    updateMap({ pitch });
+  }
+
+  function updateElevation(patch: Partial<ShareElevationSettings>) {
+    if (!settings.value.elevation) return;
+    settings.value.elevation = { ...settings.value.elevation, ...patch };
+  }
+
+  function setElevationVisible(visible: boolean) {
+    updateElevation({ visible });
+  }
+
+  function setElevationStyle(style: ShareElevationSettings['style']) {
+    updateElevation({ style });
+  }
+
+  function setElevationSize(size: ShareElevationSettings['size']) {
+    updateElevation({ size });
+  }
+
+  function setElevationLabels(labels: boolean) {
+    updateElevation({ labels });
+  }
+
+  /** null — цвет трека. */
+  function setElevationColor(color: string | null) {
+    if (color !== null && !HEX_COLOR_PATTERN.test(color)) return;
+    updateElevation({ color });
   }
 
   /** Возвращает карточку к исходному виду выбранного шаблона. */
@@ -238,8 +269,13 @@ export function useShareCardSettings(
     setTitleVisible,
     resetSettings,
     setMapLayout,
-    setMapBase,
-    setMapTilted,
+    setMapStyle,
+    setMapPitch,
+    setElevationVisible,
+    setElevationStyle,
+    setElevationSize,
+    setElevationLabels,
+    setElevationColor,
     applyPresetById,
     setColor,
     setBackgroundColor,

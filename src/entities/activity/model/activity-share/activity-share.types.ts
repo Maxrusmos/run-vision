@@ -73,7 +73,7 @@ export type ShareRoutePosition = {
 };
 
 /** Элемент карточки, который можно выделить: показатель, трек или название. */
-export type ShareCardElement = ShareStatKey | 'route' | 'title';
+export type ShareCardElement = ShareStatKey | 'route' | 'title' | 'elevation';
 
 export type ShareColorKey = 'backgroundColor' | 'routeColor' | 'textColor';
 
@@ -82,15 +82,44 @@ export type ShareBackgroundImageFit = 'cover' | 'contain';
 /** Вид карточки с картой: карта отдельным блоком или во весь фон. */
 export type ShareMapLayout = 'block' | 'full';
 
-/** Подложка карты. */
-export type ShareMapBase = 'light' | 'dark' | 'relief' | 'satellite';
+/** Стиль карты: подложка и её обработка (тонирование, инверсия, ч/б). */
+export type ShareMapStyle =
+  | 'light'
+  | 'dark'
+  | 'tinted'
+  | 'night'
+  | 'blueprint'
+  | 'vintage'
+  | 'satellite'
+  | 'satellite-mono'
+  | 'satellite-dark'
+  | 'satellite-tinted';
+
+/** Наклон карты, градусы. */
+export type ShareMapPitch = 0 | 35 | 60;
 
 /** Карта — фиксированная картинка: трек всегда вписан целиком, жестами не двигается. */
 export type ShareMapSettings = {
   layout: ShareMapLayout;
-  base: ShareMapBase;
-  /** Наклон карты — эффект 3D. */
-  tilted: boolean;
+  style: ShareMapStyle;
+  pitch: ShareMapPitch;
+};
+
+/** Вид графика высоты. */
+export type ShareElevationStyle =
+  'area' | 'line' | 'silhouette' | 'bars' | 'climbs' | 'steps' | 'strokes' | 'dots' | 'wave';
+
+export type ShareElevationSize = 'small' | 'medium' | 'large';
+
+/** График высоты на карточке с картой. */
+export type ShareElevationSettings = {
+  visible: boolean;
+  style: ShareElevationStyle;
+  size: ShareElevationSize;
+  /** null — цвет трека. */
+  color: string | null;
+  /** Подписи: минимум/максимум высоты и набор. */
+  labels: boolean;
 };
 
 export type ShareColorPreset = {
@@ -127,6 +156,8 @@ export type ShareCardSettings = {
   routePosition: ShareRoutePosition | null;
   /** Карта под треком (шаблон «Топография»); null — карточка без карты. */
   map: ShareMapSettings | null;
+  /** График высоты (только у карточки с картой). */
+  elevation: ShareElevationSettings | null;
 };
 
 export type ShareStatOption = {

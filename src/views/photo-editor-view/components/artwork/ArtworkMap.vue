@@ -10,10 +10,11 @@ import type {
   ShareRouteStyle,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import {
-  SHARE_MAP_TILT_PITCH,
+  SHARE_MAP_MAX_PITCH,
   createShareMapStyle,
   getLngLatBounds,
   getRouteLngLats,
+  type MapFitPadding,
 } from '@/entities/activity/model/activity-share/activity-share-map';
 import { ROUTE_LAYER_WIDTH } from '@/entities/activity/model/activity-share/activity-share-route';
 import RouteStyleLayers from '@/views/photo-editor-view/components/artwork/RouteStyleLayers.vue';
@@ -23,8 +24,6 @@ const READY_TIMEOUT_MS = 8000;
 /** Итерации подгонки камеры под наклон: обычно хватает двух-трёх. */
 const FIT_ITERATIONS = 4;
 const MAX_FIT_ZOOM = 16;
-
-export type MapFitPadding = { top: number; right: number; bottom: number; left: number };
 
 const props = defineProps<{
   map: ShareMapSettings;
@@ -47,7 +46,7 @@ const projected = shallowRef<RoutePoint[]>([]);
 
 const lngLats = computed(() => getRouteLngLats(props.track));
 const bounds = computed(() => getLngLatBounds(lngLats.value));
-const pitch = computed(() => (props.map.tilted ? SHARE_MAP_TILT_PITCH : 0));
+const pitch = computed(() => props.map.pitch);
 
 const points = computed(() => toSvgPolylinePoints(projected.value));
 const start = computed(() => projected.value[0] ?? null);
@@ -131,7 +130,7 @@ onMounted(() => {
     interactive: false,
     // Иначе WebGL-холст пуст при снимке карточки в PNG.
     canvasContextAttributes: { preserveDrawingBuffer: true, antialias: true },
-    maxPitch: SHARE_MAP_TILT_PITCH,
+    maxPitch: SHARE_MAP_MAX_PITCH,
     fadeDuration: 0,
   });
   instance.value = map;
@@ -154,12 +153,12 @@ onBeforeUnmount(() => {
 });
 
 watch(
-  () => [props.map.base, props.backgroundColor] as const,
+  () => [props.map.style, props.backgroundColor] as const,
   () => instance.value?.setStyle(createShareMapStyle(props.map, props.backgroundColor)),
 );
 
 watch(
-  () => [props.map.tilted, props.fitPadding, props.track] as const,
+  () => [props.map.pitch, props.fitPadding, props.track] as const,
   () => {
     if (instance.value) fitRoute(instance.value);
   },

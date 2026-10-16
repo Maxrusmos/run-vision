@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue';
+import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 import type { IActivity } from '@/entities/activity/model/activity.types';
 import type {
   ShareCardElement,
   ShareCardSettings,
   ShareColorKey,
+  ShareElevationSize,
   ShareRoutePosition,
   ShareStat,
   ShareStatKey,
@@ -19,10 +20,16 @@ import ArtworkTitle from '@/views/photo-editor-view/components/artwork/ArtworkTi
 import ArtworkRoute from '@/views/photo-editor-view/components/artwork/ArtworkRoute.vue';
 import ArtworkStatsGrid from '@/views/photo-editor-view/components/artwork/ArtworkStatsGrid.vue';
 import ArtworkMap from '@/views/photo-editor-view/components/artwork/ArtworkMap.vue';
+import ArtworkElevation from '@/views/photo-editor-view/components/artwork/ArtworkElevation.vue';
+import type { MapFitPadding } from '@/entities/activity/model/activity-share/activity-share-map';
+import { getElevationSizeRatio } from '@/entities/activity/model/activity-share/activity-share-elevation';
 
-/** Вписывание трека в карту во весь фон: сверху название, снизу показатели. */
-const FULL_MAP_FIT_PADDING = { top: 0.2, right: 0.1, bottom: 0.42, left: 0.1 };
-const BLOCK_MAP_FIT_PADDING = { top: 0.1, right: 0.1, bottom: 0.1, left: 0.1 };
+const BLOCK_MAP_FIT_PADDING: MapFitPadding = { top: 0.1, right: 0.1, bottom: 0.1, left: 0.1 };
+/** Карта во весь фон: поля вокруг свободной области (между названием и графиком/показателями). */
+const FULL_MAP_SIDE_PADDING = 0.1;
+const FULL_MAP_AREA_MARGIN = 0.04;
+/** Зазор между картой и графиком высоты, px. */
+const VISUAL_GAP = 12;
 
 /** Минимальный зазор между показателями, чтобы они не слипались. */
 const MIN_STAT_GAP = 1;
@@ -46,6 +53,8 @@ const emit = defineEmits<{
   removeRoute: [];
   setTitle: [value: string];
   removeTitle: [];
+  removeElevation: [];
+  setElevationSize: [size: ShareElevationSize];
 }>();
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
@@ -54,10 +63,67 @@ const rootElement = useTemplateRef<HTMLElement>('root');
 const routeSlot = useTemplateRef<HTMLElement>('routeSlot');
 const mapRef = useTemplateRef<InstanceType<typeof ArtworkMap>>('map');
 
-/** С картой трек рисуется слоями самой карты — так он ложится на наклон и рельеф. */
-/** Высота блока карты — до первой строки показателей; 0 — пока не измерено. */
-const mapBlockHeight = ref(0);
+/** Высота области над показателями (карта и график) — до первой строки; 0 — не измерено. */
+const visualHeight = ref(0);
 const mapLayout = computed(() => props.settings.map?.layout ?? null);
+
+const elevation = computed(() =>
+  props.settings.elevation?.visible ? props.settings.elevation : null,
+);
+const elevationRatio = computed(() =>
+  elevation.value ? getElevationSizeRatio(elevation.value.size) : 0,
+);
+
+/**
+ * Место над показателями относительно ширины: трек/карта и график высоты.
+ * Зазор между ними — примерно 12px при обычной ширине карточки.
+ */
+const reservedRatio = computed(() => {
+  const hasVisual = props.settings.routeVisible || props.settings.map;
+  const base = hasVisual ? ROUTE_SLOT_HEIGHT_RATIO : 0;
+  return elevation.value ? base + elevationRatio.value + VISUAL_GAP / 330 : base;
+});
+
+// Карта во весь фон: трек вписывается в свободную область — между названием и графиком.
+const mapArea = useTemplateRef<HTMLElement>('mapArea');
+const fullFitPadding = ref<MapFitPadding>({
+  top: 0.2,
+  right: FULL_MAP_SIDE_PADDING,
+  bottom: 0.42,
+  left: FULL_MAP_SIDE_PADDING,
+});
+let areaObserver: ResizeObserver | null = null;
+
+function measureMapArea() {
+  const root = rootElement.value;
+  const area = mapArea.value;
+  if (!root || !area) return;
+  // Доли от размера карточки — масштаб transform на них не влияет.
+  const rootRect = root.getBoundingClientRect();
+  const areaRect = area.getBoundingClientRect();
+  if (!rootRect.height) return;
+  const top = (areaRect.top - rootRect.top) / rootRect.height + FULL_MAP_AREA_MARGIN;
+  const bottom = (rootRect.bottom - areaRect.bottom) / rootRect.height + FULL_MAP_AREA_MARGIN;
+  const current = fullFitPadding.value;
+  if (Math.abs(current.top - top) < 0.005 && Math.abs(current.bottom - bottom) < 0.005) return;
+  fullFitPadding.value = { ...current, top, bottom };
+}
+
+watch(mapArea, (area) => {
+  areaObserver?.disconnect();
+  areaObserver = null;
+  if (!area || !rootElement.value) return;
+  areaObserver = new ResizeObserver(measureMapArea);
+  areaObserver.observe(area);
+  areaObserver.observe(rootElement.value);
+});
+
+onBeforeUnmount(() => areaObserver?.disconnect());
+
+function removeElevation() {
+  selected.value = null;
+  emit('removeElevation');
+}
 
 const title = computed(() => props.settings.title ?? (props.activity.name || 'Тренировка'));
 
@@ -133,7 +199,7 @@ function removeRoute() {
         :route-color="settings.routeColor"
         :text-color="settings.textColor"
         :background-color="settings.backgroundColor"
-        :fit-padding="FULL_MAP_FIT_PADDING"
+        :fit-padding="fullFitPadding"
       />
       <div class="share-artwork__map-scrim" aria-hidden="true" />
     </template>
@@ -159,30 +225,46 @@ function removeRoute() {
     <div class="share-artwork__body">
       <!-- Место под трек: задаёт его исходные положение и размер (M). -->
       <div
-        v-if="settings.routeVisible || settings.map"
+        v-if="settings.routeVisible && !settings.map"
         ref="routeSlot"
         class="share-artwork__route-slot"
         :style="{ aspectRatio: 1 / ROUTE_SLOT_HEIGHT_RATIO }"
       />
-      <!-- Карта отдельным блоком — на месте трека. -->
-      <ArtworkMap
-        v-if="settings.map && mapLayout === 'block'"
-        ref="map"
-        class="share-artwork__map-block"
-        :style="
-          mapBlockHeight
-            ? { height: `${mapBlockHeight}px` }
-            : { aspectRatio: 1 / ROUTE_SLOT_HEIGHT_RATIO }
-        "
-        :map="settings.map"
-        :track="activity.track"
-        :route-visible="settings.routeVisible"
-        :route-style="settings.routeStyle"
-        :route-color="settings.routeColor"
-        :text-color="settings.textColor"
-        :background-color="settings.backgroundColor"
-        :fit-padding="BLOCK_MAP_FIT_PADDING"
-      />
+      <!-- Над показателями: карта блоком (или свободная область карты во весь фон)
+           и график высоты. Высота — до первой строки показателей. -->
+      <div
+        v-if="settings.map"
+        class="share-artwork__visual"
+        :style="visualHeight ? { height: `${visualHeight}px` } : { aspectRatio: 1 / reservedRatio }"
+      >
+        <ArtworkMap
+          v-if="mapLayout === 'block'"
+          ref="map"
+          class="share-artwork__map-block"
+          :map="settings.map"
+          :track="activity.track"
+          :route-visible="settings.routeVisible"
+          :route-style="settings.routeStyle"
+          :route-color="settings.routeColor"
+          :text-color="settings.textColor"
+          :background-color="settings.backgroundColor"
+          :fit-padding="BLOCK_MAP_FIT_PADDING"
+        />
+        <div v-else ref="mapArea" class="share-artwork__map-area" />
+
+        <ArtworkElevation
+          v-if="elevation"
+          class="share-artwork__elevation"
+          :style="{ aspectRatio: 1 / elevationRatio }"
+          :track="activity.track"
+          :settings="elevation"
+          :color="elevation.color ?? settings.routeColor"
+          :selected="selected === 'elevation'"
+          @select="selected = 'elevation'"
+          @remove="removeElevation"
+          @set-size="emit('setElevationSize', $event)"
+        />
+      </div>
 
       <!-- Показатели раскладываются по сетке на всей высоте — от названия до низа. -->
       <ArtworkStatsGrid
@@ -190,12 +272,12 @@ function removeRoute() {
         :stats="stats"
         :stat-widths="settings.statWidths"
         :stat-positions="settings.statPositions"
-        :reserved-height-ratio="settings.routeVisible || settings.map ? ROUTE_SLOT_HEIGHT_RATIO : 0"
+        :reserved-height-ratio="reservedRatio"
         @remove="emit('removeStat', $event)"
         @set-width="(key, width) => emit('setStatWidth', key, width)"
         :stat-style="settings.statStyle"
         @set-layout="emit('setStatPositions', $event)"
-        @reserved-height="mapBlockHeight = $event"
+        @reserved-height="visualHeight = $event"
       />
 
       <!-- Трек двигается по всей области: от низа названия до низа карточки. -->
@@ -277,13 +359,33 @@ function removeRoute() {
   pointer-events: none;
 }
 
-.share-artwork__map-block {
+.share-artwork__visual {
   position: absolute;
   top: 0;
   right: 0;
   left: 0;
   z-index: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* Сквозь пустые места касания проходят к карте; график ловит свои. */
+  pointer-events: none;
+}
+
+.share-artwork__map-block {
+  flex: 1 1 0;
+  min-height: 0;
   border-radius: 12px;
+}
+
+.share-artwork__map-area {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.share-artwork__elevation {
+  flex: 0 0 auto;
+  border-radius: 8px;
 }
 
 /* Без z-index: тело не создаёт свой контекст наложения,

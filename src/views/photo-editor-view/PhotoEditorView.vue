@@ -24,6 +24,7 @@ import {
   type EditorToolId,
 } from '@/views/photo-editor-view/components/tools/editor-tools';
 import AddElementsPanel from '@/views/photo-editor-view/components/panels/AddElementsPanel.vue';
+import ElevationPanel from '@/views/photo-editor-view/components/panels/ElevationPanel.vue';
 import MapPanel from '@/views/photo-editor-view/components/panels/MapPanel.vue';
 import BackgroundPanel from '@/views/photo-editor-view/components/panels/BackgroundPanel.vue';
 import PresetsPanel from '@/views/photo-editor-view/components/panels/PresetsPanel.vue';
@@ -60,8 +61,13 @@ const {
   setTitleVisible,
   resetSettings,
   setMapLayout,
-  setMapBase,
-  setMapTilted,
+  setMapStyle,
+  setMapPitch,
+  setElevationVisible,
+  setElevationStyle,
+  setElevationSize,
+  setElevationLabels,
+  setElevationColor,
   undo,
   redo,
   canUndo,
@@ -96,6 +102,7 @@ const disabledTools = computed<EditorToolId[]>(() => {
   const tools: EditorToolId[] = [];
   if (!settings.value.visibleStats.length) tools.push('stats');
   if (!settings.value.routeVisible) tools.push('track');
+  if (!settings.value.elevation?.visible) tools.push('elevation');
   return tools;
 });
 watch(disabledTools, (tools) => {
@@ -201,6 +208,8 @@ function goBack() {
         @remove-route="setRouteVisible(false)"
         @set-title="setTitle"
         @remove-title="setTitleVisible(false)"
+        @remove-elevation="setElevationVisible(false)"
+        @set-elevation-size="setElevationSize"
       />
     </FitToBox>
 
@@ -220,13 +229,27 @@ function goBack() {
             @add-title="setTitleVisible(true)"
             @add-route="setRouteVisible(true)"
             @add-stat="addStat"
+            @add-elevation="setElevationVisible(true)"
           />
           <MapPanel
             v-else-if="displayedTool === 'map' && settings.map"
             :map="settings.map"
+            :settings="settings"
+            :track="activity.track"
             @set-layout="setMapLayout"
-            @set-base="setMapBase"
-            @set-tilted="setMapTilted"
+            @set-style="setMapStyle"
+            @set-pitch="setMapPitch"
+          />
+          <ElevationPanel
+            v-else-if="displayedTool === 'elevation' && settings.elevation"
+            :elevation="settings.elevation"
+            :route-color="settings.routeColor"
+            :background-color="settings.backgroundColor"
+            :track="activity.track"
+            @set-style="setElevationStyle"
+            @set-size="setElevationSize"
+            @set-labels="setElevationLabels"
+            @set-color="setElevationColor"
           />
           <BackgroundPanel
             v-else-if="displayedTool === 'background'"
