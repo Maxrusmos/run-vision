@@ -5,7 +5,6 @@ import type {
   ShareElevationSize,
   ShareElevationStyle,
   ShareTelemetrySettings,
-  ShareWidgetKind,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import {
   SHARE_ELEVATION_SIZES,
@@ -15,7 +14,6 @@ import {
   getPaceSeries,
   normalizeSeries,
 } from '@/entities/activity/model/activity-share/activity-share-telemetry';
-import { SHARE_WIDGETS } from '@/entities/activity/model/activity-share/activity-share-widgets';
 import OptionTile from '@/views/photo-editor-view/components/settings/OptionTile.vue';
 import OptionTileRow from '@/views/photo-editor-view/components/settings/OptionTileRow.vue';
 import ColorOptionTile from '@/views/photo-editor-view/components/settings/ColorOptionTile.vue';
@@ -35,7 +33,6 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  toggleWidget: [kind: ShareWidgetKind, visible: boolean];
   setSize: [size: ShareElevationSize];
   setChartStyle: [style: ShareElevationStyle];
   /** null — цвет трека. */
@@ -45,17 +42,12 @@ const emit = defineEmits<{
 }>();
 
 const color = computed(() => props.telemetry.color ?? props.routeColor);
-const hasHeartRate = computed(() => props.track.some((point) => (point.heartRate ?? 0) > 0));
 
 /** Превью стилей графиков — на темпе этой тренировки. */
 const previewSeries = computed(() => {
   const pace = getPaceSeries(props.track);
   return pace ? normalizeSeries(pace.values, true) : [0.4, 0.6, 0.5, 0.8, 0.6];
 });
-
-function isOnCard(kind: ShareWidgetKind): boolean {
-  return props.telemetry.widgets.some((widget) => widget.kind === kind);
-}
 
 const size = computed({
   get: () => props.telemetry.size,
@@ -114,30 +106,7 @@ function toggle(key: string) {
         />
       </template>
 
-      <!-- Виджеты: тап — добавить на карточку или убрать. -->
-      <OptionTile
-        v-for="widget in SHARE_WIDGETS"
-        :key="widget.kind"
-        :label="widget.name"
-        :active="isOnCard(widget.kind)"
-        :disabled="widget.needsHeartRate && !hasHeartRate"
-        @click="emit('toggleWidget', widget.kind, !isOnCard(widget.kind))"
-      >
-        <template #preview>
-          <span class="widgets-panel__widget" :style="{ color }">
-            <v-icon :icon="widget.icon" size="22" />
-            <v-icon
-              class="widgets-panel__badge"
-              :icon="isOnCard(widget.kind) ? 'mdi-check-circle' : 'mdi-plus-circle-outline'"
-              size="14"
-            />
-          </span>
-        </template>
-      </OptionTile>
-
-      <span class="widgets-panel__divider" aria-hidden="true" />
-
-      <!-- Вид графиков темпа, пульса и высоты. -->
+      <!-- Вид графиков темпа, пульса и высоты. Сами виджеты добавляются в «Добавить». -->
       <OptionTile
         v-for="style in SHARE_ELEVATION_STYLES"
         :key="style.id"
@@ -178,28 +147,6 @@ function toggle(key: string) {
 .widgets-panel__controls {
   display: flex;
   gap: 8px;
-}
-
-.widgets-panel__widget {
-  position: relative;
-  display: grid;
-  width: 100%;
-  height: 100%;
-  place-items: center;
-}
-
-.widgets-panel__badge {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  color: var(--app-on-surface);
-  opacity: 0.8;
-}
-
-.widgets-panel__divider {
-  flex: 0 0 1px;
-  align-self: stretch;
-  background: var(--app-border);
 }
 
 .widgets-panel__preview {

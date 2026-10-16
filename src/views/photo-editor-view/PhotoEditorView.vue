@@ -3,6 +3,7 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import type { ShareCardElement } from '@/entities/activity/model/activity-share/activity-share.types';
+import type { BandState } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
 import { getActivityShareStats } from '@/entities/activity/model/activity-share/activity-share-stats';
 import { getPhotoTemplatePresetId } from '@/entities/activity/model/activity-share/photo-templates';
 import { useActivityStore } from '@/stores/activity.store';
@@ -74,7 +75,7 @@ const {
   setElevationColor,
   setWidgetVisible,
   setWidgetSide,
-  setBandRows,
+  setBandPlacement,
   setTelemetrySize,
   setTelemetryChartStyle,
   setTelemetryColor,
@@ -178,10 +179,10 @@ function saveImage() {
   }
 }
 
-/** Перенос полосы (график, виджет): строки полос и сдвинутые показатели — одним шагом истории. */
-function moveBands(rows: Record<string, number>, layout: Parameters<typeof setStatPositions>[0]) {
-  setBandRows(rows);
-  setStatPositions(layout);
+/** Перенос полосы (график, виджет): полосы и сдвинутые показатели — одним шагом истории. */
+function dropBands(state: BandState) {
+  setBandPlacement(state.rows, state.sides);
+  setStatPositions(state.layout);
 }
 
 function handleUndo() {
@@ -236,7 +237,7 @@ function goBack() {
         @set-title="setTitle"
         @remove-title="setTitleVisible(false)"
         @remove-elevation="setElevationVisible(false)"
-        @move-bands="moveBands"
+        @drop-bands="dropBands"
         @remove-widget="setWidgetVisible($event, false)"
         @set-widget-side="setWidgetSide"
         @rotate-map="setMapBearing"
@@ -282,7 +283,6 @@ function goBack() {
             :text-color="settings.textColor"
             :background-color="settings.backgroundColor"
             :track="activity.track"
-            @toggle-widget="(kind, visible) => setWidgetVisible(kind, visible)"
             @set-size="setTelemetrySize"
             @set-chart-style="setTelemetryChartStyle"
             @set-color="setTelemetryColor"

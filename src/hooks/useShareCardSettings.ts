@@ -7,6 +7,7 @@ import type {
   ShareElevationSettings,
   ShareTelemetrySettings,
   ShareWidgetKind,
+  ShareWidget,
   ShareWidgetSide,
   ShareMapLayout,
   ShareMapPitch,
@@ -344,6 +345,43 @@ export function useShareCardSettings(
     });
   }
 
+  /**
+   * Раскладка полос после переноса: строки горизонтальных и порядок вертикальных
+   * в боковых колонках (порядок виджетов в списке задаёт порядок в колонке).
+   */
+  function setBandPlacement(
+    rows: Record<string, number>,
+    sides: Record<ShareWidgetSide, string[]>,
+  ) {
+    if (settings.value.elevation && rows.elevation !== undefined) {
+      updateElevation({ row: rows.elevation });
+    }
+    const telemetry = settings.value.telemetry;
+    if (!telemetry) return;
+
+    const sideOf = (key: string): ShareWidgetSide | null =>
+      sides.left.includes(key) ? 'left' : sides.right.includes(key) ? 'right' : null;
+    const placed = telemetry.widgets.map((widget) => {
+      const key = `widget-${widget.kind}`;
+      return { ...widget, side: sideOf(key), row: rows[key] ?? widget.row };
+    });
+    const sideOrder = (widget: ShareWidget) => {
+      const key = `widget-${widget.kind}`;
+      return widget.side ? sides[widget.side].indexOf(key) : -1;
+    };
+    updateTelemetry({
+      widgets: [
+        ...placed.filter((widget) => !widget.side),
+        ...placed
+          .filter((widget) => widget.side === 'left')
+          .sort((a, b) => sideOrder(a) - sideOrder(b)),
+        ...placed
+          .filter((widget) => widget.side === 'right')
+          .sort((a, b) => sideOrder(a) - sideOrder(b)),
+      ],
+    });
+  }
+
   /** Строки полос сетки (график высоты, виджеты) после переноса. */
   function setBandRows(rows: Record<string, number>) {
     if (settings.value.elevation && rows.elevation !== undefined) {
@@ -411,6 +449,7 @@ export function useShareCardSettings(
     setWidgetVisible,
     setWidgetSide,
     setBandRows,
+    setBandPlacement,
     setTelemetrySize,
     setTelemetryChartStyle,
     setTelemetryColor,

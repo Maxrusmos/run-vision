@@ -24,13 +24,12 @@ import ArtworkMap from '@/views/photo-editor-view/components/artwork/ArtworkMap.
 import ArtworkElevation from '@/views/photo-editor-view/components/artwork/ArtworkElevation.vue';
 import ArtworkWidget from '@/views/photo-editor-view/components/artwork/ArtworkWidget.vue';
 import {
-  SIDE_WIDGET_WIDTH,
   getWidgetKey,
   getWidgetRatio,
 } from '@/entities/activity/model/activity-share/activity-share-widgets';
 import type { MapFitPadding } from '@/entities/activity/model/activity-share/activity-share-map';
 import { getElevationSizeRatio } from '@/entities/activity/model/activity-share/activity-share-elevation';
-import type { StatLayout } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
+import type { BandState } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
 
 const BLOCK_MAP_FIT_PADDING: MapFitPadding = { top: 0.1, right: 0.1, bottom: 0.1, left: 0.1 };
 /** Карта во весь фон: поля вокруг свободной области (между названием и графиком/показателями). */
@@ -60,7 +59,7 @@ const emit = defineEmits<{
   setTitle: [value: string];
   removeTitle: [];
   removeElevation: [];
-  moveBands: [rows: Record<string, number>, layout: StatLayout];
+  dropBands: [state: BandState];
   removeWidget: [kind: ShareWidgetKind];
   setWidgetSide: [kind: ShareWidgetKind, side: ShareWidgetSide | null];
   rotateMap: [bearing: number];
@@ -99,9 +98,11 @@ function widgetsAt(side: ShareWidgetSide) {
   return sideWidgets.value.filter((widget) => widget.side === side);
 }
 
-/** Трек ужимается между боковыми колонками. */
+/** Трек ужимается между боковыми колонками (две крайние колонки сетки из шести). */
 function sideInset(side: ShareWidgetSide): string {
-  return widgetsAt(side).length ? `calc(${SIDE_WIDGET_WIDTH * 100}% + 8px)` : '0px';
+  return widgetsAt(side).length
+    ? 'calc((100% - 5 * var(--share-stat-gap)) / 3 + var(--share-stat-gap) + 4px)'
+    : '0px';
 }
 
 const areaStyle = computed(() =>
@@ -115,17 +116,27 @@ const areaStyle = computed(() =>
  * занимают строку целиком и переставляются между строками.
  */
 const bands = computed(() => {
-  const list: { key: ShareCardElement; row: number | null; ratio: number }[] = [];
+  const list: {
+    key: ShareCardElement;
+    row: number | null;
+    ratio: number;
+    side: ShareWidgetSide | null;
+  }[] = [];
   if (elevation.value) {
-    list.push({ key: 'elevation', row: elevation.value.row, ratio: elevationRatio.value });
+    list.push({
+      key: 'elevation',
+      row: elevation.value.row,
+      ratio: elevationRatio.value,
+      side: null,
+    });
   }
   const telemetry = props.settings.telemetry;
   for (const widget of telemetry?.widgets ?? []) {
-    if (widget.side) continue;
     list.push({
       key: getWidgetKey(widget.kind),
       row: widget.row,
       ratio: getWidgetRatio(widget.kind, telemetry!.size),
+      side: widget.side,
     });
   }
   return list;
@@ -330,35 +341,6 @@ function removeRoute() {
         :style="{ ...areaStyle, left: sideInset('left'), right: sideInset('right') }"
       />
 
-      <!-- «Телеметрия»: вертикальные виджеты у краёв области трека. -->
-      <div
-        v-if="settings.telemetry && sideWidgets.length"
-        class="share-artwork__sides"
-        :style="areaStyle"
-      >
-        <div
-          v-for="side in ['left', 'right'] as const"
-          :key="side"
-          class="share-artwork__side"
-          :style="{ width: `${SIDE_WIDGET_WIDTH * 100}%` }"
-        >
-          <ArtworkWidget
-            v-for="widget in widgetsAt(side)"
-            :key="widget.kind"
-            class="share-artwork__side-widget"
-            :kind="widget.kind"
-            :side="side"
-            :track="activity.track"
-            :telemetry="settings.telemetry"
-            :color="settings.telemetry.color ?? settings.routeColor"
-            :text-color="settings.textColor"
-            :selected="selected === getWidgetKey(widget.kind)"
-            @select="selectBand(getWidgetKey(widget.kind))"
-            @remove="removeWidget(widget.kind)"
-            @set-side="emit('setWidgetSide', widget.kind, $event)"
-          />
-        </div>
-      </div>
       <!-- Над показателями: карта блоком (или свободная область карты во весь фон).
            Высота — до первой строки показателей. -->
       <div
@@ -395,12 +377,14 @@ function removeRoute() {
         @set-layout="emit('setStatPositions', $event)"
         @reserved-height="visualHeight = $event"
         :bands="bands"
-        @move-bands="(rows, layout) => emit('moveBands', rows, layout)"
+        :allow-sides="Boolean(settings.telemetry)"
+        @drop-bands="emit('dropBands', $event)"
       >
-        <template #band="{ bandKey }">
+        <template #band="{ bandKey, side }">
           <ArtworkWidget
             v-if="settings.telemetry && widgetKind(bandKey)"
             :kind="widgetKind(bandKey)!"
+            :side="side"
             :track="activity.track"
             :telemetry="settings.telemetry"
             :color="settings.telemetry.color ?? settings.routeColor"
@@ -553,28 +537,6 @@ function removeRoute() {
 .share-artwork__body {
   position: relative;
   margin-top: 16px;
-}
-
-.share-artwork__sides {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  z-index: 2;
-  display: flex;
-  justify-content: space-between;
-  pointer-events: none;
-}
-
-.share-artwork__side {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.share-artwork__side-widget {
-  flex: 1 1 0;
-  min-height: 0;
 }
 
 .share-artwork__route-slot {
