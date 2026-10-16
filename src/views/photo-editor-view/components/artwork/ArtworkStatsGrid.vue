@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue';
+import { computed, ref, useTemplateRef, watch } from 'vue';
 import type { CSSProperties } from 'vue';
 import type {
   ShareCardElement,
@@ -39,6 +39,8 @@ const emit = defineEmits<{
   remove: [key: ShareStatKey];
   setWidth: [key: ShareStatKey, width: ShareStatWidth];
   setLayout: [layout: StatLayout];
+  /** Высота строк над показателями (место под трек или карту), px раскладки. */
+  reservedHeight: [height: number];
 }>();
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
@@ -96,6 +98,13 @@ const startRow = computed(() => {
   const reservedHeight = gridWidth.value * props.reservedHeightRatio;
   return Math.ceil((reservedHeight + gap.value) / (rowHeight.value + gap.value));
 });
+
+// Место под трек округляется до целых строк — блок карты подгоняется под него.
+watch(
+  () => (startRow.value ? startRow.value * (rowHeight.value + gap.value) - gap.value : 0),
+  (height) => emit('reservedHeight', height),
+  { immediate: true },
+);
 
 const layout = computed(() =>
   resolveStatLayout(items.value, props.statPositions, { startRow: startRow.value }),

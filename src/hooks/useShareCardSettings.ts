@@ -4,6 +4,9 @@ import type {
   ShareCardSettings,
   ShareColorKey,
   ShareColorPreset,
+  ShareMapBase,
+  ShareMapLayout,
+  ShareMapView,
   ShareRoutePosition,
   ShareRouteStyle,
   ShareStatKey,
@@ -19,6 +22,7 @@ import {
 import { DEFAULT_ROUTE_SCALE } from '@/entities/activity/model/activity-share/activity-share-route';
 import { DEFAULT_ROUTE_STYLE } from '@/entities/activity/model/activity-share/activity-share-route-styles';
 import { DEFAULT_STAT_STYLE } from '@/entities/activity/model/activity-share/activity-share-stat-styles';
+import { createShareMapSettings } from '@/entities/activity/model/activity-share/activity-share-map';
 import { DEFAULT_VISIBLE_SHARE_STATS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
 export const STAT_SPACING_MIN = 0;
@@ -26,7 +30,15 @@ export const STAT_SPACING_MAX = 24;
 
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 
-function createSettings(preset: ShareColorPreset): ShareCardSettings {
+type ShareCardSettingsOptions = {
+  /** Карточка с картой (шаблон «Топография»). */
+  withMap?: boolean;
+};
+
+function createSettings(
+  preset: ShareColorPreset,
+  options: ShareCardSettingsOptions,
+): ShareCardSettings {
   return {
     title: null,
     titleVisible: true,
@@ -47,6 +59,7 @@ function createSettings(preset: ShareColorPreset): ShareCardSettings {
     routeScale: DEFAULT_ROUTE_SCALE,
     routeStyle: DEFAULT_ROUTE_STYLE,
     routePosition: null,
+    map: options.withMap ? createShareMapSettings() : null,
   };
 }
 
@@ -54,11 +67,14 @@ function createSettings(preset: ShareColorPreset): ShareCardSettings {
  * Состояние редактора карточки. Object URL фонового фото освобождается
  * только при уничтожении области видимости: старое фото может понадобиться при отмене.
  */
-export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRESET_ID) {
+export function useShareCardSettings(
+  initialPresetId: string = DEFAULT_SHARE_PRESET_ID,
+  options: ShareCardSettingsOptions = {},
+) {
   const initialPreset =
     findSharePreset(initialPresetId) ?? findSharePreset(DEFAULT_SHARE_PRESET_ID)!;
 
-  const settings = ref<ShareCardSettings>(createSettings(initialPreset));
+  const settings = ref<ShareCardSettings>(createSettings(initialPreset, options));
   const history = useUndoRedo(settings, { limit: 10 });
 
   // Object URL всех загруженных фото: отмена может вернуть любое из них.
@@ -191,9 +207,40 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     settings.value.title = title || null;
   }
 
+  function updateMap(patch: Partial<NonNullable<ShareCardSettings['map']>>) {
+    if (!settings.value.map) return;
+    settings.value.map = { ...settings.value.map, ...patch };
+  }
+
+  function setMapLayout(layout: ShareMapLayout) {
+    // Карта вписывается заново: место под трек у блока и у фона разное.
+    updateMap({ layout, view: null });
+  }
+
+  function setMapBase(base: ShareMapBase) {
+    updateMap({ base });
+  }
+
+  function setMapDetailed(detailed: boolean) {
+    updateMap({ detailed });
+  }
+
+  function setMapTerrain(terrain: boolean) {
+    updateMap({ terrain });
+  }
+
+  function setMapTilted(tilted: boolean) {
+    updateMap({ tilted });
+  }
+
+  /** null — снова вписать карту по треку. */
+  function setMapView(view: ShareMapView | null) {
+    updateMap({ view });
+  }
+
   /** Возвращает карточку к исходному виду выбранного шаблона. */
   function resetSettings() {
-    settings.value = createSettings(initialPreset);
+    settings.value = createSettings(initialPreset, options);
   }
 
   return {
@@ -205,6 +252,12 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     setTitle,
     setTitleVisible,
     resetSettings,
+    setMapLayout,
+    setMapBase,
+    setMapDetailed,
+    setMapTerrain,
+    setMapTilted,
+    setMapView,
     applyPresetById,
     setColor,
     setBackgroundColor,

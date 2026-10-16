@@ -65,6 +65,24 @@ npx vite build
   (4/12/20) и стиль (13 пресетов, CSS в `ShareCardStatItem.vue`) — в меню «Показатели».
 - Цвета: фон — в «Фоне», трек — в «Треке», текст (показатели + название) — в «Показателях».
 
+## Шаблон «Топография» (карта)
+
+- В `settings.map` (`ShareMapSettings`, null у других шаблонов): вид карточки `layout`
+  (`block` — карта блоком на месте трека, `full` — во весь фон с затемнением снизу),
+  подложка `base` (светлая/тёмная CARTO, OpenTopoMap, спутник Esri), `detailed`
+  (подписи), `terrain` (тени рельефа из DEM AWS terrarium; при наклоне — объёмный рельеф),
+  `tilted` (наклон 55°), `view` (положение, выставленное жестами; null — по треку).
+- `ArtworkMap` — MapLibre (`shared/lib/map/maplibre.ts` задаёт URL воркера — без него
+  тайлы не грузятся). Стиль целиком собирает `createShareMapStyle`
+  (`activity-share-map.ts`), `setStyle` применяет разницу.
+- Трек на карте — слоями MapLibre из тех же `SHARE_ROUTE_STYLES` (сдвиги через
+  `line-translate` в viewport), SVG-трек `ArtworkRoute` при карте не рисуется.
+- Экспорт: `preserveDrawingBuffer`, перед рендером `whenReady()` ждёт `idle` карты.
+  Все тайловые сервисы должны отдавать CORS, иначе холст «грязный» и PNG не соберётся.
+  Подпись источников — на самой карточке (условия OSM/CARTO/Esri).
+- Инструмент «Фон» в этом шаблоне заменён на «Карта» (`MAP_EDITOR_TOOLS`, `MapPanel`).
+- Из песочницы Claude тайлы подложек недоступны (только DEM) — подложки проверять на телефоне.
+
 ## Состояние
 
 `useShareCardSettings` — единый объект `ShareCardSettings` (сериализуемый JSON) + методы.
@@ -96,9 +114,8 @@ vue-devtools (`#__vue-devtools-container__{display:none}`); после перв�
 
 ## Ветки
 
-`try_to_refactor` → `feature/gpx-import-first-flow` → `feature/stats-grid-layout`
-(актуальная, каждая следующая продолжает предыдущую). PR не создавались, в `main`
-ничего не слито.
+`feature/stats-grid-layout` слита в `main`. Текущая — `feature/topo-style`
+(от `main`): шаблон «Топография» с картой.
 
 ## Идеи на потом (обсуждали, не сделано)
 

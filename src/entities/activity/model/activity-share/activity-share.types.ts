@@ -79,6 +79,32 @@ export type ShareColorKey = 'backgroundColor' | 'routeColor' | 'textColor';
 
 export type ShareBackgroundImageFit = 'cover' | 'contain';
 
+/** Вид карточки с картой: карта отдельным блоком или во весь фон. */
+export type ShareMapLayout = 'block' | 'full';
+
+/** Подложка карты. */
+export type ShareMapBase = 'light' | 'dark' | 'topo' | 'satellite';
+
+/** Положение карты, выставленное пользователем жестами. */
+export type ShareMapView = {
+  center: [lng: number, lat: number];
+  zoom: number;
+  bearing: number;
+};
+
+export type ShareMapSettings = {
+  layout: ShareMapLayout;
+  base: ShareMapBase;
+  /** Подписи и мелкие объекты на карте; false — упрощённый вид. */
+  detailed: boolean;
+  /** Тени рельефа (а при наклоне — объёмный рельеф). */
+  terrain: boolean;
+  /** Наклон карты — эффект 3D. */
+  tilted: boolean;
+  /** null — карта вписана по треку. */
+  view: ShareMapView | null;
+};
+
 export type ShareColorPreset = {
   id: string;
   name: string;
@@ -111,6 +137,8 @@ export type ShareCardSettings = {
   routeStyle: ShareRouteStyle;
   /** null — трек стоит на своём месте между названием и показателями. */
   routePosition: ShareRoutePosition | null;
+  /** Карта под треком (шаблон «Топография»); null — карточка без карты. */
+  map: ShareMapSettings | null;
 };
 
 export type ShareStatOption = {

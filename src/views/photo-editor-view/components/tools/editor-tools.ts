@@ -1,4 +1,4 @@
-export type EditorToolId = 'add' | 'background' | 'presets' | 'track' | 'stats';
+export type EditorToolId = 'add' | 'background' | 'map' | 'presets' | 'track' | 'stats';
 
 export type EditorTool = {
   id: EditorToolId;
@@ -14,3 +14,8 @@ export const EDITOR_TOOLS: readonly EditorTool[] = [
   { id: 'track', icon: 'mdi-map-marker-path', label: 'Трек' },
   { id: 'stats', icon: 'mdi-view-grid-outline', label: 'Показатели' },
 ];
+
+/** Шаблон с картой: фон — всегда карта, вместо «Фона» — её настройки. */
+export const MAP_EDITOR_TOOLS: readonly EditorTool[] = EDITOR_TOOLS.map((tool) =>
+  tool.id === 'background' ? { id: 'map', icon: 'mdi-map-outline', label: 'Карта' } : tool,
+);

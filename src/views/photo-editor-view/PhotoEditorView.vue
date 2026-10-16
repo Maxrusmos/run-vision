@@ -20,9 +20,11 @@ import EditorToolbar from '@/views/photo-editor-view/components/tools/EditorTool
 import EditorToolPanel from '@/views/photo-editor-view/components/tools/EditorToolPanel.vue';
 import {
   EDITOR_TOOLS,
+  MAP_EDITOR_TOOLS,
   type EditorToolId,
 } from '@/views/photo-editor-view/components/tools/editor-tools';
 import AddElementsPanel from '@/views/photo-editor-view/components/panels/AddElementsPanel.vue';
+import MapPanel from '@/views/photo-editor-view/components/panels/MapPanel.vue';
 import BackgroundPanel from '@/views/photo-editor-view/components/panels/BackgroundPanel.vue';
 import PresetsPanel from '@/views/photo-editor-view/components/panels/PresetsPanel.vue';
 import TrackPanel from '@/views/photo-editor-view/components/panels/TrackPanel.vue';
@@ -57,11 +59,21 @@ const {
   setTitle,
   setTitleVisible,
   resetSettings,
+  setMapLayout,
+  setMapBase,
+  setMapDetailed,
+  setMapTerrain,
+  setMapTilted,
+  setMapView,
   undo,
   redo,
   canUndo,
   canRedo,
-} = useShareCardSettings(getPhotoTemplatePresetId(photoTemplateId.value));
+} = useShareCardSettings(getPhotoTemplatePresetId(photoTemplateId.value), {
+  withMap: photoTemplateId.value === 'topographic',
+});
+
+const tools = computed(() => (settings.value.map ? MAP_EDITOR_TOOLS : EDITOR_TOOLS));
 
 const { image, isRendering, isSaving, render, save } = useShareCardExport();
 
@@ -79,7 +91,7 @@ watch(activeTool, (tool) => {
 });
 
 const displayedToolTitle = computed(
-  () => EDITOR_TOOLS.find((tool) => tool.id === displayedTool.value)?.label ?? '',
+  () => tools.value.find((tool) => tool.id === displayedTool.value)?.label ?? '',
 );
 
 // Нечего настраивать, если элемента нет на карточке: нет показателей или трека.
@@ -117,14 +129,16 @@ async function createImage() {
     await delay(DESELECT_ANIMATION_MS);
     await nextTick();
     await waitForNextPaint();
+    await artwork.value?.whenReady();
 
     const element = artwork.value?.getElement();
     if (!element) return;
 
     const isRendered = await render(element, {
-      backgroundColor: settings.value.transparentBackground
-        ? undefined
-        : settings.value.backgroundColor,
+      backgroundColor:
+        settings.value.transparentBackground && !settings.value.map
+          ? undefined
+          : settings.value.backgroundColor,
     });
 
     isResultOpen.value = isRendered;
@@ -190,6 +204,7 @@ function goBack() {
         @remove-route="setRouteVisible(false)"
         @set-title="setTitle"
         @remove-title="setTitleVisible(false)"
+        @set-map-view="setMapView"
       />
     </FitToBox>
 
@@ -209,6 +224,16 @@ function goBack() {
             @add-title="setTitleVisible(true)"
             @add-route="setRouteVisible(true)"
             @add-stat="addStat"
+          />
+          <MapPanel
+            v-else-if="displayedTool === 'map' && settings.map"
+            :map="settings.map"
+            @set-layout="setMapLayout"
+            @set-base="setMapBase"
+            @set-detailed="setMapDetailed"
+            @set-terrain="setMapTerrain"
+            @set-tilted="setMapTilted"
+            @fit-route="setMapView(null)"
           />
           <BackgroundPanel
             v-else-if="displayedTool === 'background'"
@@ -242,7 +267,7 @@ function goBack() {
       </div>
     </Transition>
 
-    <EditorToolbar v-model="activeTool" :tools="EDITOR_TOOLS" :disabled-tools="disabledTools" />
+    <EditorToolbar v-model="activeTool" :tools="tools" :disabled-tools="disabledTools" />
   </div>
 
   <ShareCardResultDialog
