@@ -40,12 +40,15 @@ const widths = computed(() =>
     />
 
     <OptionTileRow>
-      <ColorOptionTile
-        label="Цвет"
-        input-label="Цвет текста показателей и названия"
-        :color="settings.textColor"
-        @change="emit('setTextColor', $event)"
-      />
+      <template #fixed>
+        <ColorOptionTile
+          label="Цвет"
+          input-label="Цвет текста показателей и названия"
+          :color="settings.textColor"
+          @change="emit('setTextColor', $event)"
+        />
+      </template>
+
       <StatStyleTile
         v-for="style in SHARE_STAT_STYLES"
         :key="style.id"

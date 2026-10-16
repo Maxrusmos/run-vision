@@ -41,12 +41,14 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
 
 <template>
   <OptionTileRow>
-    <ColorOptionTile
-      label="Цвет"
-      input-label="Цвет трека"
-      :color="settings.routeColor"
-      @change="emit('setRouteColor', $event)"
-    />
+    <template #fixed>
+      <ColorOptionTile
+        label="Цвет"
+        input-label="Цвет трека"
+        :color="settings.routeColor"
+        @change="emit('setRouteColor', $event)"
+      />
+    </template>
 
     <OptionTile
       v-for="style in SHARE_ROUTE_STYLES"

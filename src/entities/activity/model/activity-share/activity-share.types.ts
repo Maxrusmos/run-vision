@@ -55,8 +55,7 @@ export type ShareRouteStyle =
   | 'wall'
   | 'iso'
   | 'tube'
-  | 'ribbon'
-  | 'rainbow';
+  | 'ribbon';
 
 /** Ячейка показателя в сетке из 6 колонок: строка и первая колонка. */
 export type ShareStatPosition = {

@@ -57,7 +57,7 @@ const emit = defineEmits<{
   align-items: center;
   gap: 4px;
   min-height: 52px;
-  padding: max(6px, env(safe-area-inset-top)) 12px 6px 6px;
+  padding: max(6px, env(safe-area-inset-top)) 12px 6px;
   border-bottom: 1px solid var(--app-border);
   background: var(--app-background);
 }

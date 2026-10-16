@@ -47,6 +47,16 @@ function layerTransform(layer: RouteStrokeLayer): string {
   return `translate(${dx} ${dy}) scale(${layer.scale ?? 1})`;
 }
 
+/** Сдвиги копий выдавливания — от дальней к ближней. */
+function extrudeOffsets(layer: RouteStrokeLayer): { dx: number; dy: number }[] {
+  const extrude = layer.extrude;
+  if (!extrude) return [];
+  return Array.from({ length: extrude.steps }, (_, index) => {
+    const distance = extrude.steps - index;
+    return { dx: extrude.dx * distance * props.unit, dy: extrude.dy * distance * props.unit };
+  });
+}
+
 function layerStroke(layer: RouteStrokeLayer): string {
   return layer.gradient ? `url(#${gradientId})` : resolveColor(layer.color);
 }
@@ -65,19 +75,34 @@ function layerDash(layer: RouteStrokeLayer): string | undefined {
       </linearGradient>
     </defs>
 
-    <polyline
-      v-for="(layer, index) in style.layers"
-      :key="index"
-      :transform="layerTransform(layer)"
-      :points="points"
-      fill="none"
-      :stroke="layerStroke(layer)"
-      :stroke-opacity="layer.opacity ?? 1"
-      :stroke-width="BASE_STROKE * (layer.width ?? 1) * unit"
-      :stroke-dasharray="layerDash(layer)"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    />
+    <template v-for="(layer, index) in style.layers" :key="index">
+      <!-- Выдавливание: непрозрачные копии в полупрозрачной группе — грань без точек в узлах. -->
+      <g v-if="layer.extrude" :opacity="layer.opacity ?? 1">
+        <polyline
+          v-for="(offset, step) in extrudeOffsets(layer)"
+          :key="step"
+          :transform="`translate(${offset.dx} ${offset.dy})`"
+          :points="points"
+          fill="none"
+          :stroke="layerStroke(layer)"
+          :stroke-width="BASE_STROKE * (layer.width ?? 1) * unit"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </g>
+      <polyline
+        v-else
+        :transform="layerTransform(layer)"
+        :points="points"
+        fill="none"
+        :stroke="layerStroke(layer)"
+        :stroke-opacity="layer.opacity ?? 1"
+        :stroke-width="BASE_STROKE * (layer.width ?? 1) * unit"
+        :stroke-dasharray="layerDash(layer)"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </template>
 
     <circle v-if="start" :cx="start.x" :cy="start.y" :r="START_RADIUS * unit" :fill="routeColor" />
   </g>
