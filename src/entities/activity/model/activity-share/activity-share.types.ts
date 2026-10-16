@@ -5,13 +5,41 @@ export type PhotoTemplateId = 'minimal' | 'topographic' | 'custom';
 export type ShareStatKey =
   | 'distance'
   | 'duration'
+  | 'elapsedTime'
   | 'averagePace'
+  | 'averageSpeed'
+  | 'bestKm'
+  | 'best5k'
   | 'averageHeartRate'
   | 'maxHeartRate'
   | 'averageCadence'
-  | 'elevationGain';
+  | 'strideLength'
+  | 'elevationGain'
+  | 'elevationLoss'
+  | 'maxElevation'
+  | 'startTime';
 
-export type ShareStatWidth = 'half' | 'full';
+export type ShareStatWidth = 'third' | 'half' | 'full';
+
+/** Ячейка показателя в сетке из 6 колонок: строка и первая колонка. */
+export type ShareStatPosition = {
+  row: number;
+  col: number;
+};
+
+export type ShareRouteSize = 'small' | 'medium' | 'large';
+
+/**
+ * Центр трека в координатах слоя трека.
+ * Единицы: ширина слоя = 1000, высота — пропорционально.
+ */
+export type ShareRoutePosition = {
+  x: number;
+  y: number;
+};
+
+/** Элемент карточки, который можно выделить: показатель, трек или название. */
+export type ShareCardElement = ShareStatKey | 'route' | 'title';
 
 export type ShareColorKey = 'backgroundColor' | 'routeColor' | 'textColor';
 
@@ -26,18 +54,26 @@ export type ShareColorPreset = {
 };
 
 export type ShareCardSettings = {
+  /** Название на карточке; null — название тренировки из GPX. */
+  title: string | null;
   backgroundColor: string;
   routeColor: string;
   textColor: string;
   presetId: string | null;
   visibleStats: ShareStatKey[];
   statWidths: Partial<Record<ShareStatKey, ShareStatWidth>>;
+  /** Позиции, выставленные пользователем; остальные раскладываются автоматически. */
+  statPositions: Partial<Record<ShareStatKey, ShareStatPosition>>;
   transparentBackground: boolean;
   showStatBorders: boolean;
   backgroundImage: string | null;
   backgroundImageFit: ShareBackgroundImageFit;
   backgroundImagePosition: string;
   statSpacing: number;
+  routeVisible: boolean;
+  routeSize: ShareRouteSize;
+  /** null — трек стоит на своём месте между названием и показателями. */
+  routePosition: ShareRoutePosition | null;
 };
 
 export type ShareStatOption = {

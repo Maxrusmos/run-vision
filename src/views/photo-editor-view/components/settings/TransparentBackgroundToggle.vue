@@ -2,7 +2,6 @@
 import SettingToggle from '@/shared/ui/SettingToggle.vue';
 
 defineProps<{
-  backgroundColor: string;
   disabled: boolean;
 }>();
 
@@ -21,12 +20,9 @@ const enabled = defineModel<boolean>({ required: true });
     "
   >
     <template #preview>
-      <span
-        class="transparent-preview"
-        :class="{ checkerboard: enabled }"
-        :style="{ backgroundColor: enabled ? undefined : backgroundColor }"
-      >
-        <v-icon icon="mdi-image-outline" size="24" />
+      <!-- Иконка статична: не зависит ни от цвета фона, ни от состояния переключателя. -->
+      <span class="transparent-preview checkerboard">
+        <v-icon icon="mdi-image-outline" size="22" />
       </span>
     </template>
   </SettingToggle>
@@ -34,11 +30,12 @@ const enabled = defineModel<boolean>({ required: true });
 
 <style scoped>
 .transparent-preview {
-  --checkerboard-size: 14px;
+  --checkerboard-size: 12px;
 
   display: grid;
   width: 100%;
   height: 100%;
   place-items: center;
+  color: #fff;
 }
 </style>

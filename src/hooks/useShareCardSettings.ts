@@ -3,7 +3,10 @@ import type {
   ShareCardSettings,
   ShareColorKey,
   ShareColorPreset,
+  ShareRoutePosition,
+  ShareRouteSize,
   ShareStatKey,
+  ShareStatPosition,
   ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import {
@@ -11,27 +14,33 @@ import {
   findSharePreset,
   findSharePresetByColors,
 } from '@/entities/activity/model/activity-share/activity-share-presets';
+import { DEFAULT_ROUTE_SIZE } from '@/entities/activity/model/activity-share/activity-share-route';
 import { DEFAULT_VISIBLE_SHARE_STATS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
-export const STAT_SPACING_MIN = 4;
+export const STAT_SPACING_MIN = 0;
 export const STAT_SPACING_MAX = 24;
 
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 
 function createSettings(preset: ShareColorPreset): ShareCardSettings {
   return {
+    title: null,
     backgroundColor: preset.background,
     routeColor: preset.route,
     textColor: preset.text,
     presetId: preset.id,
     visibleStats: [...DEFAULT_VISIBLE_SHARE_STATS],
     statWidths: {},
+    statPositions: {},
     transparentBackground: false,
     showStatBorders: true,
     backgroundImage: null,
     backgroundImageFit: 'cover',
     backgroundImagePosition: 'center',
     statSpacing: 12,
+    routeVisible: true,
+    routeSize: DEFAULT_ROUTE_SIZE,
+    routePosition: null,
   };
 }
 
@@ -88,10 +97,11 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
 
   function removeStat(key: ShareStatKey) {
     settings.value.visibleStats = settings.value.visibleStats.filter((item) => item !== key);
+    delete settings.value.statPositions[key];
   }
 
-  function reorderStats(keys: ShareStatKey[]) {
-    settings.value.visibleStats = keys;
+  function setStatPositions(positions: Partial<Record<ShareStatKey, ShareStatPosition>>) {
+    settings.value.statPositions = { ...positions };
   }
 
   function setStatWidth(key: ShareStatKey, width: ShareStatWidth) {
@@ -119,13 +129,42 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     settings.value.transparentBackground = false;
   }
 
+  function setRouteVisible(value: boolean) {
+    settings.value.routeVisible = value;
+  }
+
+  function setRouteSize(size: ShareRouteSize) {
+    settings.value.routeSize = size;
+  }
+
+  function setRoutePosition(position: ShareRoutePosition) {
+    settings.value.routePosition = position;
+  }
+
+  function setTitle(value: string) {
+    const title = value.trim();
+    // Пустое название возвращает исходное из GPX.
+    settings.value.title = title || null;
+  }
+
+  /** Возвращает карточку к исходному виду выбранного шаблона. */
+  function resetSettings() {
+    releaseBackgroundImage();
+    settings.value = createSettings(initialPreset);
+  }
+
   return {
     settings,
+    setRouteVisible,
+    setRouteSize,
+    setRoutePosition,
+    setTitle,
+    resetSettings,
     applyPresetById,
     setColor,
     addStat,
     removeStat,
-    reorderStats,
+    setStatPositions,
     setStatWidth,
     setStatSpacing,
     setShowStatBorders,

@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { formatActivityDate } from '@/shared/lib/formatters/formatters';
-import ColorPickerButton from '@/shared/ui/ColorPickerButton.vue';
+import ArtworkTitle from '@/views/photo-editor-view/components/artwork/ArtworkTitle.vue';
 
 const props = defineProps<{
   title: string;
   date: Date;
   textColor: string;
+  titleSelected: boolean;
 }>();
 
 const emit = defineEmits<{
+  selectTitle: [];
+  changeTitle: [value: string];
   changeTextColor: [color: string];
 }>();
 
@@ -23,22 +26,19 @@ const formattedDate = computed(() => formatActivityDate(props.date));
       <span class="artwork-header__date">{{ formattedDate }}</span>
     </div>
 
-    <div class="artwork-header__title">
-      <span>{{ title || 'Тренировка' }}</span>
-      <ColorPickerButton
-        class="artwork-header__title-editor export-hidden"
-        label="Цвет текста"
-        :color="textColor"
-        @change="emit('changeTextColor', $event)"
-      />
-    </div>
+    <ArtworkTitle
+      :value="title"
+      :text-color="textColor"
+      :selected="titleSelected"
+      @select="emit('selectTitle')"
+      @change="emit('changeTitle', $event)"
+      @change-text-color="emit('changeTextColor', $event)"
+    />
   </div>
 </template>
 
 <style scoped>
 .artwork-header {
-  position: relative;
-  z-index: 1;
   margin-top: 8px;
   padding-right: 42px;
 }
@@ -62,23 +62,6 @@ const formattedDate = computed(() => formatActivityDate(props.date));
   opacity: 0.7;
 }
 
-.artwork-header__title {
-  position: relative;
-  max-width: 100%;
-  width: max-content;
-  margin-top: 8px;
-  overflow-wrap: anywhere;
-  font-size: clamp(23px, 5vw, 34px);
-  font-weight: 800;
-  line-height: 1;
-}
-
-.artwork-header__title-editor {
-  position: absolute;
-  z-index: 5;
-  transform: translateY(-2px);
-}
-
 @media (max-width: 420px) {
   .artwork-header {
     padding-right: 38px;
@@ -86,10 +69,6 @@ const formattedDate = computed(() => formatActivityDate(props.date));
 
   .artwork-header__date {
     font-size: 9px;
-  }
-
-  .artwork-header__title-editor {
-    right: -38px;
   }
 }
 </style>

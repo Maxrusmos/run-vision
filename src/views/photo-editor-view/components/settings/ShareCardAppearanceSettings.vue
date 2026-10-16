@@ -32,7 +32,6 @@ const emit = defineEmits<{
       />
       <TransparentBackgroundToggle
         :model-value="settings.transparentBackground"
-        :background-color="settings.backgroundColor"
         :disabled="Boolean(settings.backgroundImage)"
         @update:model-value="emit('setTransparentBackground', $event)"
       />

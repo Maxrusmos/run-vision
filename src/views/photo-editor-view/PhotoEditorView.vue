@@ -2,7 +2,8 @@
 import { computed, nextTick, ref, useTemplateRef } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
-import type { ShareStatKey } from '@/entities/activity/model/activity-share/activity-share.types';
+import type { ShareCardElement } from '@/entities/activity/model/activity-share/activity-share.types';
+import { getActivityShareStats } from '@/entities/activity/model/activity-share/activity-share-stats';
 import { getPhotoTemplatePresetId } from '@/entities/activity/model/activity-share/photo-templates';
 import { useActivityStore } from '@/stores/activity.store';
 import { useShareStore } from '@/stores/share.store';
@@ -11,9 +12,10 @@ import { useShareCardExport } from '@/hooks/useShareCardExport';
 import { ROUTE_NAMES } from '@/router/routes';
 import { delay, waitForNextPaint } from '@/shared/lib/dom/wait';
 import StepPage from '@/shared/ui/StepPage.vue';
-import SectionHeading from '@/shared/ui/SectionHeading.vue';
 import PhotoEditorSidebar from '@/views/photo-editor-view/components/PhotoEditorSidebar.vue';
 import ShareCardArtwork from '@/views/photo-editor-view/components/artwork/ShareCardArtwork.vue';
+import AddElementButton from '@/views/photo-editor-view/components/AddElementButton.vue';
+import ResetCardButton from '@/views/photo-editor-view/components/ResetCardButton.vue';
 import ShareCardStatAdd from '@/views/photo-editor-view/components/ShareCardStatAdd.vue';
 import ShareCardResultDialog from '@/views/photo-editor-view/components/ShareCardResultDialog.vue';
 
@@ -30,28 +32,35 @@ const {
   setColor,
   addStat,
   removeStat,
-  reorderStats,
+  setStatPositions,
   setStatWidth,
   setStatSpacing,
   setShowStatBorders,
   setTransparentBackground,
   setBackgroundImage,
   removeBackgroundImage,
+  setRouteVisible,
+  setRouteSize,
+  setRoutePosition,
+  setTitle,
+  resetSettings,
 } = useShareCardSettings(getPhotoTemplatePresetId(photoTemplateId.value));
 
 const { image, isRendering, isSaving, render, save } = useShareCardExport();
 
 const artwork = useTemplateRef<InstanceType<typeof ShareCardArtwork>>('artwork');
-const selectedStat = ref<ShareStatKey | null>(null);
+const selected = ref<ShareCardElement | null>(null);
 const isExporting = ref(false);
 const isResultOpen = ref(false);
+
+const statValues = computed(() => (activity.value ? getActivityShareStats(activity.value) : null));
 
 const isBusy = computed(() => isExporting.value || isRendering.value);
 
 async function createImage() {
   if (isBusy.value) return;
 
-  selectedStat.value = null;
+  selected.value = null;
   isExporting.value = true;
 
   try {
@@ -80,13 +89,18 @@ function saveImage() {
   }
 }
 
+function handleReset() {
+  selected.value = null;
+  resetSettings();
+}
+
 function goBack() {
   router.push({ name: ROUTE_NAMES.share });
 }
 </script>
 
 <template>
-  <StepPage v-if="activity" max-width="1280px">
+  <StepPage v-if="activity && statValues" max-width="1280px">
     <div class="photo-editor">
       <PhotoEditorSidebar
         class="photo-editor__sidebar"
@@ -100,26 +114,43 @@ function goBack() {
       />
 
       <section class="photo-editor__main">
-        <SectionHeading
-          title="Редактирование карточки"
-          description="Настройте цвета, состав и порядок показателей"
-        />
+        <div class="photo-editor__heading">
+          <h2 class="photo-editor__title">Редактирование карточки</h2>
+          <ResetCardButton @confirm="handleReset" />
+        </div>
 
         <div class="photo-editor__canvas">
           <ShareCardArtwork
             ref="artwork"
-            v-model:selected-stat="selectedStat"
+            v-model:selected="selected"
             :activity="activity"
             :settings="settings"
+            :stat-values="statValues"
             :exporting="isExporting"
             @set-color="setColor"
             @remove-stat="removeStat"
-            @reorder-stats="reorderStats"
+            @set-stat-positions="setStatPositions"
             @set-stat-width="setStatWidth"
+            @set-route-size="setRouteSize"
+            @set-route-position="setRoutePosition"
+            @set-title="setTitle"
+            @remove-route="setRouteVisible(false)"
           />
         </div>
 
-        <ShareCardStatAdd :visible-stats="settings.visibleStats" @add="addStat" />
+        <div class="photo-editor__add-actions">
+          <AddElementButton
+            v-if="!settings.routeVisible"
+            label="Добавить трек"
+            icon="mdi-map-marker-path"
+            @click="setRouteVisible(true)"
+          />
+          <ShareCardStatAdd
+            :visible-stats="settings.visibleStats"
+            :stat-values="statValues"
+            @add="addStat"
+          />
+        </div>
       </section>
     </div>
 
@@ -164,6 +195,29 @@ function goBack() {
   padding: clamp(12px, 2vw, 36px);
   border-radius: 16px;
   background-color: var(--app-hover-bg);
+}
+
+.photo-editor__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.photo-editor__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.photo-editor__add-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.photo-editor__add-actions > * {
+  flex: 1 1 200px;
 }
 
 @media (max-width: 800px) {

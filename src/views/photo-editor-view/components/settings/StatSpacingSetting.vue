@@ -1,24 +1,36 @@
 <script setup lang="ts">
+import { useTemplateRef } from 'vue';
 import { STAT_SPACING_MAX, STAT_SPACING_MIN } from '@/hooks/useShareCardSettings';
+import { useKeepElementInPlace } from '@/hooks/useKeepElementInPlace';
 
 const spacing = defineModel<number>({ required: true });
 
 const TICKS = {
-  [STAT_SPACING_MIN]: 'Компактно',
+  [STAT_SPACING_MIN]: 'Плотно',
   [(STAT_SPACING_MIN + STAT_SPACING_MAX) / 2]: 'Средне',
   [STAT_SPACING_MAX]: 'Свободно',
 };
+
+const root = useTemplateRef<HTMLElement>('root');
+const { keepInPlace } = useKeepElementInPlace(root);
+
+// Карточка над слайдером меняет высоту — держим слайдер под пальцем.
+function handleUpdate(value: number) {
+  keepInPlace(() => {
+    spacing.value = value;
+  });
+}
 </script>
 
 <template>
-  <div class="spacing-setting">
+  <div ref="root" class="spacing-setting">
     <div class="spacing-setting__title">
       <v-icon icon="mdi-arrow-collapse-vertical" size="18" />
-      Плотность карточки
+      Плотность показателей
     </div>
 
     <v-slider
-      v-model="spacing"
+      :model-value="spacing"
       :min="STAT_SPACING_MIN"
       :max="STAT_SPACING_MAX"
       :step="2"
@@ -29,7 +41,8 @@ const TICKS = {
       color="primary"
       track-size="4"
       thumb-size="16"
-      aria-label="Плотность карточки"
+      aria-label="Плотность показателей"
+      @update:model-value="handleUpdate"
     />
 
     <div class="spacing-setting__description">

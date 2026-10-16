@@ -7,7 +7,6 @@ import { ROUTE_NAMES } from '@/router/routes';
 import StepPage from '@/shared/ui/StepPage.vue';
 import SectionHeading from '@/shared/ui/SectionHeading.vue';
 import ActivitySummary from '@/components/activity/ActivitySummary.vue';
-import ShareTypeHero from '@/views/share-view/components/ShareTypeHero.vue';
 import ShareTypeSelector from '@/views/share-view/components/ShareTypeSelector.vue';
 import PhotoTemplateCarousel from '@/views/share-view/components/PhotoTemplateCarousel.vue';
 import VideoPlaceholder from '@/views/share-view/components/VideoPlaceholder.vue';
@@ -23,7 +22,6 @@ function goToEditor() {
 
 <template>
   <StepPage v-if="activity">
-    <ShareTypeHero />
     <ActivitySummary :activity="activity" />
 
     <SectionHeading title="Что создаём?" />
