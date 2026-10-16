@@ -5,6 +5,10 @@ import type {
   ShareColorKey,
   ShareColorPreset,
   ShareElevationSettings,
+  ShareTelemetrySettings,
+  ShareWidgetKind,
+  ShareWidget,
+  ShareWidgetSide,
   ShareMapLayout,
   ShareMapPitch,
   ShareMapStyle,
@@ -23,9 +27,19 @@ import {
 import { DEFAULT_ROUTE_SCALE } from '@/entities/activity/model/activity-share/activity-share-route';
 import { DEFAULT_ROUTE_STYLE } from '@/entities/activity/model/activity-share/activity-share-route-styles';
 import { DEFAULT_STAT_STYLE } from '@/entities/activity/model/activity-share/activity-share-stat-styles';
-import { createShareMapSettings } from '@/entities/activity/model/activity-share/activity-share-map';
+import {
+  createShareMapSettings,
+  normalizeMapBearing,
+} from '@/entities/activity/model/activity-share/activity-share-map';
 import { createShareElevationSettings } from '@/entities/activity/model/activity-share/activity-share-elevation';
-import { DEFAULT_VISIBLE_SHARE_STATS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
+import {
+  WIDGET_END_ROW,
+  createShareTelemetrySettings,
+} from '@/entities/activity/model/activity-share/activity-share-widgets';
+import {
+  DEFAULT_SHARE_STAT_WIDTH,
+  getDefaultVisibleStats,
+} from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
 export const STAT_SPACING_MIN = 0;
 export const STAT_SPACING_MAX = 24;
@@ -35,6 +49,14 @@ const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 type ShareCardSettingsOptions = {
   /** Карточка с картой (шаблон «Топография»). */
   withMap?: boolean;
+  /** Карточка с виджетами (шаблон «Телеметрия»). */
+  withTelemetry?: boolean;
+  /** В GPX есть пульс — от этого зависят виджеты по умолчанию. */
+  hasHeartRate?: boolean;
+  /** В GPX есть высота — иначе график высоты и боковой виджет высоты не ставятся. */
+  hasElevation?: boolean;
+  /** Есть ли данные для показателя: пустые не ставятся на новую карточку. */
+  isStatAvailable?: (key: ShareStatKey) => boolean;
 };
 
 function createSettings(
@@ -48,21 +70,28 @@ function createSettings(
     routeColor: preset.route,
     textColor: preset.text,
     presetId: preset.id,
-    visibleStats: [...DEFAULT_VISIBLE_SHARE_STATS],
+    visibleStats: getDefaultVisibleStats(options.isStatAvailable),
     statWidths: {},
     statPositions: {},
     transparentBackground: false,
-    statStyle: DEFAULT_STAT_STYLE,
+    // «Телеметрия»: уголки-прицелы и светящийся трек — как на приборной панели.
+    statStyle: options.withTelemetry ? 'brackets' : DEFAULT_STAT_STYLE,
     backgroundImage: null,
     backgroundImageFit: 'cover',
     backgroundImagePosition: 'center',
     statSpacing: 12,
     routeVisible: true,
     routeScale: DEFAULT_ROUTE_SCALE,
-    routeStyle: DEFAULT_ROUTE_STYLE,
+    routeStyle: options.withTelemetry ? 'glow' : DEFAULT_ROUTE_STYLE,
     routePosition: null,
     map: options.withMap ? createShareMapSettings() : null,
-    elevation: options.withMap ? createShareElevationSettings() : null,
+    // Без высоты в GPX график был бы пустым — не ставим его (можно добавить вручную).
+    elevation: options.withMap
+      ? { ...createShareElevationSettings(), visible: options.hasElevation ?? true }
+      : null,
+    telemetry: options.withTelemetry
+      ? createShareTelemetrySettings(options.hasHeartRate ?? false, options.hasElevation ?? true)
+      : null,
   };
 }
 
@@ -125,9 +154,33 @@ export function useShareCardSettings(
     settings.value.transparentBackground = false;
   }
 
+  /**
+   * Новый показатель получает ширину текущей сетки: если все показатели одной
+   * ширины (выбрана сетка «N в ряд»), он встаёт таким же, а не по умолчанию — ½.
+   */
   function addStat(key: ShareStatKey) {
-    if (settings.value.visibleStats.includes(key)) return;
-    settings.value.visibleStats.push(key);
+    const { visibleStats, statWidths } = settings.value;
+    if (visibleStats.includes(key)) return;
+
+    const widths = new Set(
+      visibleStats.map((stat) => statWidths[stat] ?? DEFAULT_SHARE_STAT_WIDTH),
+    );
+    const [gridWidth] = widths;
+    if (widths.size === 1 && gridWidth) statWidths[key] = gridWidth;
+    else delete statWidths[key];
+
+    visibleStats.push(key);
+  }
+
+  /** Добавляет сразу несколько показателей (каждый — шириной текущей сетки). */
+  function addStats(keys: readonly ShareStatKey[]) {
+    keys.forEach(addStat);
+  }
+
+  /** Убирает все показатели с карточки. */
+  function removeAllStats() {
+    settings.value.visibleStats = [];
+    settings.value.statPositions = {};
   }
 
   function removeStat(key: ShareStatKey) {
@@ -227,6 +280,10 @@ export function useShareCardSettings(
     updateMap({ pitch });
   }
 
+  function setMapBearing(bearing: number) {
+    updateMap({ bearing: normalizeMapBearing(bearing) });
+  }
+
   function setMapKmMarkers(kmMarkers: boolean) {
     updateMap({ kmMarkers });
   }
@@ -267,6 +324,109 @@ export function useShareCardSettings(
     updateElevation({ color });
   }
 
+  function updateTelemetry(patch: Partial<ShareTelemetrySettings>) {
+    if (!settings.value.telemetry) return;
+    settings.value.telemetry = { ...settings.value.telemetry, ...patch };
+  }
+
+  /** Добавленный виджет встаёт в конец — после всех показателей и виджетов. */
+  function setWidgetVisible(kind: ShareWidgetKind, visible: boolean) {
+    const telemetry = settings.value.telemetry;
+    if (!telemetry) return;
+    const widgets = telemetry.widgets.filter((widget) => widget.kind !== kind);
+    // Не MAX_SAFE_INTEGER: при совпадении строк раскладка прибавляет 1, а 2^53 + 1 === 2^53.
+    if (visible) widgets.push({ kind, row: WIDGET_END_ROW + widgets.length, side: null });
+    updateTelemetry({ widgets });
+  }
+
+  /** Виджет у края области трека (вертикально) или строкой на всю ширину. */
+  function setWidgetSide(kind: ShareWidgetKind, side: ShareWidgetSide | null) {
+    const telemetry = settings.value.telemetry;
+    if (!telemetry) return;
+    updateTelemetry({
+      widgets: telemetry.widgets.map((widget) =>
+        widget.kind === kind
+          ? { ...widget, side, row: side ? widget.row : WIDGET_END_ROW }
+          : widget,
+      ),
+    });
+  }
+
+  /**
+   * Раскладка полос после переноса: строки горизонтальных и порядок вертикальных
+   * в боковых колонках (порядок виджетов в списке задаёт порядок в колонке).
+   */
+  function setBandPlacement(
+    rows: Record<string, number>,
+    sides: Record<ShareWidgetSide, string[]>,
+  ) {
+    if (settings.value.elevation && rows.elevation !== undefined) {
+      updateElevation({ row: rows.elevation });
+    }
+    const telemetry = settings.value.telemetry;
+    if (!telemetry) return;
+
+    const sideOf = (key: string): ShareWidgetSide | null =>
+      sides.left.includes(key) ? 'left' : sides.right.includes(key) ? 'right' : null;
+    const placed = telemetry.widgets.map((widget) => {
+      const key = `widget-${widget.kind}`;
+      return { ...widget, side: sideOf(key), row: rows[key] ?? widget.row };
+    });
+    const sideOrder = (widget: ShareWidget) => {
+      const key = `widget-${widget.kind}`;
+      return widget.side ? sides[widget.side].indexOf(key) : -1;
+    };
+    updateTelemetry({
+      widgets: [
+        ...placed.filter((widget) => !widget.side),
+        ...placed
+          .filter((widget) => widget.side === 'left')
+          .sort((a, b) => sideOrder(a) - sideOrder(b)),
+        ...placed
+          .filter((widget) => widget.side === 'right')
+          .sort((a, b) => sideOrder(a) - sideOrder(b)),
+      ],
+    });
+  }
+
+  /** Строки полос сетки (график высоты, виджеты) после переноса. */
+  function setBandRows(rows: Record<string, number>) {
+    if (settings.value.elevation && rows.elevation !== undefined) {
+      updateElevation({ row: rows.elevation });
+    }
+    const telemetry = settings.value.telemetry;
+    if (telemetry) {
+      updateTelemetry({
+        widgets: telemetry.widgets.map((widget) => ({
+          ...widget,
+          row: rows[`widget-${widget.kind}`] ?? widget.row,
+        })),
+      });
+    }
+  }
+
+  function setTelemetrySize(size: ShareTelemetrySettings['size']) {
+    updateTelemetry({ size });
+  }
+
+  function setTelemetryChartStyle(chartStyle: ShareTelemetrySettings['chartStyle']) {
+    updateTelemetry({ chartStyle });
+  }
+
+  /** null — цвет трека. */
+  function setTelemetryColor(color: string | null) {
+    if (color !== null && !HEX_COLOR_PATTERN.test(color)) return;
+    updateTelemetry({ color });
+  }
+
+  function setTelemetryLabels(labels: boolean) {
+    updateTelemetry({ labels });
+  }
+
+  function setTelemetryGrid(grid: boolean) {
+    updateTelemetry({ grid });
+  }
+
   /** Возвращает карточку к исходному виду выбранного шаблона. */
   function resetSettings() {
     settings.value = createSettings(initialPreset, options);
@@ -292,11 +452,23 @@ export function useShareCardSettings(
     setElevationRow,
     setMapKmMarkers,
     setMapStartFinish,
+    setMapBearing,
+    setWidgetVisible,
+    setWidgetSide,
+    setBandRows,
+    setBandPlacement,
+    setTelemetrySize,
+    setTelemetryChartStyle,
+    setTelemetryColor,
+    setTelemetryLabels,
+    setTelemetryGrid,
     applyPresetById,
     setColor,
     setBackgroundColor,
     addStat,
+    addStats,
     removeStat,
+    removeAllStats,
     setStatPositions,
     setStatWidth,
     setStatSpacing,

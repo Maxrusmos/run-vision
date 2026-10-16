@@ -49,7 +49,7 @@ const emit = defineEmits<{
 
 .toggle-group__option {
   display: grid;
-  flex: 1 1 0;
+  flex: 1 0 auto;
   min-width: 34px;
   height: 30px;
   place-items: center;

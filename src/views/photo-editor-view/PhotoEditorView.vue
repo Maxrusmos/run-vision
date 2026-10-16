@@ -3,7 +3,11 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import type { ShareCardElement } from '@/entities/activity/model/activity-share/activity-share.types';
-import { getActivityShareStats } from '@/entities/activity/model/activity-share/activity-share-stats';
+import type { BandState } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
+import {
+  SHARE_STAT_EMPTY_VALUE,
+  getActivityShareStats,
+} from '@/entities/activity/model/activity-share/activity-share-stats';
 import { getPhotoTemplatePresetId } from '@/entities/activity/model/activity-share/photo-templates';
 import { useActivityStore } from '@/stores/activity.store';
 import { useShareStore } from '@/stores/share.store';
@@ -21,9 +25,11 @@ import EditorToolPanel from '@/views/photo-editor-view/components/tools/EditorTo
 import {
   EDITOR_TOOLS,
   MAP_EDITOR_TOOLS,
+  TELEMETRY_EDITOR_TOOLS,
   type EditorToolId,
 } from '@/views/photo-editor-view/components/tools/editor-tools';
 import AddElementsPanel from '@/views/photo-editor-view/components/panels/AddElementsPanel.vue';
+import WidgetsPanel from '@/views/photo-editor-view/components/panels/WidgetsPanel.vue';
 import ElevationPanel from '@/views/photo-editor-view/components/panels/ElevationPanel.vue';
 import MapPanel from '@/views/photo-editor-view/components/panels/MapPanel.vue';
 import BackgroundPanel from '@/views/photo-editor-view/components/panels/BackgroundPanel.vue';
@@ -38,13 +44,17 @@ const router = useRouter();
 const { activity } = storeToRefs(useActivityStore());
 const { photoTemplateId } = storeToRefs(useShareStore());
 
+const initialStatValues = activity.value ? getActivityShareStats(activity.value) : null;
+
 const {
   settings,
   applyPresetById,
   setColor,
   setBackgroundColor,
   addStat,
+  addStats,
   removeStat,
+  removeAllStats,
   setStatPositions,
   setStatWidth,
   setStatSpacing,
@@ -68,18 +78,35 @@ const {
   setElevationSize,
   setElevationLabels,
   setElevationColor,
-  setElevationRow,
+  setWidgetVisible,
+  setWidgetSide,
+  setBandPlacement,
+  setTelemetrySize,
+  setTelemetryChartStyle,
+  setTelemetryColor,
+  setTelemetryLabels,
+  setTelemetryGrid,
   setMapKmMarkers,
   setMapStartFinish,
+  setMapBearing,
   undo,
   redo,
   canUndo,
   canRedo,
 } = useShareCardSettings(getPhotoTemplatePresetId(photoTemplateId.value), {
   withMap: photoTemplateId.value === 'topographic',
+  withTelemetry: photoTemplateId.value === 'telemetry',
+  hasHeartRate: activity.value?.track.some((point) => (point.heartRate ?? 0) > 0) ?? false,
+  hasElevation: activity.value?.hasElevation ?? false,
+  // Показатели без данных («—») на новую карточку не ставим.
+  isStatAvailable: (key) => initialStatValues?.[key] !== SHARE_STAT_EMPTY_VALUE,
 });
 
-const tools = computed(() => (settings.value.map ? MAP_EDITOR_TOOLS : EDITOR_TOOLS));
+const tools = computed(() => {
+  if (settings.value.map) return MAP_EDITOR_TOOLS;
+  if (settings.value.telemetry) return TELEMETRY_EDITOR_TOOLS;
+  return EDITOR_TOOLS;
+});
 
 const { image, isRendering, isSaving, render, save } = useShareCardExport();
 
@@ -160,10 +187,10 @@ function saveImage() {
   }
 }
 
-/** Перенос графика: строка графика и сдвинутые показатели — одним шагом истории. */
-function moveElevation(row: number, layout: Parameters<typeof setStatPositions>[0]) {
-  setElevationRow(row);
-  setStatPositions(layout);
+/** Перенос полосы (график, виджет): полосы и сдвинутые показатели — одним шагом истории. */
+function dropBands(state: BandState) {
+  setBandPlacement(state.rows, state.sides);
+  setStatPositions(state.layout);
 }
 
 function handleUndo() {
@@ -218,7 +245,10 @@ function goBack() {
         @set-title="setTitle"
         @remove-title="setTitleVisible(false)"
         @remove-elevation="setElevationVisible(false)"
-        @move-elevation="moveElevation"
+        @drop-bands="dropBands"
+        @remove-widget="setWidgetVisible($event, false)"
+        @set-widget-side="setWidgetSide"
+        @rotate-map="setMapBearing"
       />
     </FitToBox>
 
@@ -238,7 +268,9 @@ function goBack() {
             @add-title="setTitleVisible(true)"
             @add-route="setRouteVisible(true)"
             @add-stat="addStat"
+            @add-stats="addStats"
             @add-elevation="setElevationVisible(true)"
+            @add-widget="setWidgetVisible($event, true)"
           />
           <MapPanel
             v-else-if="displayedTool === 'map' && settings.map"
@@ -250,11 +282,26 @@ function goBack() {
             @set-pitch="setMapPitch"
             @set-km-markers="setMapKmMarkers"
             @set-start-finish="setMapStartFinish"
+            @set-bearing="setMapBearing"
+          />
+          <WidgetsPanel
+            v-else-if="displayedTool === 'widgets' && settings.telemetry"
+            :telemetry="settings.telemetry"
+            :route-color="settings.routeColor"
+            :text-color="settings.textColor"
+            :background-color="settings.backgroundColor"
+            :track="activity.track"
+            @set-size="setTelemetrySize"
+            @set-chart-style="setTelemetryChartStyle"
+            @set-color="setTelemetryColor"
+            @set-labels="setTelemetryLabels"
+            @set-grid="setTelemetryGrid"
           />
           <ElevationPanel
             v-else-if="displayedTool === 'elevation' && settings.elevation"
             :elevation="settings.elevation"
             :route-color="settings.routeColor"
+            :text-color="settings.textColor"
             :background-color="settings.backgroundColor"
             :track="activity.track"
             @set-style="setElevationStyle"
@@ -284,6 +331,7 @@ function goBack() {
           />
           <StatsAppearancePanel
             v-else-if="displayedTool === 'stats'"
+            @remove-all="removeAllStats"
             :settings="settings"
             @set-stat-columns="setStatColumns"
             @set-stat-style="setStatStyle"

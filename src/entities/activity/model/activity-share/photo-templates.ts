@@ -14,6 +14,12 @@ export const PHOTO_TEMPLATES: readonly PhotoTemplate[] = [
     description: 'Карта и рельеф',
     presetId: 'forest',
   },
+  {
+    id: 'telemetry',
+    title: 'Телеметрия',
+    description: 'Сплиты, пульс, графики',
+    presetId: 'hud',
+  },
 ];
 
 export function getPhotoTemplatePresetId(id: PhotoTemplateId): string {

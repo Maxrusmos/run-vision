@@ -5,6 +5,8 @@ import type {
   ShareCardElement,
   ShareCardSettings,
   ShareColorKey,
+  ShareWidgetKind,
+  ShareWidgetSide,
   ShareRoutePosition,
   ShareStat,
   ShareStatKey,
@@ -20,9 +22,14 @@ import ArtworkRoute from '@/views/photo-editor-view/components/artwork/ArtworkRo
 import ArtworkStatsGrid from '@/views/photo-editor-view/components/artwork/ArtworkStatsGrid.vue';
 import ArtworkMap from '@/views/photo-editor-view/components/artwork/ArtworkMap.vue';
 import ArtworkElevation from '@/views/photo-editor-view/components/artwork/ArtworkElevation.vue';
+import ArtworkWidget from '@/views/photo-editor-view/components/artwork/ArtworkWidget.vue';
+import {
+  getWidgetKey,
+  getWidgetRatio,
+} from '@/entities/activity/model/activity-share/activity-share-widgets';
 import type { MapFitPadding } from '@/entities/activity/model/activity-share/activity-share-map';
 import { getElevationSizeRatio } from '@/entities/activity/model/activity-share/activity-share-elevation';
-import type { StatLayout } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
+import type { BandState } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
 
 const BLOCK_MAP_FIT_PADDING: MapFitPadding = { top: 0.1, right: 0.1, bottom: 0.1, left: 0.1 };
 /** Карта во весь фон: поля вокруг свободной области (между названием и графиком/показателями). */
@@ -52,7 +59,10 @@ const emit = defineEmits<{
   setTitle: [value: string];
   removeTitle: [];
   removeElevation: [];
-  moveElevation: [row: number, layout: StatLayout];
+  dropBands: [state: BandState];
+  removeWidget: [kind: ShareWidgetKind];
+  setWidgetSide: [kind: ShareWidgetKind, side: ShareWidgetSide | null];
+  rotateMap: [bearing: number];
 }>();
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
@@ -74,13 +84,77 @@ const elevationRatio = computed(() =>
 
 /** Место над показателями (доля ширины): трек или карта. */
 const reservedRatio = computed(() =>
-  props.settings.routeVisible || props.settings.map ? ROUTE_SLOT_HEIGHT_RATIO : 0,
+  props.settings.routeVisible || props.settings.map || sideWidgets.value.length
+    ? ROUTE_SLOT_HEIGHT_RATIO
+    : 0,
 );
 
-/** График высоты — полоса в сетке показателей: его можно переставлять между строками. */
-const elevationBand = computed(() =>
-  elevation.value ? { row: elevation.value.row, ratio: elevationRatio.value } : null,
+/** Виджеты «Телеметрии» у краёв области трека — вертикальные «ленты». */
+const sideWidgets = computed(() =>
+  (props.settings.telemetry?.widgets ?? []).filter((widget) => widget.side),
 );
+
+function widgetsAt(side: ShareWidgetSide) {
+  return sideWidgets.value.filter((widget) => widget.side === side);
+}
+
+/** Трек ужимается между боковыми колонками (две крайние колонки сетки из шести). */
+function sideInset(side: ShareWidgetSide): string {
+  return widgetsAt(side).length
+    ? 'calc((100% - 5 * var(--share-stat-gap)) / 3 + var(--share-stat-gap) + 4px)'
+    : '0px';
+}
+
+const areaStyle = computed(() =>
+  visualHeight.value
+    ? { height: `${visualHeight.value}px` }
+    : { aspectRatio: `${1 / (reservedRatio.value || ROUTE_SLOT_HEIGHT_RATIO)}` },
+);
+
+/**
+ * Полосы в сетке показателей — график высоты и виджеты «Телеметрии»:
+ * занимают строку целиком и переставляются между строками.
+ */
+const bands = computed(() => {
+  const list: {
+    key: ShareCardElement;
+    row: number | null;
+    ratio: number;
+    side: ShareWidgetSide | null;
+  }[] = [];
+  if (elevation.value) {
+    list.push({
+      key: 'elevation',
+      row: elevation.value.row,
+      ratio: elevationRatio.value,
+      side: null,
+    });
+  }
+  const telemetry = props.settings.telemetry;
+  for (const widget of telemetry?.widgets ?? []) {
+    list.push({
+      key: getWidgetKey(widget.kind),
+      row: widget.row,
+      ratio: getWidgetRatio(widget.kind, telemetry!.size),
+      side: widget.side,
+    });
+  }
+  return list;
+});
+
+/** Вид виджета по ключу полосы `widget-<вид>`. */
+function widgetKind(key: string): ShareWidgetKind | null {
+  return key.startsWith('widget-') ? (key.slice('widget-'.length) as ShareWidgetKind) : null;
+}
+
+function selectBand(key: ShareCardElement) {
+  selected.value = selected.value === key ? null : key;
+}
+
+function removeWidget(kind: ShareWidgetKind) {
+  selected.value = null;
+  emit('removeWidget', kind);
+}
 
 // Карта во весь фон: трек вписывается в свободную область — между названием и показателями.
 const mapArea = useTemplateRef<HTMLElement>('mapArea');
@@ -117,6 +191,36 @@ watch(mapArea, (area) => {
 });
 
 onBeforeUnmount(() => areaObserver?.disconnect());
+
+/**
+ * Вращение карты двумя пальцами — по всей карточке: карта лежит под названием
+ * и показателями, и попасть по ней пальцами было бы трудно.
+ */
+let twist: { angle: number; bearing: number } | null = null;
+
+function touchAngle(event: TouchEvent): number | null {
+  const [a, b] = [event.touches[0], event.touches[1]];
+  if (!a || !b) return null;
+  return (Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX) * 180) / Math.PI;
+}
+
+function handleTouchStart(event: TouchEvent) {
+  const angle = props.settings.map ? touchAngle(event) : null;
+  twist = angle === null ? null : { angle, bearing: props.settings.map!.bearing };
+}
+
+function handleTouchMove(event: TouchEvent) {
+  const angle = touchAngle(event);
+  if (!twist || angle === null) return;
+  // Иначе браузер масштабирует страницу.
+  event.preventDefault();
+  // Пальцы по часовой — карта тоже по часовой, то есть угол (bearing) уменьшается.
+  emit('rotateMap', twist.bearing - (angle - twist.angle));
+}
+
+function handleTouchEnd(event: TouchEvent) {
+  if (event.touches.length < 2) twist = null;
+}
 
 function removeElevation() {
   selected.value = null;
@@ -180,10 +284,15 @@ function removeRoute() {
     :class="{
       'share-artwork--transparent': settings.transparentBackground && !settings.map,
       'share-artwork--map-full': mapLayout === 'full',
+      'share-artwork--map': settings.map,
       'share-artwork--exporting': exporting,
     }"
     :style="cssVariables"
     @click="handleClick"
+    @touchstart.passive="handleTouchStart"
+    @touchmove="handleTouchMove"
+    @touchend.passive="handleTouchEnd"
+    @touchcancel.passive="handleTouchEnd"
   >
     <!-- Карта во весь фон: под всеми элементами, снизу — затемнение под показатели. -->
     <template v-if="settings.map && mapLayout === 'full'">
@@ -210,6 +319,9 @@ function removeRoute() {
       :image-position="settings.backgroundImagePosition"
     />
 
+    <!-- «Телеметрия»: тонкая сетка-разметка, как на приборной панели. -->
+    <div v-if="settings.telemetry?.grid" class="share-artwork__hud-grid" aria-hidden="true" />
+
     <div v-if="settings.titleVisible" class="share-artwork__header">
       <ArtworkTitle
         :value="title"
@@ -226,8 +338,9 @@ function removeRoute() {
         v-if="settings.routeVisible && !settings.map"
         ref="routeSlot"
         class="share-artwork__route-slot"
-        :style="{ aspectRatio: 1 / ROUTE_SLOT_HEIGHT_RATIO }"
+        :style="{ ...areaStyle, left: sideInset('left'), right: sideInset('right') }"
       />
+
       <!-- Над показателями: карта блоком (или свободная область карты во весь фон).
            Высота — до первой строки показателей. -->
       <div
@@ -263,17 +376,33 @@ function removeRoute() {
         :stat-style="settings.statStyle"
         @set-layout="emit('setStatPositions', $event)"
         @reserved-height="visualHeight = $event"
-        :band="elevationBand"
-        @move-band="(row, layout) => emit('moveElevation', row, layout)"
+        :bands="bands"
+        :allow-sides="Boolean(settings.telemetry)"
+        @drop-bands="emit('dropBands', $event)"
       >
-        <template #band>
+        <template #band="{ bandKey, side }">
+          <ArtworkWidget
+            v-if="settings.telemetry && widgetKind(bandKey)"
+            :kind="widgetKind(bandKey)!"
+            :side="side"
+            :track="activity.track"
+            :average-pace="activity.averagePaceSecondsPerKm"
+            :telemetry="settings.telemetry"
+            :color="settings.telemetry.color ?? settings.routeColor"
+            :text-color="settings.textColor"
+            :selected="selected === bandKey"
+            @select="selectBand(bandKey)"
+            @remove="removeWidget(widgetKind(bandKey)!)"
+            @set-side="emit('setWidgetSide', widgetKind(bandKey)!, $event)"
+          />
           <ArtworkElevation
-            v-if="elevation"
+            v-else-if="elevation && bandKey === 'elevation'"
             :track="activity.track"
             :settings="elevation"
             :color="elevation.color ?? settings.routeColor"
+            :text-color="settings.textColor"
             :selected="selected === 'elevation'"
-            @select="selected = selected === 'elevation' ? null : 'elevation'"
+            @select="selectBand('elevation')"
             @remove="removeElevation"
           />
         </template>
@@ -325,8 +454,30 @@ function removeRoute() {
   background: var(--share-background);
 }
 
+.share-artwork--map {
+  /* Два пальца по карточке с картой — вращение карты, а не масштаб страницы. */
+  touch-action: pan-x pan-y;
+}
+
 .share-artwork--transparent {
   background: transparent;
+}
+
+.share-artwork__hud-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  /* Обычные градиенты — html-to-image переносит их в PNG. */
+  background:
+    linear-gradient(color-mix(in srgb, var(--share-text) 7%, transparent) 1px, transparent 1px) 0
+      0 / 100% 24px,
+    linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--share-text) 7%, transparent) 1px,
+        transparent 1px
+      )
+      0 0 / 24px 100%;
+  pointer-events: none;
 }
 
 .share-artwork__header {

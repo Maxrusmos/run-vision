@@ -1,5 +1,6 @@
 import { ref } from 'vue';
-import { toPng } from 'html-to-image';
+import { toCanvas, toPng } from 'html-to-image';
+import { composeWithBackdrop } from '@/shared/lib/image/compose-backdrop';
 import { sanitizeFileName } from '@/shared/lib/file/sanitize-file-name';
 import {
   isShareAbortError,
@@ -32,10 +33,27 @@ export function useShareCardExport() {
       await document.fonts?.ready;
       await waitForImagesIn(element);
 
-      image.value = await toPng(element, {
-        pixelRatio: EXPORT_PIXEL_RATIO,
-        ...(options.backgroundColor ? { backgroundColor: options.backgroundColor } : {}),
-      });
+      // Фоновое фото рисуем на холст сами: из SVG html-to-image iOS Safari с первого
+      // раза его не рисует (см. compose-backdrop.ts).
+      const photo = element.querySelector<HTMLImageElement>('[data-export-backdrop]');
+      if (photo) {
+        const overlay = await toCanvas(element, {
+          pixelRatio: EXPORT_PIXEL_RATIO,
+          filter: (node) => node !== photo,
+          style: { background: 'transparent' },
+        });
+        image.value = composeWithBackdrop({
+          overlay,
+          card: element,
+          photo,
+          backgroundColor: options.backgroundColor,
+        });
+      } else {
+        image.value = await toPng(element, {
+          pixelRatio: EXPORT_PIXEL_RATIO,
+          ...(options.backgroundColor ? { backgroundColor: options.backgroundColor } : {}),
+        });
+      }
 
       return true;
     } catch (error) {

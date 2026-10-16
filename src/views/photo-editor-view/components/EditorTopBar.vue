@@ -17,19 +17,20 @@ const emit = defineEmits<{
 </script>
 
 <template>
+  <!-- Вариант «стрелка + капсула»: назад — круглая кнопка, история и сброс — одной
+       капсулой по центру, главное действие — «Сохранить» справа. -->
   <header class="editor-top-bar">
-    <v-btn
+    <button
+      type="button"
       class="editor-top-bar__back"
-      variant="tonal"
-      size="small"
       aria-label="Назад к выбору стиля"
+      title="Назад"
       @click="emit('back')"
     >
-      Назад
-    </v-btn>
+      <v-icon icon="mdi-arrow-left" size="22" />
+    </button>
 
     <EditorHistoryActions
-      class="editor-top-bar__history"
       :can-undo="canUndo"
       :can-redo="canRedo"
       @undo="emit('undo')"
@@ -41,7 +42,8 @@ const emit = defineEmits<{
       class="editor-top-bar__save"
       color="primary"
       variant="flat"
-      size="small"
+      rounded="pill"
+      height="38"
       :loading="saving"
       @click="emit('save')"
     >
@@ -55,19 +57,43 @@ const emit = defineEmits<{
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 4px;
-  min-height: 52px;
-  padding: max(6px, env(safe-area-inset-top)) 12px 6px;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 56px;
+  padding: max(8px, env(safe-area-inset-top)) 12px 8px;
   border-bottom: 1px solid var(--app-border);
   background: var(--app-background);
 }
 
-.editor-top-bar__history {
-  margin: 0 auto;
+.editor-top-bar__back {
+  display: grid;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  padding: 0;
+  color: var(--app-on-surface);
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--app-on-surface) 10%, transparent);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s;
 }
 
-.editor-top-bar__back,
+.editor-top-bar__back:active {
+  background: color-mix(in srgb, var(--app-on-surface) 18%, transparent);
+}
+
+.editor-top-bar__back:focus-visible {
+  outline: 2px solid var(--app-primary);
+  outline-offset: 2px;
+}
+
 .editor-top-bar__save {
+  padding-inline: 18px;
+  font-size: 15px;
+  font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
 }

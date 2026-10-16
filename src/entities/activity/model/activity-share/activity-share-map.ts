@@ -8,11 +8,24 @@ import type {
   ShareMapStyle,
 } from './activity-share.types';
 
+/** Угол поворота в диапазоне [0, 360); у самого севера прилипает к 0. */
+export function normalizeMapBearing(bearing: number): number {
+  const value = ((Math.round(bearing) % 360) + 360) % 360;
+  return value <= 3 || value >= 357 ? 0 : value;
+}
+
 /** Поля, в которые трек не заходит, в долях ширины/высоты карты. */
 export type MapFitPadding = { top: number; right: number; bottom: number; left: number };
 
 export function createShareMapSettings(): ShareMapSettings {
-  return { layout: 'block', style: 'light', pitch: 0, kmMarkers: true, startFinish: true };
+  return {
+    layout: 'block',
+    style: 'light',
+    pitch: 0,
+    bearing: 0,
+    kmMarkers: true,
+    startFinish: true,
+  };
 }
 
 export const SHARE_MAP_LAYOUTS: readonly { id: ShareMapLayout; name: string }[] = [

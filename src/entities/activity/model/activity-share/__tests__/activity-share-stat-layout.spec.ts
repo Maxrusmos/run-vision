@@ -3,7 +3,12 @@ import {
   applyStatDrop,
   getStatDropCells,
   getStatLayoutRows,
+  compactBands,
+  dropBand,
+  getSideBlockedCells,
+  moveBand,
   moveLayoutRow,
+  placeBands,
   resolveStatLayout,
   snapStatColumn,
   type StatLayout,
@@ -194,5 +199,90 @@ describe('строка графика высоты', () => {
       distance: { row: 2, col: 0 },
       duration: { row: 3, col: 3 },
     });
+  });
+});
+
+describe('несколько полос', () => {
+  it('полосы без строки встают по порядку с первой строки под треком', () => {
+    expect(
+      placeBands(
+        [
+          { key: 'a', row: null },
+          { key: 'b', row: null },
+        ],
+        3,
+      ),
+    ).toEqual({ a: 3, b: 4 });
+  });
+
+  it('новый виджет из «конца» подтягивается под последний показатель', () => {
+    const layout = { distance: { row: 3, col: 0 } } as StatLayout;
+    const rows = compactBands({ a: 2, b: 1000 }, layout, 2);
+    expect(rows).toEqual({ a: 2, b: 4 });
+  });
+
+  it('два виджета «в конец» подряд не зацикливают раскладку', () => {
+    const rows = placeBands(
+      [
+        { key: 'a', row: Number.MAX_SAFE_INTEGER },
+        { key: 'b', row: Number.MAX_SAFE_INTEGER },
+      ],
+      2,
+    );
+    expect(rows.b).toBe(rows.a! + 1);
+  });
+
+  it('перенос полосы сдвигает показатели и другие полосы', () => {
+    const layout = { distance: { row: 4, col: 0 } } as StatLayout;
+    const result = moveBand({ a: 2, b: 3 }, layout, 'a', 4);
+    expect(result.rows).toEqual({ a: 4, b: 2 });
+    expect(result.layout.distance).toEqual({ row: 3, col: 0 });
+  });
+});
+
+describe('вертикальные виджеты', () => {
+  const layout = { distance: { row: 3, col: 0 }, duration: { row: 4, col: 0 } } as StatLayout;
+  const base = { rows: { a: 2 }, sides: { left: ['b'], right: [] as string[] }, layout };
+
+  it('строка → колонка: строка закрывается, показатели поднимаются', () => {
+    const result = dropBand(base, 'a', { kind: 'side', side: 'right', index: 0 });
+    expect(result.rows).toEqual({});
+    expect(result.sides).toEqual({ left: ['b'], right: ['a'] });
+    expect(result.layout.distance).toEqual({ row: 2, col: 0 });
+  });
+
+  it('колонка → строка: показатели со строки цели опускаются', () => {
+    const result = dropBand(base, 'b', { kind: 'row', row: 3 });
+    expect(result.rows).toEqual({ a: 2, b: 3 });
+    expect(result.sides.left).toEqual([]);
+    expect(result.layout.distance).toEqual({ row: 4, col: 0 });
+    expect(result.layout.duration).toEqual({ row: 5, col: 0 });
+  });
+
+  it('колонка → колонка: порядок по индексу', () => {
+    const state = { ...base, sides: { left: ['b', 'c'], right: [] as string[] } };
+    expect(dropBand(state, 'c', { kind: 'side', side: 'left', index: 0 }).sides.left).toEqual([
+      'c',
+      'b',
+    ]);
+  });
+
+  it('строка → строка — как прежний перенос', () => {
+    const result = dropBand({ ...base, rows: { a: 2, c: 3 } }, 'a', { kind: 'row', row: 3 });
+    expect(result.rows).toEqual({ a: 3, c: 2 });
+  });
+
+  it('под боковой колонкой показатели не встают', () => {
+    const cells = getSideBlockedCells({ left: ['b'], right: [] }, 2);
+    const layout = resolveStatLayout(
+      [third('distance')],
+      { distance: { row: 0, col: 0 } },
+      {
+        blockedCells: cells,
+      },
+    );
+    expect(layout.distance).toEqual({ row: 0, col: 2 });
+    const drops = getStatDropCells([third('distance')], layout, 'distance', 3, [], cells);
+    expect(drops.some((cell) => cell.row < 2 && cell.col < 2)).toBe(false);
   });
 });

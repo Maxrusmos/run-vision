@@ -17,7 +17,14 @@ import {
   getStatSpan,
   resolveStatLayout,
   applyStatDrop,
-  moveLayoutRow,
+  compactBands,
+  dropBand,
+  getSideBlockedCells,
+  placeBands,
+  type BandSide,
+  type BandState,
+  type BandTarget,
+  type StatBand,
   type StatDropCell,
   type StatDropTarget,
   type StatLayout,
@@ -35,10 +42,19 @@ const props = defineProps<{
   /** Высота места под трек (доля ширины) — эти строки сверху по умолчанию свободны. */
   reservedHeightRatio: number;
   /**
-   * Полоса на всю ширину (график высоты) — занимает строку сетки целиком,
-   * высота строки — по полосе (`ratio` — высота к ширине). Содержимое — слот `band`.
+   * Полосы (график высоты, виджеты). Горизонтальная (`side: null`) занимает строку
+   * сетки целиком, высота строки — по полосе (`ratio` — высота к ширине). Вертикальная
+   * стоит в боковой колонке области трека (две крайние колонки сетки, по высоте —
+   * до первой строки показателей). Ключ полосы — он же элемент выделения.
+   * Содержимое — слот `band` с `{ bandKey, side }`.
    */
-  band?: { row: number | null; ratio: number } | null;
+  bands?: readonly (StatBand & {
+    key: ShareCardElement;
+    ratio: number;
+    side?: BandSide | null;
+  })[];
+  /** Можно ли ставить полосы в боковые колонки («Телеметрия»). */
+  allowSides?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -47,12 +63,9 @@ const emit = defineEmits<{
   setLayout: [layout: StatLayout];
   /** Высота строк над показателями (место под трек или карту), px раскладки. */
   reservedHeight: [height: number];
-  /** Полосу перенесли на строку `row`; `layout` — показатели после переноса. */
-  moveBand: [row: number, layout: StatLayout];
+  /** Полосу перенесли: строки, боковые колонки и показатели после переноса. */
+  dropBands: [state: BandState];
 }>();
-
-/** Элемент карточки, который выделяется вместе с полосой. */
-const BAND_ELEMENT: ShareCardElement = 'elevation';
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
 
@@ -117,48 +130,128 @@ watch(
   { immediate: true },
 );
 
-/** Желаемая строка полосы: не выше первой строки под картой. */
-const desiredBandRow = computed(() =>
-  props.band ? Math.max(startRow.value, props.band.row ?? startRow.value) : null,
+const bands = computed(() => props.bands ?? []);
+const rowBands = computed(() => bands.value.filter((band) => !band.side));
+const ratios = computed(() =>
+  Object.fromEntries(bands.value.map((band) => [band.key, band.ratio])),
+);
+
+/** Порядок вертикальных полос в боковых колонках. */
+const sides = computed<Record<BandSide, string[]>>(() => ({
+  left: bands.value.filter((band) => band.side === 'left').map((band) => band.key),
+  right: bands.value.filter((band) => band.side === 'right').map((band) => band.key),
+}));
+
+/** Клетки под боковыми колонками — показатели туда не встают. */
+const blockedCells = computed(() => getSideBlockedCells(sides.value, startRow.value));
+
+/*
+ * Строки в настройках (позиции показателей и строки полос) хранятся ОТНОСИТЕЛЬНО
+ * первой строки под треком (`startRow`): она меняется, когда убирают или возвращают трек
+ * и меняют плотность, — и раскладка должна ехать вместе с ней, а не налезать на трек
+ * или оставлять дыру. Внутри сетки — абсолютные строки; наружу — снова относительные.
+ */
+function shiftLayoutRows<L extends Partial<Record<string, ShareStatPosition>>>(
+  layout: L,
+  shift: number,
+): L {
+  return Object.fromEntries(
+    Object.entries(layout).map(([key, position]) => [
+      key,
+      position ? { row: position.row + shift, col: position.col } : position,
+    ]),
+  ) as L;
+}
+
+function relativeRows(rows: Record<string, number>): Record<string, number> {
+  return Object.fromEntries(Object.entries(rows).map(([key, row]) => [key, row - startRow.value]));
+}
+
+const absolutePositions = computed(() => shiftLayoutRows(props.statPositions, startRow.value));
+
+/** Желаемые строки полос: по порядку, не выше первой строки под треком/картой. */
+const desiredBandRows = computed(() =>
+  placeBands(
+    rowBands.value.map((band) => ({
+      key: band.key,
+      row: band.row === null ? null : band.row + startRow.value,
+    })),
+    startRow.value,
+  ),
+);
+
+/**
+ * Строки полос без пустых строк над ними. Поджатие считается по черновой раскладке,
+ * а итоговая раскладка показателей — уже с поджатыми строками: иначе места для броска
+ * (по поджатым) и раскладка (по исходным) расходятся и показатель «отскакивает».
+ */
+const bandRows = computed(() =>
+  compactBands(
+    desiredBandRows.value,
+    resolveStatLayout(items.value, absolutePositions.value, {
+      startRow: startRow.value,
+      blockedRows: Object.values(desiredBandRows.value),
+      blockedCells: blockedCells.value,
+    }),
+    startRow.value,
+  ),
 );
 
 const layout = computed(() =>
-  resolveStatLayout(items.value, props.statPositions, {
+  resolveStatLayout(items.value, absolutePositions.value, {
     startRow: startRow.value,
-    blockedRows: desiredBandRow.value === null ? [] : [desiredBandRow.value],
+    blockedRows: Object.values(bandRows.value),
+    blockedCells: blockedCells.value,
   }),
 );
 
-/** Строка полосы: без пустых строк между ней и последним показателем. */
-const bandRow = computed(() => {
-  const desired = desiredBandRow.value;
-  if (desired === null) return null;
-  return Math.max(startRow.value, Math.min(desired, getStatLayoutRows(layout.value)));
-});
+/** Раскладку — в настройки: строки относительно первой строки под треком. */
+function emitLayout(next: StatLayout) {
+  emit('setLayout', shiftLayoutRows(next, -startRow.value));
+}
 
-const blockedRows = computed(() => (bandRow.value === null ? [] : [bandRow.value]));
+const blockedRows = computed(() => Object.values(bandRows.value));
 
 const rows = computed(() =>
-  Math.max(getStatLayoutRows(layout.value), startRow.value, (bandRow.value ?? -1) + 1),
+  Math.max(
+    getStatLayoutRows(layout.value),
+    startRow.value,
+    ...blockedRows.value.map((row) => row + 1),
+  ),
 );
 
 type BandDragState = {
+  key: string;
+  dx: number;
   dy: number;
   scale: number;
-  /** Строка, куда встанет полоса, если отпустить сейчас. */
-  target: number;
+  /** Где была полоса в начале (px раскладки от левого верхнего угла сетки) — по ней едет «призрак». */
+  origin: { left: number; top: number; width: number; height: number };
+  /** Снимок геометрии в начале переноса: верх и высота строк, центры полос в колонках. */
+  rowTops: number[];
+  rowHeights: number[];
+  sideCenters: Record<string, number>;
+  side: BandSide | null;
+  /** Исходное место: отпустили там же — ничего не меняем (пустой шаг истории). */
+  originTarget: BandTarget;
+  target: BandTarget;
 };
 
 const bandDrag = ref<BandDragState | null>(null);
 
-/** Пока полосу тащат, показатели сразу расступаются — видно, куда она встанет. */
-const displayLayout = computed(() => {
+const bandState = computed<BandState>(() => ({
+  rows: bandRows.value,
+  sides: sides.value,
+  layout: layout.value,
+}));
+
+/** Раскладка, если отпустить полосу сейчас: показатели и другие полосы уже расступились. */
+const preview = computed<BandState>(() => {
   const drag = bandDrag.value;
-  if (!drag || bandRow.value === null) return layout.value;
-  return moveLayoutRow(layout.value, bandRow.value, drag.target);
+  return drag ? dropBand(bandState.value, drag.key, drag.target) : bandState.value;
 });
 
-const displayBandRow = computed(() => bandDrag.value?.target ?? bandRow.value);
+const displayLayout = computed(() => preview.value.layout);
 
 const gridStyle = computed<CSSProperties>(() => ({
   gridTemplateColumns: `repeat(${STAT_GRID_COLUMNS}, minmax(0, 1fr))`,
@@ -191,6 +284,7 @@ const dropCells = computed<DropCell[]>(() => {
     drag.value.key,
     rows.value,
     blockedRows.value,
+    blockedCells.value,
   ).map((cell) => ({
     ...cell,
     span: getStatSpan(cell.width),
@@ -281,6 +375,18 @@ const { start: startDrag, isClickSuppressed } = useLongPressDrag<ShareStatKey>({
     drag.value = null;
 
     if (!dropped || !target) return;
+    // Отпустили на своём же месте (долгое нажатие без движения) — ничего не меняем,
+    // иначе в историю попал бы пустой шаг.
+    const current = layout.value[key];
+    if (
+      target.kind === 'cell' &&
+      current &&
+      target.row === current.row &&
+      target.col === current.col &&
+      target.width === getWidth(key)
+    ) {
+      return;
+    }
 
     const result = applyStatDrop(
       items.value,
@@ -289,11 +395,12 @@ const { start: startDrag, isClickSuppressed } = useLongPressDrag<ShareStatKey>({
       target,
       startRow.value,
       blockedRows.value,
+      blockedCells.value,
     );
     result.widths.forEach((width, statKey) => {
       if (width !== getWidth(statKey)) emit('setWidth', statKey, width);
     });
-    emit('setLayout', result.layout);
+    emitLayout(result.layout);
   },
 });
 
@@ -310,53 +417,136 @@ function toggleSelected(key: ShareStatKey) {
 function setWidth(key: ShareStatKey, width: ShareStatWidth) {
   emit('setWidth', key, width);
   // Показатель с новой шириной остаётся на месте, соседи сдвигаются при необходимости.
-  emit(
-    'setLayout',
+  emitLayout(
     resolveStatLayout(
       items.value.map((item) => (item.key === key ? { key, width } : item)),
       layout.value,
-      { startRow: startRow.value, priorityKey: key, blockedRows: blockedRows.value },
+      {
+        startRow: startRow.value,
+        priorityKey: key,
+        blockedRows: blockedRows.value,
+        blockedCells: blockedCells.value,
+      },
     ),
   );
 }
 
 // Перенос полосы: пальцем — после долгого нажатия, мышью и выделенную — сразу.
-const bandElement = useTemplateRef<HTMLElement>('bandElement');
+// За пальцем едет «призрак», а на месте броска — пунктир; остальные сразу расступаются.
+function measureGrid() {
+  const grid = gridElement.value!;
+  const rect = grid.getBoundingClientRect();
+  const scale = grid.offsetWidth ? rect.width / grid.offsetWidth : 1;
+  const tracks = getComputedStyle(grid)
+    .gridTemplateRows.split(' ')
+    .map((value) => parseFloat(value))
+    .filter(Number.isFinite);
+  const rowTops: number[] = [];
+  let top = 0;
+  for (const height of tracks) {
+    rowTops.push(top);
+    top += height + gap.value;
+  }
+  return { rect, scale, rowTops, rowHeights: tracks };
+}
 
-const { start: startBandDrag, isClickSuppressed: isBandClickSuppressed } = useLongPressDrag<'band'>(
+function relativeBox(element: HTMLElement, gridRect: DOMRect, scale: number) {
+  const rect = element.getBoundingClientRect();
+  return {
+    left: (rect.left - gridRect.left) / scale,
+    top: (rect.top - gridRect.top) / scale,
+    width: rect.width / scale,
+    height: rect.height / scale,
+  };
+}
+
+/** Цель по центру «призрака»: боковая колонка (у краёв области трека) или строка. */
+function findBandTarget(drag: BandDragState): BandTarget {
+  const x = drag.origin.left + drag.origin.width / 2 + drag.dx / drag.scale;
+  const y = drag.origin.top + drag.origin.height / 2 + drag.dy / drag.scale;
+  const reserved = startRow.value ? startRow.value * (rowHeight.value + gap.value) - gap.value : 0;
+
+  if (props.allowSides && startRow.value && y < reserved) {
+    const side = x < gridWidth.value / 3 ? 'left' : x > (gridWidth.value * 2) / 3 ? 'right' : null;
+    if (side) {
+      const index = sides.value[side].filter(
+        (key) => key !== drag.key && (drag.sideCenters[key] ?? Infinity) < y,
+      ).length;
+      return { kind: 'side', side, index };
+    }
+  }
+
+  // Строка, на которую указывает центр; ниже последней — новая строка в конце.
+  const fromRow = bandRows.value[drag.key] !== undefined;
+  const last = Math.max(startRow.value, rows.value - (fromRow ? 1 : 0));
+  let row = drag.rowTops.findIndex(
+    (top, index) => y < top + (drag.rowHeights[index] ?? 0) + gap.value / 2,
+  );
+  if (row < 0) row = last;
+  return { kind: 'row', row: Math.min(last, Math.max(startRow.value, row)) };
+}
+
+const { start: startBandDrag, isClickSuppressed: isBandClickSuppressed } = useLongPressDrag<string>(
   {
-    onStart: () => {
-      const element = bandElement.value;
-      if (!element || bandRow.value === null) return;
-      const rect = element.getBoundingClientRect();
+    onStart: (key) => {
+      const grid = gridElement.value;
+      const element = grid?.querySelector<HTMLElement>(`[data-band-key="${key}"]`);
+      if (!grid || !element) return;
+      const { rect, scale, rowTops, rowHeights } = measureGrid();
+      const sideCenters: Record<string, number> = {};
+      grid.querySelectorAll<HTMLElement>('[data-band-side]').forEach((item) => {
+        const box = relativeBox(item, rect, scale);
+        sideCenters[item.dataset.bandKey!] = box.top + box.height / 2;
+      });
+      const side = sides.value.left.includes(key)
+        ? 'left'
+        : sides.value.right.includes(key)
+          ? 'right'
+          : null;
+      const row = bandRows.value[key];
+      const initial: BandTarget =
+        side !== null
+          ? { kind: 'side', side, index: sides.value[side].indexOf(key) }
+          : { kind: 'row', row: row ?? startRow.value };
       selected.value = null;
       bandDrag.value = {
+        key,
+        dx: 0,
         dy: 0,
-        scale: element.offsetWidth ? rect.width / element.offsetWidth : 1,
-        target: bandRow.value,
+        scale,
+        origin: relativeBox(element, rect, scale),
+        rowTops,
+        rowHeights,
+        sideCenters,
+        side,
+        originTarget: initial,
+        target: initial,
       };
     },
-    onMove: (_id, _dx, dy) => {
+    onMove: (_key, dx, dy) => {
       const drag = bandDrag.value;
-      if (!drag || bandRow.value === null) return;
+      if (!drag) return;
+      drag.dx = dx;
       drag.dy = dy;
-      // Ближайшая строка: строки между стартом и целью — обычной высоты.
-      const step = rowHeight.value + gap.value;
-      const shift = step ? Math.round(dy / drag.scale / step) : 0;
-      const last = Math.max(startRow.value, rows.value - 1);
-      drag.target = Math.min(last, Math.max(startRow.value, bandRow.value + shift));
+      drag.target = findBandTarget(drag);
     },
-    onEnd: (_id, dropped) => {
+    onEnd: (_key, dropped) => {
       const drag = bandDrag.value;
+      const result = preview.value;
       bandDrag.value = null;
-      if (!dropped || !drag || bandRow.value === null || drag.target === bandRow.value) return;
-      emit('moveBand', drag.target, moveLayoutRow(layout.value, bandRow.value, drag.target));
+      if (!dropped || !drag) return;
+      if (JSON.stringify(drag.target) === JSON.stringify(drag.originTarget)) return;
+      emit('dropBands', {
+        rows: relativeRows(result.rows),
+        sides: result.sides,
+        layout: shiftLayoutRows(result.layout, -startRow.value),
+      });
     },
   },
 );
 
-function handleBandPointerDown(event: PointerEvent) {
-  startBandDrag(event, 'band', event.pointerType === 'mouse' || selected.value === BAND_ELEMENT);
+function handleBandPointerDown(event: PointerEvent, key: ShareCardElement) {
+  startBandDrag(event, key, event.pointerType === 'mouse' || selected.value === key);
 }
 
 // Отпустили после перетаскивания — это не тап: выделение не переключаем.
@@ -364,20 +554,39 @@ function handleBandClickCapture(event: MouseEvent) {
   if (isBandClickSuppressed()) event.stopPropagation();
 }
 
-const bandStyle = computed<CSSProperties>(() => {
-  const row = displayBandRow.value ?? 0;
-  const style: CSSProperties = {
-    gridRow: `${row + 1}`,
-    gridColumn: '1 / -1',
-    aspectRatio: props.band ? `${1 / props.band.ratio}` : undefined,
+/** Горизонтальные полосы с их строками (в т.ч. во время переноса). */
+const displayRowBands = computed(() =>
+  Object.entries(preview.value.rows).map(([key, row]) => ({
+    key: key as ShareCardElement,
+    row,
+    ratio: ratios.value[key] ?? 0.2,
+  })),
+);
+
+/** Боковые колонки: в строках области трека, по две крайние колонки сетки. */
+const displaySides = computed(() =>
+  (['left', 'right'] as const)
+    .filter(() => startRow.value > 0)
+    .map((side) => ({ side, keys: preview.value.sides[side] as ShareCardElement[] }))
+    .filter((column) => column.keys.length),
+);
+
+function sideStyle(side: BandSide): CSSProperties {
+  return {
+    gridRow: `1 / span ${startRow.value}`,
+    gridColumn: side === 'left' ? '1 / span 2' : '5 / span 2',
   };
+}
+
+const ghostStyle = computed<CSSProperties>(() => {
   const drag = bandDrag.value;
-  if (drag && bandRow.value !== null) {
-    // Полоса уже стоит в целевой строке — сдвигаем её обратно под палец.
-    const offset = (drag.target - bandRow.value) * (rowHeight.value + gap.value);
-    style.transform = `translateY(${drag.dy / drag.scale - offset}px)`;
-  }
-  return style;
+  if (!drag) return {};
+  return {
+    left: `${drag.origin.left + drag.dx / drag.scale}px`,
+    top: `${drag.origin.top + drag.dy / drag.scale}px`,
+    width: `${drag.origin.width}px`,
+    height: `${drag.origin.height}px`,
+  };
 });
 
 function remove(key: ShareStatKey) {
@@ -425,25 +634,54 @@ function remove(key: ShareStatKey) {
       @set-width="setWidth(stat.key, $event)"
     />
 
-    <template v-if="band && displayBandRow !== null">
-      <!-- Место, которое займёт полоса, если отпустить сейчас. -->
+    <!-- Горизонтальные полосы. Перетаскиваемая — пунктирное место, куда она встанет. -->
+    <div
+      v-for="band in displayRowBands"
+      :key="band.key"
+      class="stats-grid__band"
+      :class="{ 'stats-grid__band--placeholder': bandDrag?.key === band.key }"
+      :style="{
+        gridRow: `${band.row + 1}`,
+        gridColumn: '1 / -1',
+        aspectRatio: `${1 / band.ratio}`,
+      }"
+      :data-band-key="band.key"
+      @pointerdown="handleBandPointerDown($event, band.key)"
+      @click.capture="handleBandClickCapture"
+    >
+      <slot name="band" :band-key="band.key" :side="null" />
+    </div>
+
+    <!-- Боковые колонки: вертикальные полосы у краёв области трека. -->
+    <div
+      v-for="column in displaySides"
+      :key="column.side"
+      class="stats-grid__side"
+      :style="sideStyle(column.side)"
+    >
       <div
-        v-if="bandDrag"
-        class="stats-grid__band-slot export-hidden"
-        :style="{ gridRow: `${displayBandRow + 1}`, gridColumn: '1 / -1' }"
-        aria-hidden="true"
-      />
-      <div
-        ref="bandElement"
-        class="stats-grid__band"
-        :class="{ 'stats-grid__band--dragging': bandDrag }"
-        :style="bandStyle"
-        @pointerdown="handleBandPointerDown"
+        v-for="key in column.keys"
+        :key="key"
+        class="stats-grid__band stats-grid__band--vertical"
+        :class="{ 'stats-grid__band--placeholder': bandDrag?.key === key }"
+        :data-band-key="key"
+        :data-band-side="column.side"
+        @pointerdown="handleBandPointerDown($event, key)"
         @click.capture="handleBandClickCapture"
       >
-        <slot name="band" />
+        <slot name="band" :band-key="key" :side="column.side" />
       </div>
-    </template>
+    </div>
+
+    <!-- «Призрак» перетаскиваемой полосы — едет за пальцем в прежнем виде. -->
+    <div
+      v-if="bandDrag"
+      class="stats-grid__ghost export-hidden"
+      :style="ghostStyle"
+      aria-hidden="true"
+    >
+      <slot name="band" :band-key="bandDrag.key as ShareCardElement" :side="bandDrag.side" />
+    </div>
 
     <!-- Эталон для высоты строки сетки. -->
     <ShareCardStatItem
@@ -520,36 +758,53 @@ function remove(key: ShareStatKey) {
   touch-action: none;
   -webkit-touch-callout: none;
   user-select: none;
-  transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .stats-grid__band > :deep(*) {
   height: 100%;
 }
 
-.stats-grid__band--dragging {
-  z-index: 10;
-  transition: none;
-  cursor: grabbing;
-}
-
-.stats-grid__band--dragging > :deep(*) {
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--share-background) 88%, transparent);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
-}
-
-/* Сколько места займёт график — пунктиром на его будущем месте. */
-.stats-grid__band-slot {
-  z-index: 0;
+/* Место, куда встанет перетаскиваемая полоса: пунктир её размера, содержимое скрыто. */
+.stats-grid__band--placeholder {
   border: 1px dashed color-mix(in srgb, var(--share-text) 70%, transparent);
   border-radius: 8px;
   background: color-mix(in srgb, var(--share-text) 8%, transparent);
+}
+
+.stats-grid__band--placeholder > :deep(*) {
+  visibility: hidden;
+}
+
+.stats-grid__side {
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: var(--share-stat-gap, 12px);
   pointer-events: none;
 }
 
+.stats-grid__band--vertical {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.stats-grid__ghost {
+  position: absolute;
+  z-index: 10;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--share-background) 88%, transparent);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+  pointer-events: none;
+}
+
+.stats-grid__ghost > :deep(*) {
+  height: 100%;
+}
+
 .stats-grid--stat-dragging .stats-grid__band {
-  /* Пока тащат показатель, график — просто занятое место. */
+  /* Пока тащат показатель, полосы — просто занятое место. */
   pointer-events: none;
 }
 

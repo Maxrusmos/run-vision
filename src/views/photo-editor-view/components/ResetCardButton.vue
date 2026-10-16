@@ -14,15 +14,15 @@ function confirm() {
 </script>
 
 <template>
-  <v-btn
-    icon="mdi-restore"
-    variant="text"
-    size="small"
-    density="comfortable"
+  <button
+    type="button"
+    class="history-actions__button"
     aria-label="Сбросить оформление"
     title="Сбросить оформление"
     @click="isDialogOpen = true"
-  />
+  >
+    <v-icon icon="mdi-restore" size="20" />
+  </button>
 
   <v-dialog v-model="isDialogOpen" max-width="360">
     <v-card class="reset-card-dialog">

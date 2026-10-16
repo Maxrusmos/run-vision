@@ -31,6 +31,9 @@ export function snapStatColumn(col: number, width: ShareStatWidth): number {
   return Math.min(STAT_GRID_COLUMNS - span, Math.max(0, Math.round(col / span) * span));
 }
 
+/** Клетка сетки (строка и колонка). */
+export type StatCell = { row: number; col: number };
+
 type RowState = {
   /** Ширина показателей строки; null — строка пустая. */
   width: ShareStatWidth | null;
@@ -44,13 +47,19 @@ type RowState = {
 class LayoutGrid {
   private readonly rows = new Map<number, RowState>();
 
-  /** Строки, целиком занятые другим элементом (график высоты): показатели туда не встают. */
-  constructor(blockedRows: readonly number[] = []) {
+  /**
+   * Строки, целиком занятые другим элементом (график высоты, виджет), и отдельные
+   * клетки (боковые колонки виджетов): показатели туда не встают.
+   */
+  constructor(blockedRows: readonly number[] = [], blockedCells: readonly StatCell[] = []) {
     for (const row of blockedRows) {
       this.rows.set(row, {
         width: 'full',
         cells: Array.from({ length: STAT_GRID_COLUMNS }, () => true),
       });
+    }
+    for (const { row, col } of blockedCells) {
+      this.getRow(row).cells[col] = true;
     }
   }
 
@@ -108,8 +117,10 @@ type ResolveOptions = {
   startRow?: number;
   /** Этот показатель ставится первым и не сдвигается остальными. */
   priorityKey?: ShareStatKey;
-  /** Строки, занятые графиком высоты. */
+  /** Строки, занятые графиком высоты и виджетами. */
   blockedRows?: readonly number[];
+  /** Клетки под боковыми колонками виджетов. */
+  blockedCells?: readonly StatCell[];
 };
 
 /**
@@ -123,9 +134,9 @@ type ResolveOptions = {
 export function resolveStatLayout(
   items: StatLayoutItem[],
   positions: Partial<Record<ShareStatKey, ShareStatPosition>>,
-  { startRow = 0, priorityKey, blockedRows }: ResolveOptions = {},
+  { startRow = 0, priorityKey, blockedRows, blockedCells }: ResolveOptions = {},
 ): StatLayout {
-  const grid = new LayoutGrid(blockedRows);
+  const grid = new LayoutGrid(blockedRows, blockedCells);
   const layout = {} as StatLayout;
 
   const placed = items
@@ -177,11 +188,12 @@ export function getStatDropCells(
   dragKey: ShareStatKey,
   rows: number,
   blockedRows: readonly number[] = [],
+  blockedCells: readonly StatCell[] = [],
 ): StatDropCell[] {
   const dragged = items.find((item) => item.key === dragKey);
   if (!dragged) return [];
 
-  const grid = new LayoutGrid(blockedRows);
+  const grid = new LayoutGrid(blockedRows, blockedCells);
   for (const item of items) {
     const position = layout[item.key];
     if (position && item.key !== dragKey) {
@@ -222,6 +234,7 @@ export function applyStatDrop(
   target: StatDropTarget,
   startRow = 0,
   blockedRows: readonly number[] = [],
+  blockedCells: readonly StatCell[] = [],
 ): StatDropResult {
   const widthOf = (statKey: ShareStatKey) =>
     items.find((item) => item.key === statKey)?.width ?? 'half';
@@ -246,7 +259,12 @@ export function applyStatDrop(
 
   return {
     widths,
-    layout: resolveStatLayout(nextItems, positions, { startRow, priorityKey: key, blockedRows }),
+    layout: resolveStatLayout(nextItems, positions, {
+      startRow,
+      priorityKey: key,
+      blockedRows,
+      blockedCells,
+    }),
   };
 }
 
@@ -255,14 +273,18 @@ export function applyStatDrop(
  * Строки между ними сдвигаются на одну навстречу: показатели со строки `to`
  * встают на прежнее место полосы, порядок остальных сохраняется.
  */
-export function moveLayoutRow(layout: StatLayout, from: number, to: number): StatLayout {
-  if (from === to) return layout;
-
-  const moveRow = (row: number) => {
+function rowMover(from: number, to: number) {
+  return (row: number) => {
     if (from < to && row > from && row <= to) return row - 1;
     if (to < from && row >= to && row < from) return row + 1;
     return row;
   };
+}
+
+export function moveLayoutRow(layout: StatLayout, from: number, to: number): StatLayout {
+  if (from === to) return layout;
+
+  const moveRow = rowMover(from, to);
 
   return Object.fromEntries(
     Object.entries(layout).map(([key, position]) => [
@@ -270,4 +292,139 @@ export function moveLayoutRow(layout: StatLayout, from: number, to: number): Sta
       { row: moveRow(position.row), col: position.col },
     ]),
   ) as StatLayout;
+}
+
+/** Полоса на всю ширину сетки (график, виджет): ключ и желаемая строка. */
+export type StatBand = { key: string; row: number | null };
+
+/** Строки полос: по порядку списка, не выше `startRow`, без совпадений. */
+export function placeBands(bands: readonly StatBand[], startRow: number): Record<string, number> {
+  const rows: Record<string, number> = {};
+  const taken = new Set<number>();
+  for (const band of bands) {
+    // Строка с запасом конечна: иначе +1 ниже не сдвинет число за пределом точности.
+    let row = Math.min(Math.max(startRow, band.row ?? startRow), 1e6);
+    while (taken.has(row)) row += 1;
+    taken.add(row);
+    rows[band.key] = row;
+  }
+  return rows;
+}
+
+/**
+ * Подтягивает полосы вверх в пустые строки — чтобы над полосой не оставалось
+ * дыры (например, после удаления показателей или у только что добавленного виджета).
+ */
+export function compactBands(
+  rows: Record<string, number>,
+  layout: StatLayout,
+  startRow: number,
+): Record<string, number> {
+  const statRows = Object.values(layout).map((position) => position.row);
+  const result: Record<string, number> = {};
+  const placed: number[] = [];
+
+  for (const [key, row] of Object.entries(rows).sort((a, b) => a[1] - b[1])) {
+    const below = [...statRows, ...placed].filter((other) => other < row);
+    const next = Math.max(startRow, below.length ? Math.max(...below) + 1 : startRow);
+    result[key] = next;
+    placed.push(next);
+  }
+  return result;
+}
+
+/**
+ * Перенос полосы `key` на строку `to`: строки между ними (показатели и другие полосы)
+ * сдвигаются на одну навстречу.
+ */
+export function moveBand(
+  rows: Record<string, number>,
+  layout: StatLayout,
+  key: string,
+  to: number,
+): { rows: Record<string, number>; layout: StatLayout } {
+  const from = rows[key];
+  if (from === undefined || from === to) return { rows, layout };
+
+  const moveRow = rowMover(from, to);
+  const nextRows = Object.fromEntries(
+    Object.entries(rows).map(([band, row]) => [band, band === key ? to : moveRow(row)]),
+  );
+  return { rows: nextRows, layout: moveLayoutRow(layout, from, to) };
+}
+
+/** Стороны области трека для вертикальных виджетов. */
+export type BandSide = 'left' | 'right';
+
+/** Колонки сетки под боковой колонкой виджетов: две крайние слева или справа. */
+export const SIDE_COLUMNS: Record<BandSide, readonly number[]> = { left: [0, 1], right: [4, 5] };
+
+/** Раскладка полос: строки горизонтальных, порядок вертикальных в колонках, показатели. */
+export type BandState = {
+  rows: Record<string, number>;
+  sides: Record<BandSide, string[]>;
+  layout: StatLayout;
+};
+
+/** Куда бросить полосу: в строку сетки или в боковую колонку на место `index`. */
+export type BandTarget =
+  { kind: 'row'; row: number } | { kind: 'side'; side: BandSide; index: number };
+
+function shiftLayoutRows(layout: StatLayout, shift: (row: number) => number): StatLayout {
+  return Object.fromEntries(
+    Object.entries(layout).map(([key, position]) => [
+      key,
+      { row: shift(position.row), col: position.col },
+    ]),
+  ) as StatLayout;
+}
+
+/**
+ * Перенос полосы куда угодно: строка ↔ строка, строка ↔ колонка, колонка ↔ колонка.
+ * Уход из строки закрывает её (всё ниже поднимается на строку), приход в строку `row`
+ * раздвигает (всё с этой строки опускается) — показатели со строки цели встают
+ * на прежнее место полосы, как при перестановке.
+ */
+export function dropBand(state: BandState, key: string, target: BandTarget): BandState {
+  let rows = { ...state.rows };
+  const sides: Record<BandSide, string[]> = {
+    left: state.sides.left.filter((item) => item !== key),
+    right: state.sides.right.filter((item) => item !== key),
+  };
+  let layout = state.layout;
+
+  const from = rows[key];
+  if (from !== undefined) {
+    delete rows[key];
+    const up = (row: number) => (row > from ? row - 1 : row);
+    rows = Object.fromEntries(Object.entries(rows).map(([band, row]) => [band, up(row)]));
+    layout = shiftLayoutRows(layout, up);
+  }
+
+  if (target.kind === 'row') {
+    const down = (row: number) => (row >= target.row ? row + 1 : row);
+    rows = Object.fromEntries(Object.entries(rows).map(([band, row]) => [band, down(row)]));
+    layout = shiftLayoutRows(layout, down);
+    rows[key] = target.row;
+  } else {
+    const column = sides[target.side];
+    column.splice(Math.max(0, Math.min(target.index, column.length)), 0, key);
+  }
+
+  return { rows, sides, layout };
+}
+
+/** Клетки под боковыми колонками: в строках области трека (выше `startRow`). */
+export function getSideBlockedCells(
+  sides: Record<BandSide, readonly string[]>,
+  startRow: number,
+): StatCell[] {
+  const cells: StatCell[] = [];
+  for (const side of ['left', 'right'] as const) {
+    if (!sides[side].length) continue;
+    for (let row = 0; row < startRow; row++) {
+      for (const col of SIDE_COLUMNS[side]) cells.push({ row, col });
+    }
+  }
+  return cells;
 }

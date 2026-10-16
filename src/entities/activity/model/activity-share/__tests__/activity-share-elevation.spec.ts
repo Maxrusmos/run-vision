@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { ITrackPoint } from '@/entities/activity/model/activity.types';
-import { buildElevationShapes, getElevationProfile } from '../activity-share-elevation';
+import {
+  ELEVATION_STYLE_SAMPLES,
+  SHARE_ELEVATION_STYLES,
+  buildElevationShapes,
+  getElevationProfile,
+} from '../activity-share-elevation';
 
 function track(elevations: number[]): ITrackPoint[] {
   return elevations.map((elevation, index) => ({
@@ -58,5 +63,13 @@ describe('buildElevationShapes', () => {
   it('заливка замкнута до низа', () => {
     const shapes = buildElevationShapes([0, 1], 'area', 100, 50, 0);
     expect(shapes.area).toMatch(/L100 50 L0 50 Z$/);
+  });
+});
+
+describe('стили графика', () => {
+  it.each(SHARE_ELEVATION_STYLES.map((style) => style.id))('«%s» рисует фигуры', (style) => {
+    const values = Array.from({ length: ELEVATION_STYLE_SAMPLES[style] }, (_, i) => (i % 5) / 4);
+    const shapes = buildElevationShapes(values, style, 300, 100, 8);
+    expect(Boolean(shapes.line) || shapes.rects.length > 0 || shapes.dots.length > 0).toBe(true);
   });
 });

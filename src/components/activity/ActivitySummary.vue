@@ -12,12 +12,15 @@ const props = defineProps<{
   activity: IActivity;
 }>();
 
+// Без времени в GPX нет ни даты, ни длительности — показываем только дистанцию.
 const details = computed(() =>
   [
-    formatActivityDate(props.activity.startedAt),
+    props.activity.hasTimestamps ? formatActivityDate(props.activity.startedAt) : null,
     `${formatPlaybackDistance(props.activity.distanceMeters)} км`,
-    formatClockDuration(props.activity.durationSeconds),
-  ].join(' · '),
+    props.activity.durationSeconds > 0 ? formatClockDuration(props.activity.durationSeconds) : null,
+  ]
+    .filter(Boolean)
+    .join(' · '),
 );
 </script>
 

@@ -14,6 +14,8 @@ defineProps<{
 <template>
   <div class="route-preview" :class="`route-preview--${templateId}`">
     <TopographicPattern v-if="templateId === 'topographic'" />
+    <!-- «Телеметрия»: сетка-разметка, как на приборной панели (у «Топографии» — изолинии). -->
+    <span v-if="templateId === 'telemetry'" class="route-preview__grid" aria-hidden="true" />
 
     <svg
       v-if="routePoints"
@@ -60,6 +62,31 @@ defineProps<{
 .route-preview--topographic {
   background: #dce8d5;
   color: #254b38;
+}
+
+.route-preview--telemetry {
+  background: #0a1118;
+  color: #2ee6ff;
+}
+
+.route-preview__grid {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgb(221 247 255 / 8%) 1px, transparent 1px) 0 0 / 100% 14px,
+    linear-gradient(90deg, rgb(221 247 255 / 8%) 1px, transparent 1px) 0 0 / 14px 100%;
+}
+
+.route-preview--telemetry .route-preview__route {
+  filter: drop-shadow(0 0 3px rgb(46 230 255 / 70%));
+}
+
+/* Плашка с цифрами — как у остальных шаблонов, но в тон приборной панели. */
+.route-preview--telemetry .route-preview__stats {
+  background: rgb(10 17 24 / 72%);
+  color: #ddf7ff;
+  font-variant-numeric: tabular-nums;
+  border-block: 1px solid rgb(46 230 255 / 35%);
 }
 
 .route-preview__route {

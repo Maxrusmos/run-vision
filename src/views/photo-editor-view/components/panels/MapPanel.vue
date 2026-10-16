@@ -35,7 +35,12 @@ const emit = defineEmits<{
   setPitch: [pitch: ShareMapPitch];
   setKmMarkers: [value: boolean];
   setStartFinish: [value: boolean];
+  setBearing: [bearing: number];
 }>();
+
+function handleBearingInput(event: Event) {
+  emit('setBearing', Number((event.target as HTMLInputElement).value));
+}
 
 /** Флажки на треке: старт/финиш и отметки километров (шаг — по дистанции). */
 const markerOptions = computed(() => [
@@ -110,6 +115,37 @@ function hideBrokenImage(event: Event) {
       <ToggleGroup :options="markerOptions" group-label="Флажки на треке" @toggle="toggleMarker" />
     </div>
 
+    <!-- Поворот вокруг трека: трек остаётся по центру и целиком в кадре.
+         На самой карте — двумя пальцами. -->
+    <div class="map-panel__rotation">
+      <v-icon icon="mdi-rotate-3d-variant" size="18" aria-hidden="true" />
+      <input
+        class="map-panel__range"
+        type="range"
+        min="0"
+        max="355"
+        step="5"
+        :value="map.bearing"
+        aria-label="Поворот карты"
+        @input="handleBearingInput"
+      />
+      <span class="map-panel__bearing">{{ map.bearing }}°</span>
+      <button
+        type="button"
+        class="map-panel__north"
+        :disabled="!map.bearing"
+        aria-label="Север сверху"
+        title="Север сверху"
+        @click="emit('setBearing', 0)"
+      >
+        <v-icon
+          icon="mdi-navigation-variant"
+          size="18"
+          :style="{ transform: `rotate(${-map.bearing}deg)` }"
+        />
+      </button>
+    </div>
+
     <OptionTileRow>
       <OptionTile
         v-for="style in SHARE_MAP_STYLES"
@@ -144,6 +180,47 @@ function hideBrokenImage(event: Event) {
 .map-panel__controls {
   display: flex;
   gap: 8px;
+}
+
+.map-panel__rotation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding-inline: 4px;
+  color: color-mix(in srgb, var(--app-on-surface) 75%, transparent);
+}
+
+.map-panel__range {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: var(--app-primary);
+}
+
+.map-panel__bearing {
+  min-width: 34px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.map-panel__north {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  color: var(--app-primary);
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.map-panel__north:disabled {
+  color: inherit;
+  cursor: default;
+  opacity: 0.4;
 }
 
 .map-panel__preview {
