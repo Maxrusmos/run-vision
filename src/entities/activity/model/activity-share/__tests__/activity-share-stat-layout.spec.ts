@@ -3,8 +3,10 @@ import {
   applyStatDrop,
   getStatDropCells,
   getStatLayoutRows,
+  moveLayoutRow,
   resolveStatLayout,
   snapStatColumn,
+  type StatLayout,
   type StatLayoutItem,
 } from '../activity-share-stat-layout';
 
@@ -140,5 +142,57 @@ describe('applyStatDrop', () => {
 
     expect(result.widths.get('duration')).toBe('half');
     expect(result.layout.duration).toEqual({ row: 0, col: 3 });
+  });
+});
+
+describe('строка графика высоты', () => {
+  it('показатели обходят занятую строку', () => {
+    const layout = resolveStatLayout(
+      [half('distance'), half('duration'), half('averagePace')],
+      {},
+      {
+        startRow: 1,
+        blockedRows: [1],
+      },
+    );
+    expect(layout.distance).toEqual({ row: 2, col: 0 });
+    expect(layout.duration).toEqual({ row: 2, col: 3 });
+    expect(layout.averagePace).toEqual({ row: 3, col: 0 });
+  });
+
+  it('показатель с позицией на строке графика сдвигается ниже', () => {
+    const layout = resolveStatLayout(
+      [half('distance')],
+      { distance: { row: 1, col: 3 } },
+      {
+        blockedRows: [1],
+      },
+    );
+    expect(layout.distance).toEqual({ row: 2, col: 0 });
+  });
+
+  it('на строку графика нельзя бросить показатель', () => {
+    const items = [half('distance'), half('duration')];
+    const layout = { distance: { row: 0, col: 0 }, duration: { row: 0, col: 3 } } as StatLayout;
+    const cells = getStatDropCells(items, layout, 'distance', 3, [1]);
+    expect(cells.some((cell) => cell.row === 1)).toBe(false);
+    expect(cells.some((cell) => cell.row === 2)).toBe(true);
+  });
+
+  it('перенос графика вниз: показатели встают на его место', () => {
+    const layout = { distance: { row: 2, col: 0 }, duration: { row: 3, col: 0 } } as StatLayout;
+    // График на строке 1 переезжает на строку 2.
+    expect(moveLayoutRow(layout, 1, 2)).toEqual({
+      distance: { row: 1, col: 0 },
+      duration: { row: 3, col: 0 },
+    });
+  });
+
+  it('перенос графика вверх через несколько строк сдвигает их вниз', () => {
+    const layout = { distance: { row: 1, col: 0 }, duration: { row: 2, col: 3 } } as StatLayout;
+    expect(moveLayoutRow(layout, 3, 1)).toEqual({
+      distance: { row: 2, col: 0 },
+      duration: { row: 3, col: 3 },
+    });
   });
 });

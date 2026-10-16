@@ -227,6 +227,14 @@ export function useShareCardSettings(
     updateMap({ pitch });
   }
 
+  function setMapKmMarkers(kmMarkers: boolean) {
+    updateMap({ kmMarkers });
+  }
+
+  function setMapStartFinish(startFinish: boolean) {
+    updateMap({ startFinish });
+  }
+
   function updateElevation(patch: Partial<ShareElevationSettings>) {
     if (!settings.value.elevation) return;
     settings.value.elevation = { ...settings.value.elevation, ...patch };
@@ -246,6 +254,11 @@ export function useShareCardSettings(
 
   function setElevationLabels(labels: boolean) {
     updateElevation({ labels });
+  }
+
+  /** Строка графика в сетке показателей. */
+  function setElevationRow(row: number) {
+    updateElevation({ row });
   }
 
   /** null — цвет трека. */
@@ -276,6 +289,9 @@ export function useShareCardSettings(
     setElevationSize,
     setElevationLabels,
     setElevationColor,
+    setElevationRow,
+    setMapKmMarkers,
+    setMapStartFinish,
     applyPresetById,
     setColor,
     setBackgroundColor,

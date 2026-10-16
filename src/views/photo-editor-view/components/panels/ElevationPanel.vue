@@ -46,13 +46,13 @@ const sizeOptions = SHARE_ELEVATION_SIZES.map((option) => ({
   title: `Высота графика: ${option.title.toLowerCase()}`,
 }));
 
+// Свой цвет выбирается плиткой «Цвет»; эта кнопка возвращает цвет трека.
 const colorSource = computed({
   get: () => (props.elevation.color ? 'own' : 'route'),
-  set: (value: 'own' | 'route') => emit('setColor', value === 'route' ? null : color.value),
+  set: () => emit('setColor', null),
 });
 const colorSourceOptions = [
-  { value: 'route' as const, label: 'Как трек', title: 'Цвет как у трека' },
-  { value: 'own' as const, label: 'Свой', title: 'Свой цвет графика' },
+  { value: 'route' as const, label: 'Цвет трека', title: 'Цвет графика как у трека' },
 ];
 
 const labels = computed({

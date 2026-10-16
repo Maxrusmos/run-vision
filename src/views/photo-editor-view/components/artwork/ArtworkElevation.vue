@@ -1,14 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
 import type { ITrackPoint } from '@/entities/activity/model/activity.types';
-import type {
-  ShareElevationSettings,
-  ShareElevationSize,
-} from '@/entities/activity/model/activity-share/activity-share.types';
-import {
-  SHARE_ELEVATION_SIZES,
-  getElevationProfile,
-} from '@/entities/activity/model/activity-share/activity-share-elevation';
+import type { ShareElevationSettings } from '@/entities/activity/model/activity-share/activity-share.types';
+import { getElevationProfile } from '@/entities/activity/model/activity-share/activity-share-elevation';
 import { ROUTE_LAYER_WIDTH } from '@/entities/activity/model/activity-share/activity-share-route';
 import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
 import SelectionFrame from '@/views/photo-editor-view/components/artwork/SelectionFrame.vue';
@@ -24,19 +18,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: [];
   remove: [];
-  setSize: [size: ShareElevationSize];
 }>();
-
-const size = computed({
-  get: () => props.settings.size,
-  set: (value: ShareElevationSize) => emit('setSize', value),
-});
-
-const sizeOptions = SHARE_ELEVATION_SIZES.map((option) => ({
-  value: option.id,
-  label: option.label,
-  title: `Высота графика: ${option.title.toLowerCase()}`,
-}));
 
 // Подписи — по всему треку, независимо от числа точек на графике.
 const profile = computed(() => getElevationProfile(props.track, 2));
@@ -104,12 +86,10 @@ const unit = computed(() => (box.value.width + 32) / ROUTE_LAYER_WIDTH);
       </svg>
     </div>
 
+    <!-- Размер — только в меню «График»; здесь — удаление. -->
     <ArtworkElementToolbar
       v-if="selected"
-      v-model="size"
       class="artwork-elevation__toolbar export-hidden"
-      :options="sizeOptions"
-      options-label="Высота графика"
       remove-label="Удалить график высоты"
       @remove="emit('remove')"
     />
@@ -119,6 +99,9 @@ const unit = computed(() => (box.value.width + 32) / ROUTE_LAYER_WIDTH);
 <style scoped>
 .artwork-elevation {
   position: relative;
+  box-sizing: border-box;
+  height: 100%;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   gap: 3px;

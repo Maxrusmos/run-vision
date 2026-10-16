@@ -5,7 +5,6 @@ import type {
   ShareCardElement,
   ShareCardSettings,
   ShareColorKey,
-  ShareElevationSize,
   ShareRoutePosition,
   ShareStat,
   ShareStatKey,
@@ -23,13 +22,12 @@ import ArtworkMap from '@/views/photo-editor-view/components/artwork/ArtworkMap.
 import ArtworkElevation from '@/views/photo-editor-view/components/artwork/ArtworkElevation.vue';
 import type { MapFitPadding } from '@/entities/activity/model/activity-share/activity-share-map';
 import { getElevationSizeRatio } from '@/entities/activity/model/activity-share/activity-share-elevation';
+import type { StatLayout } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
 
 const BLOCK_MAP_FIT_PADDING: MapFitPadding = { top: 0.1, right: 0.1, bottom: 0.1, left: 0.1 };
 /** Карта во весь фон: поля вокруг свободной области (между названием и графиком/показателями). */
 const FULL_MAP_SIDE_PADDING = 0.1;
 const FULL_MAP_AREA_MARGIN = 0.04;
-/** Зазор между картой и графиком высоты, px. */
-const VISUAL_GAP = 12;
 
 /** Минимальный зазор между показателями, чтобы они не слипались. */
 const MIN_STAT_GAP = 1;
@@ -54,7 +52,7 @@ const emit = defineEmits<{
   setTitle: [value: string];
   removeTitle: [];
   removeElevation: [];
-  setElevationSize: [size: ShareElevationSize];
+  moveElevation: [row: number, layout: StatLayout];
 }>();
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
@@ -74,17 +72,17 @@ const elevationRatio = computed(() =>
   elevation.value ? getElevationSizeRatio(elevation.value.size) : 0,
 );
 
-/**
- * Место над показателями относительно ширины: трек/карта и график высоты.
- * Зазор между ними — примерно 12px при обычной ширине карточки.
- */
-const reservedRatio = computed(() => {
-  const hasVisual = props.settings.routeVisible || props.settings.map;
-  const base = hasVisual ? ROUTE_SLOT_HEIGHT_RATIO : 0;
-  return elevation.value ? base + elevationRatio.value + VISUAL_GAP / 330 : base;
-});
+/** Место над показателями (доля ширины): трек или карта. */
+const reservedRatio = computed(() =>
+  props.settings.routeVisible || props.settings.map ? ROUTE_SLOT_HEIGHT_RATIO : 0,
+);
 
-// Карта во весь фон: трек вписывается в свободную область — между названием и графиком.
+/** График высоты — полоса в сетке показателей: его можно переставлять между строками. */
+const elevationBand = computed(() =>
+  elevation.value ? { row: elevation.value.row, ratio: elevationRatio.value } : null,
+);
+
+// Карта во весь фон: трек вписывается в свободную область — между названием и показателями.
 const mapArea = useTemplateRef<HTMLElement>('mapArea');
 const fullFitPadding = ref<MapFitPadding>({
   top: 0.2,
@@ -230,8 +228,8 @@ function removeRoute() {
         class="share-artwork__route-slot"
         :style="{ aspectRatio: 1 / ROUTE_SLOT_HEIGHT_RATIO }"
       />
-      <!-- Над показателями: карта блоком (или свободная область карты во весь фон)
-           и график высоты. Высота — до первой строки показателей. -->
+      <!-- Над показателями: карта блоком (или свободная область карты во весь фон).
+           Высота — до первой строки показателей. -->
       <div
         v-if="settings.map"
         class="share-artwork__visual"
@@ -251,19 +249,6 @@ function removeRoute() {
           :fit-padding="BLOCK_MAP_FIT_PADDING"
         />
         <div v-else ref="mapArea" class="share-artwork__map-area" />
-
-        <ArtworkElevation
-          v-if="elevation"
-          class="share-artwork__elevation"
-          :style="{ aspectRatio: 1 / elevationRatio }"
-          :track="activity.track"
-          :settings="elevation"
-          :color="elevation.color ?? settings.routeColor"
-          :selected="selected === 'elevation'"
-          @select="selected = 'elevation'"
-          @remove="removeElevation"
-          @set-size="emit('setElevationSize', $event)"
-        />
       </div>
 
       <!-- Показатели раскладываются по сетке на всей высоте — от названия до низа. -->
@@ -278,7 +263,21 @@ function removeRoute() {
         :stat-style="settings.statStyle"
         @set-layout="emit('setStatPositions', $event)"
         @reserved-height="visualHeight = $event"
-      />
+        :band="elevationBand"
+        @move-band="(row, layout) => emit('moveElevation', row, layout)"
+      >
+        <template #band>
+          <ArtworkElevation
+            v-if="elevation"
+            :track="activity.track"
+            :settings="elevation"
+            :color="elevation.color ?? settings.routeColor"
+            :selected="selected === 'elevation'"
+            @select="selected = selected === 'elevation' ? null : 'elevation'"
+            @remove="removeElevation"
+          />
+        </template>
+      </ArtworkStatsGrid>
 
       <!-- Трек двигается по всей области: от низа названия до низа карточки. -->
       <ArtworkRoute
@@ -381,11 +380,6 @@ function removeRoute() {
 .share-artwork__map-area {
   flex: 1 1 0;
   min-height: 0;
-}
-
-.share-artwork__elevation {
-  flex: 0 0 auto;
-  border-radius: 8px;
 }
 
 /* Без z-index: тело не создаёт свой контекст наложения,

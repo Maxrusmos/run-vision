@@ -24,7 +24,7 @@ export const MAP_EDITOR_TOOLS: readonly EditorTool[] = EDITOR_TOOLS.flatMap(
   (tool): EditorTool[] => {
     if (tool.id === 'background') return [{ id: 'map', icon: 'mdi-map-outline', label: 'Карта' }];
     if (tool.id === 'track') {
-      return [tool, { id: 'elevation', icon: 'mdi-chart-areaspline-variant', label: 'Высота' }];
+      return [tool, { id: 'elevation', icon: 'mdi-chart-areaspline-variant', label: 'График' }];
     }
     return [tool];
   },

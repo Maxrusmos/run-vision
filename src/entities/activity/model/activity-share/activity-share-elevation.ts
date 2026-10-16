@@ -7,7 +7,7 @@ import type {
 } from './activity-share.types';
 
 export function createShareElevationSettings(): ShareElevationSettings {
-  return { visible: true, style: 'area', size: 'medium', color: null, labels: true };
+  return { visible: true, style: 'area', size: 'medium', color: null, labels: true, row: null };
 }
 
 export const SHARE_ELEVATION_STYLES: readonly { id: ShareElevationStyle; name: string }[] = [

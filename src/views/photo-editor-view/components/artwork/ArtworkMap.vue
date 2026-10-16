@@ -13,17 +13,21 @@ import {
   SHARE_MAP_MAX_PITCH,
   createShareMapStyle,
   getLngLatBounds,
+  getKmMarkers,
   getRouteLngLats,
   type MapFitPadding,
 } from '@/entities/activity/model/activity-share/activity-share-map';
 import { ROUTE_LAYER_WIDTH } from '@/entities/activity/model/activity-share/activity-share-route';
 import RouteStyleLayers from '@/views/photo-editor-view/components/artwork/RouteStyleLayers.vue';
+import RouteMarkers from '@/views/photo-editor-view/components/artwork/RouteMarkers.vue';
 
 /** Время ожидания тайлов перед экспортом: дальше рендерим то, что успело загрузиться. */
 const READY_TIMEOUT_MS = 8000;
 /** Итерации подгонки камеры под наклон: обычно хватает двух-трёх. */
 const FIT_ITERATIONS = 4;
 const MAX_FIT_ZOOM = 16;
+/** Минимальное расстояние между флажками, в единицах слоя трека (≈ ширина флажка). */
+const MARKER_SPACING = 64;
 
 const props = defineProps<{
   map: ShareMapSettings;
@@ -45,11 +49,15 @@ const size = shallowRef({ width: 0, height: 0 });
 const projected = shallowRef<RoutePoint[]>([]);
 
 const lngLats = computed(() => getRouteLngLats(props.track));
+const kmMarkers = computed(() => (props.map.kmMarkers ? getKmMarkers(props.track) : []));
+/** Флажки километров в пикселях карты. */
+const projectedKm = shallowRef<(RoutePoint & { km: number })[]>([]);
 const bounds = computed(() => getLngLatBounds(lngLats.value));
 const pitch = computed(() => props.map.pitch);
 
 const points = computed(() => toSvgPolylinePoints(projected.value));
 const start = computed(() => projected.value[0] ?? null);
+const finish = computed(() => projected.value[projected.value.length - 1] ?? null);
 /** Сколько пикселей карты в одной единице слоя трека (ширина карточки = 1000). */
 const unit = computed(() => size.value.width / ROUTE_LAYER_WIDTH);
 const viewBox = computed(() => `0 0 ${size.value.width} ${size.value.height}`);
@@ -102,7 +110,33 @@ function fitRoute(map: maplibregl.Map) {
   }
 
   projected.value = project(map);
+  projectKmMarkers(map);
 }
+
+/**
+ * Флажки километров в пикселях карты. Флажок, который лёг бы вплотную к уже
+ * поставленному (круги по одной петле) или к старту/финишу, пропускаем — иначе каша.
+ */
+function projectKmMarkers(map: maplibregl.Map) {
+  const minDistance = MARKER_SPACING * unit.value;
+  const occupied: RoutePoint[] =
+    props.map.startFinish && start.value && finish.value ? [start.value, finish.value] : [];
+  const kept: (RoutePoint & { km: number })[] = [];
+
+  for (const marker of kmMarkers.value) {
+    const { x, y } = map.project(marker.lngLat);
+    const isFree = [...occupied, ...kept].every(
+      (other) => Math.hypot(other.x - x, other.y - y) >= minDistance,
+    );
+    if (isFree) kept.push({ x, y, km: marker.km });
+  }
+
+  projectedKm.value = kept;
+}
+
+watch([kmMarkers, () => props.map.startFinish], () => {
+  if (instance.value) projectKmMarkers(instance.value);
+});
 
 function getBox(list: RoutePoint[]) {
   const box = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
@@ -195,6 +229,15 @@ defineExpose({ whenReady });
         :start="start"
         :style-id="routeStyle"
         :route-color="routeColor"
+        :text-color="textColor"
+        :background-color="backgroundColor"
+        :unit="unit"
+      />
+      <RouteMarkers
+        :km-points="projectedKm"
+        :start="start"
+        :finish="finish"
+        :start-finish="map.startFinish"
         :text-color="textColor"
         :background-color="backgroundColor"
         :unit="unit"

@@ -1,5 +1,6 @@
 import type { StyleSpecification } from 'maplibre-gl';
 import type { ITrackPoint } from '@/entities/activity/model/activity.types';
+import { getDistanceMeters } from '@/entities/activity/model/elevation-profile';
 import type {
   ShareMapLayout,
   ShareMapPitch,
@@ -11,7 +12,7 @@ import type {
 export type MapFitPadding = { top: number; right: number; bottom: number; left: number };
 
 export function createShareMapSettings(): ShareMapSettings {
-  return { layout: 'block', style: 'light', pitch: 0 };
+  return { layout: 'block', style: 'light', pitch: 0, kmMarkers: true, startFinish: true };
 }
 
 export const SHARE_MAP_LAYOUTS: readonly { id: ShareMapLayout; name: string }[] = [
@@ -221,4 +222,71 @@ export function getLngLatBounds(
     [west, south],
     [east, north],
   ];
+}
+
+/** Шаги отметок, км: берём наименьший, при котором флажков не больше MAX_KM_MARKERS. */
+const KM_MARKER_STEPS = [1, 2, 5, 10, 20, 50, 100] as const;
+const MAX_KM_MARKERS = 6;
+/** Отметку у самого финиша не ставим — она слипнется с флажком финиша. */
+const FINISH_CLEARANCE = 0.35;
+/** Старт и финиш ближе этого — круговой маршрут. */
+const LOOP_DISTANCE_METERS = 150;
+
+/**
+ * Шаг отметок километров по длине трека: 5 км → каждый километр,
+ * 20 км → каждые 5, марафон → каждые 10. Так флажки не перегружают карту.
+ */
+export function getKmMarkerStep(distanceKm: number): number {
+  return KM_MARKER_STEPS.find((step) => Math.floor(distanceKm / step) <= MAX_KM_MARKERS) ?? 100;
+}
+
+export type RouteKmMarker = {
+  km: number;
+  lngLat: [number, number];
+};
+
+/** Точки трека на каждом `step`-м километре (интерполяция между точками GPX). */
+export function getKmMarkers(track: ITrackPoint[], step?: number): RouteKmMarker[] {
+  const points = track.filter(
+    (point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude),
+  );
+  const distances = [0];
+  for (let index = 1; index < points.length; index++) {
+    const a = points[index - 1]!;
+    const b = points[index]!;
+    distances.push(
+      distances[index - 1]! + getDistanceMeters(a.latitude, a.longitude, b.latitude, b.longitude),
+    );
+  }
+
+  const totalKm = (distances[distances.length - 1] ?? 0) / 1000;
+  const markerStep = step ?? getKmMarkerStep(totalKm);
+  const markers: RouteKmMarker[] = [];
+
+  let cursor = 0;
+  for (let km = markerStep; km <= totalKm - markerStep * FINISH_CLEARANCE; km += markerStep) {
+    const target = km * 1000;
+    while (cursor < distances.length - 2 && distances[cursor + 1]! < target) cursor++;
+    const a = points[cursor]!;
+    const b = points[cursor + 1] ?? a;
+    const span = distances[cursor + 1]! - distances[cursor]!;
+    const t = span > 0 ? (target - distances[cursor]!) / span : 0;
+    markers.push({
+      km,
+      lngLat: [
+        a.longitude + (b.longitude - a.longitude) * t,
+        a.latitude + (b.latitude - a.latitude) * t,
+      ],
+    });
+  }
+
+  return markers;
+}
+
+/** Круговой маршрут: финиш рядом со стартом. */
+export function isLoopRoute(lngLats: [number, number][]): boolean {
+  const start = lngLats[0];
+  const finish = lngLats[lngLats.length - 1];
+  if (!start || !finish || lngLats.length < 2) return false;
+  return getDistanceMeters(start[1], start[0], finish[1], finish[0]) < LOOP_DISTANCE_METERS;
 }

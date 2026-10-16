@@ -21,6 +21,7 @@ import {
 import OptionTile from '@/views/photo-editor-view/components/settings/OptionTile.vue';
 import OptionTileRow from '@/views/photo-editor-view/components/settings/OptionTileRow.vue';
 import SegmentedGroup from '@/views/photo-editor-view/components/settings/SegmentedGroup.vue';
+import ToggleGroup from '@/views/photo-editor-view/components/settings/ToggleGroup.vue';
 
 const props = defineProps<{
   map: ShareMapSettings;
@@ -32,7 +33,25 @@ const emit = defineEmits<{
   setLayout: [layout: ShareMapLayout];
   setStyle: [style: ShareMapStyle];
   setPitch: [pitch: ShareMapPitch];
+  setKmMarkers: [value: boolean];
+  setStartFinish: [value: boolean];
 }>();
+
+/** Флажки на треке: старт/финиш и отметки километров (шаг — по дистанции). */
+const markerOptions = computed(() => [
+  {
+    key: 'startFinish',
+    icon: 'mdi-flag-checkered',
+    title: 'Старт и финиш',
+    active: props.map.startFinish,
+  },
+  { key: 'km', label: 'км', title: 'Отметки километров', active: props.map.kmMarkers },
+]);
+
+function toggleMarker(key: string) {
+  if (key === 'km') emit('setKmMarkers', !props.map.kmMarkers);
+  else emit('setStartFinish', !props.map.startFinish);
+}
 
 const layout = computed({
   get: () => props.map.layout,
@@ -75,7 +94,7 @@ function hideBrokenImage(event: Event) {
 
 <template>
   <div class="map-panel">
-    <!-- Вид карточки и наклон — в одну строку над стилями, как в «Показателях». -->
+    <!-- Вид карточки, наклон и флажки — в одну строку над стилями, как в «Показателях». -->
     <div class="map-panel__controls">
       <SegmentedGroup v-model="layout" :options="layoutOptions" group-label="Вид карточки">
         <template #option="{ option }">
@@ -87,6 +106,8 @@ function hideBrokenImage(event: Event) {
       </SegmentedGroup>
 
       <SegmentedGroup v-model="pitch" :options="pitchOptions" group-label="Наклон карты" grow />
+
+      <ToggleGroup :options="markerOptions" group-label="Флажки на треке" @toggle="toggleMarker" />
     </div>
 
     <OptionTileRow>

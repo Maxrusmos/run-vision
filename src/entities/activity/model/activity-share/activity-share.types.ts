@@ -103,6 +103,9 @@ export type ShareMapSettings = {
   layout: ShareMapLayout;
   style: ShareMapStyle;
   pitch: ShareMapPitch;
+  /** Флажки на треке: отметки километров (шаг — по дистанции) и старт/финиш. */
+  kmMarkers: boolean;
+  startFinish: boolean;
 };
 
 /** Вид графика высоты. */
@@ -120,6 +123,8 @@ export type ShareElevationSettings = {
   color: string | null;
   /** Подписи: минимум/максимум высоты и набор. */
   labels: boolean;
+  /** Строка в сетке показателей; null — сразу под картой. */
+  row: number | null;
 };
 
 export type ShareColorPreset = {

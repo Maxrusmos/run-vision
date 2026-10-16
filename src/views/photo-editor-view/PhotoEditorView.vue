@@ -68,6 +68,9 @@ const {
   setElevationSize,
   setElevationLabels,
   setElevationColor,
+  setElevationRow,
+  setMapKmMarkers,
+  setMapStartFinish,
   undo,
   redo,
   canUndo,
@@ -157,6 +160,12 @@ function saveImage() {
   }
 }
 
+/** Перенос графика: строка графика и сдвинутые показатели — одним шагом истории. */
+function moveElevation(row: number, layout: Parameters<typeof setStatPositions>[0]) {
+  setElevationRow(row);
+  setStatPositions(layout);
+}
+
 function handleUndo() {
   selected.value = null;
   undo();
@@ -209,7 +218,7 @@ function goBack() {
         @set-title="setTitle"
         @remove-title="setTitleVisible(false)"
         @remove-elevation="setElevationVisible(false)"
-        @set-elevation-size="setElevationSize"
+        @move-elevation="moveElevation"
       />
     </FitToBox>
 
@@ -239,6 +248,8 @@ function goBack() {
             @set-layout="setMapLayout"
             @set-style="setMapStyle"
             @set-pitch="setMapPitch"
+            @set-km-markers="setMapKmMarkers"
+            @set-start-finish="setMapStartFinish"
           />
           <ElevationPanel
             v-else-if="displayedTool === 'elevation' && settings.elevation"
