@@ -1,4 +1,5 @@
-export type EditorToolId = 'add' | 'background' | 'presets' | 'track' | 'stats';
+export type EditorToolId =
+  'add' | 'background' | 'map' | 'elevation' | 'presets' | 'track' | 'stats';
 
 export type EditorTool = {
   id: EditorToolId;
@@ -14,3 +15,17 @@ export const EDITOR_TOOLS: readonly EditorTool[] = [
   { id: 'track', icon: 'mdi-map-marker-path', label: 'Трек' },
   { id: 'stats', icon: 'mdi-view-grid-outline', label: 'Показатели' },
 ];
+
+/**
+ * Шаблон с картой: фон — всегда карта, вместо «Фона» — её настройки;
+ * после «Трека» — график высоты.
+ */
+export const MAP_EDITOR_TOOLS: readonly EditorTool[] = EDITOR_TOOLS.flatMap(
+  (tool): EditorTool[] => {
+    if (tool.id === 'background') return [{ id: 'map', icon: 'mdi-map-outline', label: 'Карта' }];
+    if (tool.id === 'track') {
+      return [tool, { id: 'elevation', icon: 'mdi-chart-areaspline-variant', label: 'График' }];
+    }
+    return [tool];
+  },
+);

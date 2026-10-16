@@ -75,6 +75,8 @@ function layerDash(layer: RouteStrokeLayer): string | undefined {
       </linearGradient>
     </defs>
 
+    <!-- Прозрачность — у элемента целиком (opacity), а не у обводки (stroke-opacity):
+         иначе на iOS в узлах линии полупрозрачные куски накладываются и видны точки. -->
     <template v-for="(layer, index) in style.layers" :key="index">
       <!-- Выдавливание: непрозрачные копии в полупрозрачной группе — грань без точек в узлах. -->
       <g v-if="layer.extrude" :opacity="layer.opacity ?? 1">
@@ -96,7 +98,7 @@ function layerDash(layer: RouteStrokeLayer): string | undefined {
         :points="points"
         fill="none"
         :stroke="layerStroke(layer)"
-        :stroke-opacity="layer.opacity ?? 1"
+        :opacity="layer.opacity ?? 1"
         :stroke-width="BASE_STROKE * (layer.width ?? 1) * unit"
         :stroke-dasharray="layerDash(layer)"
         stroke-linecap="round"

@@ -44,6 +44,16 @@ type RowState = {
 class LayoutGrid {
   private readonly rows = new Map<number, RowState>();
 
+  /** Строки, целиком занятые другим элементом (график высоты): показатели туда не встают. */
+  constructor(blockedRows: readonly number[] = []) {
+    for (const row of blockedRows) {
+      this.rows.set(row, {
+        width: 'full',
+        cells: Array.from({ length: STAT_GRID_COLUMNS }, () => true),
+      });
+    }
+  }
+
   private getRow(row: number): RowState {
     let state = this.rows.get(row);
     if (!state) {
@@ -98,6 +108,8 @@ type ResolveOptions = {
   startRow?: number;
   /** Этот показатель ставится первым и не сдвигается остальными. */
   priorityKey?: ShareStatKey;
+  /** Строки, занятые графиком высоты. */
+  blockedRows?: readonly number[];
 };
 
 /**
@@ -111,9 +123,9 @@ type ResolveOptions = {
 export function resolveStatLayout(
   items: StatLayoutItem[],
   positions: Partial<Record<ShareStatKey, ShareStatPosition>>,
-  { startRow = 0, priorityKey }: ResolveOptions = {},
+  { startRow = 0, priorityKey, blockedRows }: ResolveOptions = {},
 ): StatLayout {
-  const grid = new LayoutGrid();
+  const grid = new LayoutGrid(blockedRows);
   const layout = {} as StatLayout;
 
   const placed = items
@@ -164,11 +176,12 @@ export function getStatDropCells(
   layout: StatLayout,
   dragKey: ShareStatKey,
   rows: number,
+  blockedRows: readonly number[] = [],
 ): StatDropCell[] {
   const dragged = items.find((item) => item.key === dragKey);
   if (!dragged) return [];
 
-  const grid = new LayoutGrid();
+  const grid = new LayoutGrid(blockedRows);
   for (const item of items) {
     const position = layout[item.key];
     if (position && item.key !== dragKey) {
@@ -208,6 +221,7 @@ export function applyStatDrop(
   key: ShareStatKey,
   target: StatDropTarget,
   startRow = 0,
+  blockedRows: readonly number[] = [],
 ): StatDropResult {
   const widthOf = (statKey: ShareStatKey) =>
     items.find((item) => item.key === statKey)?.width ?? 'half';
@@ -232,6 +246,28 @@ export function applyStatDrop(
 
   return {
     widths,
-    layout: resolveStatLayout(nextItems, positions, { startRow, priorityKey: key }),
+    layout: resolveStatLayout(nextItems, positions, { startRow, priorityKey: key, blockedRows }),
   };
+}
+
+/**
+ * Перенос строки-полосы (график высоты) со строки `from` на строку `to`.
+ * Строки между ними сдвигаются на одну навстречу: показатели со строки `to`
+ * встают на прежнее место полосы, порядок остальных сохраняется.
+ */
+export function moveLayoutRow(layout: StatLayout, from: number, to: number): StatLayout {
+  if (from === to) return layout;
+
+  const moveRow = (row: number) => {
+    if (from < to && row > from && row <= to) return row - 1;
+    if (to < from && row >= to && row < from) return row + 1;
+    return row;
+  };
+
+  return Object.fromEntries(
+    Object.entries(layout).map(([key, position]) => [
+      key,
+      { row: moveRow(position.row), col: position.col },
+    ]),
+  ) as StatLayout;
 }
