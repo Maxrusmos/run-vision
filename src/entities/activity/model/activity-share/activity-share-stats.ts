@@ -11,6 +11,7 @@ import {
   formatHeartRate,
   formatPace,
   formatPlaybackDistance,
+  formatShortDate,
   formatTimeOfDay,
 } from '@/shared/lib/formatters/formatters';
 import type { ShareStatKey } from './activity-share.types';
@@ -104,5 +105,6 @@ export function getActivityShareStats(activity: IActivity): Record<ShareStatKey,
     elevationLoss: formatElevation(elevation?.totalDescentMeters ?? null),
     maxElevation: formatElevation(elevation?.maxElevation ?? null),
     startTime: formatTimeOfDay(activity.startedAt),
+    date: formatShortDate(activity.startedAt),
   };
 }

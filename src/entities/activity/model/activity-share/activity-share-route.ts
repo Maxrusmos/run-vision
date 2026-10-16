@@ -1,5 +1,5 @@
 import type { RouteBounds } from '@/entities/activity/lib/route-projection';
-import type { ShareRoutePosition, ShareRouteSize } from './activity-share.types';
+import type { ShareRoutePosition } from './activity-share.types';
 
 /** Ширина слоя трека в условных единицах; высота считается по пропорциям слоя. */
 export const ROUTE_LAYER_WIDTH = 1000;
@@ -7,24 +7,11 @@ export const ROUTE_LAYER_WIDTH = 1000;
 /** Высота места под трек относительно ширины контента карточки. */
 export const ROUTE_SLOT_HEIGHT_RATIO = 3 / 5;
 
-export const DEFAULT_ROUTE_SIZE: ShareRouteSize = 'medium';
-
-/** Масштаб относительно места под трек (M — заполняет его целиком). */
-export const ROUTE_SIZE_SCALE: Record<ShareRouteSize, number> = {
-  small: 0.75,
-  medium: 1,
-  large: 1.4,
-};
-
-export const ROUTE_SIZE_OPTIONS: readonly {
-  value: ShareRouteSize;
-  label: string;
-  title: string;
-}[] = [
-  { value: 'small', label: 'S', title: 'Маленький трек' },
-  { value: 'medium', label: 'M', title: 'Средний трек' },
-  { value: 'large', label: 'L', title: 'Большой трек' },
-];
+/** Масштаб трека относительно места под трек: 1 — заполняет его целиком. */
+export const DEFAULT_ROUTE_SCALE = 1;
+export const MIN_ROUTE_SCALE = 0.35;
+/** Верхняя граница; фактически масштаб ещё ограничен размером слоя. */
+export const MAX_ROUTE_SCALE = 3;
 
 /** Отступ от края слоя, за который трек нельзя вытащить. */
 const ROUTE_EDGE_MARGIN = 12;
@@ -42,14 +29,15 @@ function getHalfSize(bounds: RouteBounds) {
 }
 
 /**
- * Итоговый масштаб: выбранный размер, но не больше, чем помещается в слой.
+ * Итоговый масштаб: заданный, но в допустимых пределах и не больше, чем помещается в слой.
  */
-export function getRouteScale(size: ShareRouteSize, bounds: RouteBounds, layer: RouteLayerSize) {
+export function getRouteScale(scale: number, bounds: RouteBounds, layer: RouteLayerSize) {
   const { halfWidth, halfHeight } = getHalfSize(bounds);
   const maxScaleX = halfWidth > 0 ? (layer.width / 2 - ROUTE_EDGE_MARGIN) / halfWidth : Infinity;
   const maxScaleY = halfHeight > 0 ? (layer.height / 2 - ROUTE_EDGE_MARGIN) / halfHeight : Infinity;
 
-  return Math.max(0.1, Math.min(ROUTE_SIZE_SCALE[size], maxScaleX, maxScaleY));
+  const maxScale = Math.min(MAX_ROUTE_SCALE, maxScaleX, maxScaleY);
+  return Math.max(Math.min(MIN_ROUTE_SCALE, maxScale), Math.min(scale, maxScale));
 }
 
 /**

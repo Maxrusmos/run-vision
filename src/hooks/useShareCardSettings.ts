@@ -1,10 +1,10 @@
 import { onScopeDispose, ref } from 'vue';
+import { useUndoRedo } from '@/hooks/useUndoRedo';
 import type {
   ShareCardSettings,
   ShareColorKey,
   ShareColorPreset,
   ShareRoutePosition,
-  ShareRouteSize,
   ShareStatKey,
   ShareStatPosition,
   ShareStatWidth,
@@ -14,7 +14,7 @@ import {
   findSharePreset,
   findSharePresetByColors,
 } from '@/entities/activity/model/activity-share/activity-share-presets';
-import { DEFAULT_ROUTE_SIZE } from '@/entities/activity/model/activity-share/activity-share-route';
+import { DEFAULT_ROUTE_SCALE } from '@/entities/activity/model/activity-share/activity-share-route';
 import { DEFAULT_VISIBLE_SHARE_STATS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
 export const STAT_SPACING_MIN = 0;
@@ -25,6 +25,7 @@ const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 function createSettings(preset: ShareColorPreset): ShareCardSettings {
   return {
     title: null,
+    titleVisible: true,
     backgroundColor: preset.background,
     routeColor: preset.route,
     textColor: preset.text,
@@ -39,29 +40,33 @@ function createSettings(preset: ShareColorPreset): ShareCardSettings {
     backgroundImagePosition: 'center',
     statSpacing: 12,
     routeVisible: true,
-    routeSize: DEFAULT_ROUTE_SIZE,
+    routeScale: DEFAULT_ROUTE_SCALE,
     routePosition: null,
   };
 }
 
 /**
  * Состояние редактора карточки. Object URL фонового фото освобождается
- * при замене, удалении и уничтожении области видимости.
+ * только при уничтожении области видимости: старое фото может понадобиться при отмене.
  */
 export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRESET_ID) {
   const initialPreset =
     findSharePreset(initialPresetId) ?? findSharePreset(DEFAULT_SHARE_PRESET_ID)!;
 
   const settings = ref<ShareCardSettings>(createSettings(initialPreset));
+  const history = useUndoRedo(settings, { limit: 10 });
 
-  function releaseBackgroundImage() {
-    if (settings.value.backgroundImage) {
-      URL.revokeObjectURL(settings.value.backgroundImage);
-      settings.value.backgroundImage = null;
-    }
+  // Object URL всех загруженных фото: отмена может вернуть любое из них.
+  const backgroundImageUrls = new Set<string>();
+
+  function removeBackgroundImage() {
+    settings.value.backgroundImage = null;
   }
 
-  onScopeDispose(releaseBackgroundImage);
+  onScopeDispose(() => {
+    backgroundImageUrls.forEach((url) => URL.revokeObjectURL(url));
+    backgroundImageUrls.clear();
+  });
 
   function applyPreset(preset: ShareColorPreset) {
     settings.value.routeColor = preset.route;
@@ -124,8 +129,9 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
   function setBackgroundImage(file: File) {
     if (!file.type.startsWith('image/')) return;
 
-    releaseBackgroundImage();
-    settings.value.backgroundImage = URL.createObjectURL(file);
+    const url = URL.createObjectURL(file);
+    backgroundImageUrls.add(url);
+    settings.value.backgroundImage = url;
     settings.value.transparentBackground = false;
   }
 
@@ -133,12 +139,16 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     settings.value.routeVisible = value;
   }
 
-  function setRouteSize(size: ShareRouteSize) {
-    settings.value.routeSize = size;
+  function setRouteScale(scale: number) {
+    settings.value.routeScale = scale;
   }
 
   function setRoutePosition(position: ShareRoutePosition) {
     settings.value.routePosition = position;
+  }
+
+  function setTitleVisible(value: boolean) {
+    settings.value.titleVisible = value;
   }
 
   function setTitle(value: string) {
@@ -149,16 +159,16 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
 
   /** Возвращает карточку к исходному виду выбранного шаблона. */
   function resetSettings() {
-    releaseBackgroundImage();
     settings.value = createSettings(initialPreset);
   }
 
   return {
     settings,
     setRouteVisible,
-    setRouteSize,
+    setRouteScale,
     setRoutePosition,
     setTitle,
+    setTitleVisible,
     resetSettings,
     applyPresetById,
     setColor,
@@ -170,6 +180,10 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     setShowStatBorders,
     setTransparentBackground,
     setBackgroundImage,
-    removeBackgroundImage: releaseBackgroundImage,
+    removeBackgroundImage,
+    undo: history.undo,
+    redo: history.redo,
+    canUndo: history.canUndo,
+    canRedo: history.canRedo,
   };
 }

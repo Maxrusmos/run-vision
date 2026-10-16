@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onMounted, useTemplateRef, watch } from 'vue';
-import ColorPickerButton from '@/shared/ui/ColorPickerButton.vue';
 import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
 import SelectionFrame from '@/views/photo-editor-view/components/artwork/SelectionFrame.vue';
 
@@ -8,14 +7,13 @@ const MAX_LENGTH = 80;
 
 const props = defineProps<{
   value: string;
-  textColor: string;
   selected: boolean;
 }>();
 
 const emit = defineEmits<{
   select: [];
   change: [value: string];
-  changeTextColor: [color: string];
+  remove: [];
 }>();
 
 const textElement = useTemplateRef<HTMLElement>('text');
@@ -76,13 +74,12 @@ function handleKeydown(event: KeyboardEvent) {
       @keydown="handleKeydown"
     />
 
-    <ArtworkElementToolbar v-if="selected" class="artwork-title__toolbar export-hidden">
-      <ColorPickerButton
-        label="Цвет текста"
-        :color="textColor"
-        @change="emit('changeTextColor', $event)"
-      />
-    </ArtworkElementToolbar>
+    <ArtworkElementToolbar
+      v-if="selected"
+      class="artwork-title__toolbar export-hidden"
+      remove-label="Удалить название"
+      @remove="emit('remove')"
+    />
   </div>
 </template>
 
@@ -91,7 +88,7 @@ function handleKeydown(event: KeyboardEvent) {
   position: relative;
   width: max-content;
   max-width: calc(100% + 12px);
-  margin: 4px -6px -4px;
+  margin: -4px -6px;
   padding: 4px 6px;
   border-radius: 10px;
   font-size: clamp(23px, 5vw, 34px);

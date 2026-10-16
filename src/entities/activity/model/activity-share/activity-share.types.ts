@@ -17,7 +17,8 @@ export type ShareStatKey =
   | 'elevationGain'
   | 'elevationLoss'
   | 'maxElevation'
-  | 'startTime';
+  | 'startTime'
+  | 'date';
 
 export type ShareStatWidth = 'third' | 'half' | 'full';
 
@@ -26,8 +27,6 @@ export type ShareStatPosition = {
   row: number;
   col: number;
 };
-
-export type ShareRouteSize = 'small' | 'medium' | 'large';
 
 /**
  * Центр трека в координатах слоя трека.
@@ -56,6 +55,7 @@ export type ShareColorPreset = {
 export type ShareCardSettings = {
   /** Название на карточке; null — название тренировки из GPX. */
   title: string | null;
+  titleVisible: boolean;
   backgroundColor: string;
   routeColor: string;
   textColor: string;
@@ -71,7 +71,8 @@ export type ShareCardSettings = {
   backgroundImagePosition: string;
   statSpacing: number;
   routeVisible: boolean;
-  routeSize: ShareRouteSize;
+  /** Масштаб трека: 1 — заполняет место под трек. */
+  routeScale: number;
   /** null — трек стоит на своём месте между названием и показателями. */
   routePosition: ShareRoutePosition | null;
 };

@@ -15,7 +15,7 @@ import StepPage from '@/shared/ui/StepPage.vue';
 import PhotoEditorSidebar from '@/views/photo-editor-view/components/PhotoEditorSidebar.vue';
 import ShareCardArtwork from '@/views/photo-editor-view/components/artwork/ShareCardArtwork.vue';
 import AddElementButton from '@/views/photo-editor-view/components/AddElementButton.vue';
-import ResetCardButton from '@/views/photo-editor-view/components/ResetCardButton.vue';
+import EditorHistoryActions from '@/views/photo-editor-view/components/EditorHistoryActions.vue';
 import ShareCardStatAdd from '@/views/photo-editor-view/components/ShareCardStatAdd.vue';
 import ShareCardResultDialog from '@/views/photo-editor-view/components/ShareCardResultDialog.vue';
 
@@ -40,10 +40,15 @@ const {
   setBackgroundImage,
   removeBackgroundImage,
   setRouteVisible,
-  setRouteSize,
+  setRouteScale,
   setRoutePosition,
   setTitle,
+  setTitleVisible,
   resetSettings,
+  undo,
+  redo,
+  canUndo,
+  canRedo,
 } = useShareCardSettings(getPhotoTemplatePresetId(photoTemplateId.value));
 
 const { image, isRendering, isSaving, render, save } = useShareCardExport();
@@ -89,6 +94,16 @@ function saveImage() {
   }
 }
 
+function handleUndo() {
+  selected.value = null;
+  undo();
+}
+
+function handleRedo() {
+  selected.value = null;
+  redo();
+}
+
 function handleReset() {
   selected.value = null;
   resetSettings();
@@ -116,7 +131,13 @@ function goBack() {
       <section class="photo-editor__main">
         <div class="photo-editor__heading">
           <h2 class="photo-editor__title">Редактирование карточки</h2>
-          <ResetCardButton @confirm="handleReset" />
+          <EditorHistoryActions
+            :can-undo="canUndo"
+            :can-redo="canRedo"
+            @undo="handleUndo"
+            @redo="handleRedo"
+            @reset="handleReset"
+          />
         </div>
 
         <div class="photo-editor__canvas">
@@ -131,14 +152,21 @@ function goBack() {
             @remove-stat="removeStat"
             @set-stat-positions="setStatPositions"
             @set-stat-width="setStatWidth"
-            @set-route-size="setRouteSize"
+            @set-route-scale="setRouteScale"
             @set-route-position="setRoutePosition"
             @set-title="setTitle"
+            @remove-title="setTitleVisible(false)"
             @remove-route="setRouteVisible(false)"
           />
         </div>
 
         <div class="photo-editor__add-actions">
+          <AddElementButton
+            v-if="!settings.titleVisible"
+            label="Добавить название"
+            icon="mdi-format-title"
+            @click="setTitleVisible(true)"
+          />
           <AddElementButton
             v-if="!settings.routeVisible"
             label="Добавить трек"

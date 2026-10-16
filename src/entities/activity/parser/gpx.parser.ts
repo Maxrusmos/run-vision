@@ -50,7 +50,11 @@ export async function parseGpx(file: File): Promise<IActivity> {
   const [parsedFile, error] = parseGPX(xml);
 
   if (error || !parsedFile) {
-    throw new Error(`Ошибка парсинга GPX: ${error?.message ?? 'Неизвестная ошибка'}`);
+    throw new Error(
+      file.name.toLowerCase().endsWith('.gpx')
+        ? `Не удалось прочитать GPX файл: ${error?.message ?? 'неизвестная ошибка'}`
+        : 'Это не GPX файл. Выберите файл тренировки с расширением .gpx',
+    );
   }
 
   const track = parsedFile.tracks[0];

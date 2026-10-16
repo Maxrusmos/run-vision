@@ -55,7 +55,7 @@ const emit = defineEmits<{
 
 .artwork-background__editor {
   position: absolute;
-  top: 12px;
+  top: 8px;
   right: 12px;
   z-index: 5;
 }

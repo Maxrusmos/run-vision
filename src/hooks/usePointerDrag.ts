@@ -4,7 +4,7 @@ type PointerDragHandlers = {
   /** Вернуть false, чтобы не начинать перетаскивание. */
   onStart?: (event: PointerEvent) => boolean | void;
   /** Смещение указателя в пикселях от точки начала. */
-  onMove: (dx: number, dy: number) => void;
+  onMove: (dx: number, dy: number, event: PointerEvent) => void;
   onEnd?: (moved: boolean) => void;
 };
 
@@ -34,7 +34,7 @@ export function usePointerDrag({ onStart, onMove, onEnd }: PointerDragHandlers) 
       if (!moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
 
       moved = true;
-      onMove(dx, dy);
+      onMove(dx, dy, moveEvent);
     };
 
     const handleUp = () => {

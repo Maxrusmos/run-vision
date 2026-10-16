@@ -2,13 +2,9 @@
 import { computed, ref, useTemplateRef } from 'vue';
 import type { CSSProperties } from 'vue';
 import type { ITrackPoint } from '@/entities/activity/model/activity.types';
-import type {
-  ShareRoutePosition,
-  ShareRouteSize,
-} from '@/entities/activity/model/activity-share/activity-share.types';
+import type { ShareRoutePosition } from '@/entities/activity/model/activity-share/activity-share.types';
 import {
   ROUTE_LAYER_WIDTH,
-  ROUTE_SIZE_OPTIONS,
   clampRoutePosition,
   getRouteScale,
   type RouteLayerSize,
@@ -18,6 +14,7 @@ import {
   projectRoute,
   toSvgPolylinePoints,
 } from '@/entities/activity/lib/route-projection';
+import { usePinchDrag } from '@/hooks/usePinchDrag';
 import { usePointerDrag } from '@/hooks/usePointerDrag';
 import { useResizeObserver } from '@/hooks/useResizeObserver';
 import ColorPickerButton from '@/shared/ui/ColorPickerButton.vue';
@@ -32,6 +29,8 @@ const HIT_STROKE_WIDTH = 56;
 const SLOT_PADDING = 16;
 /** Отступ рамки выделения от трека. */
 const FRAME_PADDING = 16;
+/** Чувствительность масштабирования колёсиком мыши. */
+const WHEEL_ZOOM_SPEED = 0.0015;
 /** Сколько места нужно над/под рамкой для панели действий. */
 const TOOLBAR_SPACE = 60;
 
@@ -40,7 +39,7 @@ type SlotBox = { left: number; top: number; width: number; height: number };
 const props = defineProps<{
   track: ITrackPoint[];
   color: string;
-  size: ShareRouteSize;
+  scale: number;
   position: ShareRoutePosition | null;
   selected: boolean;
   /** Место под трек в раскладке карточки — задаёт размер M и исходное положение. */
@@ -50,7 +49,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: [];
   changeColor: [color: string];
-  setSize: [size: ShareRouteSize];
+  setScale: [scale: number];
   setPosition: [position: ShareRoutePosition];
   remove: [];
 }>();
@@ -94,7 +93,7 @@ const bounds = computed(() => getRouteBounds(localPoints.value));
 const start = computed(() => localPoints.value[0] ?? null);
 
 const scale = computed(() =>
-  bounds.value ? getRouteScale(props.size, bounds.value, layer.value) : 1,
+  bounds.value ? getRouteScale(props.scale, bounds.value, layer.value) : props.scale,
 );
 
 const defaultPosition = computed<ShareRoutePosition>(() =>
@@ -147,28 +146,63 @@ const toolbarPlacement = computed<'top' | 'bottom' | 'inside'>(() => {
   return frame.value.bottom <= layer.value.height - TOOLBAR_SPACE ? 'bottom' : 'inside';
 });
 
-let dragStart: ShareRoutePosition = { x: 0, y: 0 };
+const unitsPerPixel = () => ROUTE_LAYER_WIDTH / (layerElement.value?.clientWidth || 1);
 
-const { handlePointerDown } = usePointerDrag({
+/** Ставит трек с новым масштабом и центром, не выпуская его за пределы слоя. */
+function applyTransform(nextScale: number, nextCenter: ShareRoutePosition) {
+  if (!bounds.value) return;
+
+  const fitted = getRouteScale(nextScale, bounds.value, layer.value);
+  emit('setScale', fitted);
+  emit('setPosition', clampRoutePosition(nextCenter, bounds.value, fitted, layer.value));
+}
+
+// Один палец (или мышь) двигает трек, два пальца — масштабируют щипком и двигают.
+let gestureStart = { scale: 1, center: { x: 0, y: 0 } };
+
+const { handlePointerDown } = usePinchDrag({
   onStart: () => {
-    dragStart = center.value;
+    gestureStart = { scale: scale.value, center: center.value };
   },
-  onMove: (dx, dy) => {
-    const element = layerElement.value;
-    if (!element || !bounds.value) return;
-
-    const unitsPerPixel = ROUTE_LAYER_WIDTH / element.clientWidth;
-    emit(
-      'setPosition',
-      clampRoutePosition(
-        { x: dragStart.x + dx * unitsPerPixel, y: dragStart.y + dy * unitsPerPixel },
-        bounds.value,
-        scale.value,
-        layer.value,
-      ),
-    );
+  onChange: ({ dx, dy, scale: pinch }) => {
+    const units = unitsPerPixel();
+    applyTransform(gestureStart.scale * pinch, {
+      x: gestureStart.center.x + dx * units,
+      y: gestureStart.center.y + dy * units,
+    });
   },
 });
+
+// Десктоп: уголок рамки масштабирует трек относительно его центра.
+let resizeStart = { scale: 1, distance: 1, centerX: 0, centerY: 0 };
+
+const { handlePointerDown: handleResizePointerDown } = usePointerDrag({
+  onStart: (event) => {
+    const rect = layerElement.value?.getBoundingClientRect();
+    if (!rect) return false;
+
+    const centerX = rect.left + center.value.x / unitsPerPixel();
+    const centerY = rect.top + center.value.y / unitsPerPixel();
+    resizeStart = {
+      scale: scale.value,
+      distance: Math.max(1, Math.hypot(event.clientX - centerX, event.clientY - centerY)),
+      centerX,
+      centerY,
+    };
+  },
+  onMove: (_dx, _dy, event) => {
+    const distance = Math.hypot(
+      event.clientX - resizeStart.centerX,
+      event.clientY - resizeStart.centerY,
+    );
+    applyTransform((resizeStart.scale * distance) / resizeStart.distance, center.value);
+  },
+});
+
+// Десктоп: колёсико мыши над выделенным треком.
+function handleWheel(event: WheelEvent) {
+  applyTransform(scale.value * Math.exp(-event.deltaY * WHEEL_ZOOM_SPEED), center.value);
+}
 </script>
 
 <template>
@@ -221,17 +255,22 @@ const { handlePointerDown } = usePointerDrag({
       :style="frameStyle"
       data-selectable
       @pointerdown="handlePointerDown"
+      @wheel.prevent="handleWheel"
     >
       <SelectionFrame />
+
+      <!-- Уголок для изменения размера мышью; на телефоне — щипок двумя пальцами. -->
+      <span
+        class="route-layer__resize export-hidden"
+        :class="{ 'route-layer__resize--top': toolbarPlacement === 'bottom' }"
+        aria-hidden="true"
+        @pointerdown.stop="handleResizePointerDown"
+      />
 
       <ArtworkElementToolbar
         class="route-layer__toolbar export-hidden"
         :class="`route-layer__toolbar--${toolbarPlacement}`"
-        :model-value="size"
-        :options="ROUTE_SIZE_OPTIONS"
-        options-label="Размер трека"
         remove-label="Удалить трек"
-        @update:model-value="emit('setSize', $event!)"
         @remove="emit('remove')"
       >
         <ColorPickerButton
@@ -290,6 +329,34 @@ const { handlePointerDown } = usePointerDrag({
 
 .route-layer__frame:active {
   cursor: grabbing;
+}
+
+.route-layer__resize {
+  position: absolute;
+  z-index: 3;
+  right: -7px;
+  bottom: -7px;
+  display: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #475569;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+  cursor: nwse-resize;
+}
+
+.route-layer__resize--top {
+  top: -7px;
+  bottom: auto;
+  cursor: nesw-resize;
+}
+
+/* Уголок нужен только с мышью; на сенсорных экранах размер меняется щипком. */
+@media (hover: hover) and (pointer: fine) {
+  .route-layer__resize {
+    display: block;
+  }
 }
 
 .route-layer__toolbar {
