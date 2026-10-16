@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue';
-import type { ITrackPoint } from '@/entities/activity/model/activity.types';
 import type { ShareElevationStyle } from '@/entities/activity/model/activity-share/activity-share.types';
 import {
   ELEVATION_STYLE_SAMPLES,
   buildElevationShapes,
-  getElevationProfile,
 } from '@/entities/activity/model/activity-share/activity-share-elevation';
+import { resampleSeries } from '@/entities/activity/model/activity-share/activity-share-telemetry';
 
 /** Толщина линии — в единицах слоя (ширина карточки = 1000), как у трека. */
 const LINE_WIDTH: Partial<Record<ShareElevationStyle, number>> = {
@@ -28,11 +27,13 @@ const RIDGE_SHIFTS = [
 const CONTOUR_COPIES = [0.6, 0.4, 0.22];
 
 /**
- * График высоты (SVG-фрагмент без обёртки): на карточке и в превью меню.
- * Размеры — в пикселях раскладки; `unit` — пикселей в единице слоя.
+ * График ряда значений (SVG-фрагмент без обёртки): высота, темп, пульс —
+ * на карточке и в превью меню. Размеры — в пикселях раскладки; `unit` — пикселей
+ * в единице слоя.
  */
 const props = defineProps<{
-  track: ITrackPoint[];
+  /** Подробный ряд, 0…1 (низ…верх графика); пересчитывается под стиль. */
+  series: number[];
   styleId: ShareElevationStyle;
   color: string;
   /** Второй цвет (цвет текста карточки): «Градиент», вершины «Гор». */
@@ -47,15 +48,13 @@ const id = useId();
 const gradientId = `elevation-gradient-${id}`;
 const strokeGradientId = `elevation-stroke-${id}`;
 
-const profile = computed(() =>
-  getElevationProfile(props.track, ELEVATION_STYLE_SAMPLES[props.styleId]),
-);
+const values = computed(() => resampleSeries(props.series, ELEVATION_STYLE_SAMPLES[props.styleId]));
 
 /** Запас сверху, чтобы толстая линия (и ореол «Свечения») на пике не обрезались. */
 const top = computed(() => (props.styleId === 'glow' ? 16 : 9) * props.unit);
 
 const shapes = computed(() =>
-  buildElevationShapes(profile.value.values, props.styleId, props.width, props.height, top.value),
+  buildElevationShapes(values.value, props.styleId, props.width, props.height, top.value),
 );
 
 const lineWidth = computed(() => (LINE_WIDTH[props.styleId] ?? 0) * props.unit);

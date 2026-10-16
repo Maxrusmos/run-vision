@@ -21,9 +21,11 @@ import EditorToolPanel from '@/views/photo-editor-view/components/tools/EditorTo
 import {
   EDITOR_TOOLS,
   MAP_EDITOR_TOOLS,
+  TELEMETRY_EDITOR_TOOLS,
   type EditorToolId,
 } from '@/views/photo-editor-view/components/tools/editor-tools';
 import AddElementsPanel from '@/views/photo-editor-view/components/panels/AddElementsPanel.vue';
+import WidgetsPanel from '@/views/photo-editor-view/components/panels/WidgetsPanel.vue';
 import ElevationPanel from '@/views/photo-editor-view/components/panels/ElevationPanel.vue';
 import MapPanel from '@/views/photo-editor-view/components/panels/MapPanel.vue';
 import BackgroundPanel from '@/views/photo-editor-view/components/panels/BackgroundPanel.vue';
@@ -68,7 +70,13 @@ const {
   setElevationSize,
   setElevationLabels,
   setElevationColor,
-  setElevationRow,
+  setWidgetVisible,
+  setBandRows,
+  setTelemetrySize,
+  setTelemetryChartStyle,
+  setTelemetryColor,
+  setTelemetryLabels,
+  setTelemetryGrid,
   setMapKmMarkers,
   setMapStartFinish,
   setMapBearing,
@@ -78,9 +86,15 @@ const {
   canRedo,
 } = useShareCardSettings(getPhotoTemplatePresetId(photoTemplateId.value), {
   withMap: photoTemplateId.value === 'topographic',
+  withTelemetry: photoTemplateId.value === 'telemetry',
+  hasHeartRate: activity.value?.track.some((point) => (point.heartRate ?? 0) > 0) ?? false,
 });
 
-const tools = computed(() => (settings.value.map ? MAP_EDITOR_TOOLS : EDITOR_TOOLS));
+const tools = computed(() => {
+  if (settings.value.map) return MAP_EDITOR_TOOLS;
+  if (settings.value.telemetry) return TELEMETRY_EDITOR_TOOLS;
+  return EDITOR_TOOLS;
+});
 
 const { image, isRendering, isSaving, render, save } = useShareCardExport();
 
@@ -161,9 +175,9 @@ function saveImage() {
   }
 }
 
-/** Перенос графика: строка графика и сдвинутые показатели — одним шагом истории. */
-function moveElevation(row: number, layout: Parameters<typeof setStatPositions>[0]) {
-  setElevationRow(row);
+/** Перенос полосы (график, виджет): строки полос и сдвинутые показатели — одним шагом истории. */
+function moveBands(rows: Record<string, number>, layout: Parameters<typeof setStatPositions>[0]) {
+  setBandRows(rows);
   setStatPositions(layout);
 }
 
@@ -219,7 +233,8 @@ function goBack() {
         @set-title="setTitle"
         @remove-title="setTitleVisible(false)"
         @remove-elevation="setElevationVisible(false)"
-        @move-elevation="moveElevation"
+        @move-bands="moveBands"
+        @remove-widget="setWidgetVisible($event, false)"
         @rotate-map="setMapBearing"
       />
     </FitToBox>
@@ -241,6 +256,7 @@ function goBack() {
             @add-route="setRouteVisible(true)"
             @add-stat="addStat"
             @add-elevation="setElevationVisible(true)"
+            @add-widget="setWidgetVisible($event, true)"
           />
           <MapPanel
             v-else-if="displayedTool === 'map' && settings.map"
@@ -253,6 +269,20 @@ function goBack() {
             @set-km-markers="setMapKmMarkers"
             @set-start-finish="setMapStartFinish"
             @set-bearing="setMapBearing"
+          />
+          <WidgetsPanel
+            v-else-if="displayedTool === 'widgets' && settings.telemetry"
+            :telemetry="settings.telemetry"
+            :route-color="settings.routeColor"
+            :text-color="settings.textColor"
+            :background-color="settings.backgroundColor"
+            :track="activity.track"
+            @toggle-widget="(kind, visible) => setWidgetVisible(kind, visible)"
+            @set-size="setTelemetrySize"
+            @set-chart-style="setTelemetryChartStyle"
+            @set-color="setTelemetryColor"
+            @set-labels="setTelemetryLabels"
+            @set-grid="setTelemetryGrid"
           />
           <ElevationPanel
             v-else-if="displayedTool === 'elevation' && settings.elevation"

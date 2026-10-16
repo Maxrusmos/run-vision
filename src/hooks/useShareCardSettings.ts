@@ -5,6 +5,8 @@ import type {
   ShareColorKey,
   ShareColorPreset,
   ShareElevationSettings,
+  ShareTelemetrySettings,
+  ShareWidgetKind,
   ShareMapLayout,
   ShareMapPitch,
   ShareMapStyle,
@@ -28,6 +30,7 @@ import {
   normalizeMapBearing,
 } from '@/entities/activity/model/activity-share/activity-share-map';
 import { createShareElevationSettings } from '@/entities/activity/model/activity-share/activity-share-elevation';
+import { createShareTelemetrySettings } from '@/entities/activity/model/activity-share/activity-share-widgets';
 import {
   DEFAULT_SHARE_STAT_WIDTH,
   DEFAULT_VISIBLE_SHARE_STATS,
@@ -41,6 +44,10 @@ const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 type ShareCardSettingsOptions = {
   /** Карточка с картой (шаблон «Топография»). */
   withMap?: boolean;
+  /** Карточка с виджетами (шаблон «Телеметрия»). */
+  withTelemetry?: boolean;
+  /** В GPX есть пульс — от этого зависят виджеты по умолчанию. */
+  hasHeartRate?: boolean;
 };
 
 function createSettings(
@@ -58,17 +65,21 @@ function createSettings(
     statWidths: {},
     statPositions: {},
     transparentBackground: false,
-    statStyle: DEFAULT_STAT_STYLE,
+    // «Телеметрия»: уголки-прицелы и светящийся трек — как на приборной панели.
+    statStyle: options.withTelemetry ? 'brackets' : DEFAULT_STAT_STYLE,
     backgroundImage: null,
     backgroundImageFit: 'cover',
     backgroundImagePosition: 'center',
     statSpacing: 12,
     routeVisible: true,
     routeScale: DEFAULT_ROUTE_SCALE,
-    routeStyle: DEFAULT_ROUTE_STYLE,
+    routeStyle: options.withTelemetry ? 'glow' : DEFAULT_ROUTE_STYLE,
     routePosition: null,
     map: options.withMap ? createShareMapSettings() : null,
     elevation: options.withMap ? createShareElevationSettings() : null,
+    telemetry: options.withTelemetry
+      ? createShareTelemetrySettings(options.hasHeartRate ?? false)
+      : null,
   };
 }
 
@@ -290,6 +301,58 @@ export function useShareCardSettings(
     updateElevation({ color });
   }
 
+  function updateTelemetry(patch: Partial<ShareTelemetrySettings>) {
+    if (!settings.value.telemetry) return;
+    settings.value.telemetry = { ...settings.value.telemetry, ...patch };
+  }
+
+  /** Добавленный виджет встаёт в конец — после всех показателей и виджетов. */
+  function setWidgetVisible(kind: ShareWidgetKind, visible: boolean) {
+    const telemetry = settings.value.telemetry;
+    if (!telemetry) return;
+    const widgets = telemetry.widgets.filter((widget) => widget.kind !== kind);
+    if (visible) widgets.push({ kind, row: Number.MAX_SAFE_INTEGER });
+    updateTelemetry({ widgets });
+  }
+
+  /** Строки полос сетки (график высоты, виджеты) после переноса. */
+  function setBandRows(rows: Record<string, number>) {
+    if (settings.value.elevation && rows.elevation !== undefined) {
+      updateElevation({ row: rows.elevation });
+    }
+    const telemetry = settings.value.telemetry;
+    if (telemetry) {
+      updateTelemetry({
+        widgets: telemetry.widgets.map((widget) => ({
+          ...widget,
+          row: rows[`widget-${widget.kind}`] ?? widget.row,
+        })),
+      });
+    }
+  }
+
+  function setTelemetrySize(size: ShareTelemetrySettings['size']) {
+    updateTelemetry({ size });
+  }
+
+  function setTelemetryChartStyle(chartStyle: ShareTelemetrySettings['chartStyle']) {
+    updateTelemetry({ chartStyle });
+  }
+
+  /** null — цвет трека. */
+  function setTelemetryColor(color: string | null) {
+    if (color !== null && !HEX_COLOR_PATTERN.test(color)) return;
+    updateTelemetry({ color });
+  }
+
+  function setTelemetryLabels(labels: boolean) {
+    updateTelemetry({ labels });
+  }
+
+  function setTelemetryGrid(grid: boolean) {
+    updateTelemetry({ grid });
+  }
+
   /** Возвращает карточку к исходному виду выбранного шаблона. */
   function resetSettings() {
     settings.value = createSettings(initialPreset, options);
@@ -316,6 +379,13 @@ export function useShareCardSettings(
     setMapKmMarkers,
     setMapStartFinish,
     setMapBearing,
+    setWidgetVisible,
+    setBandRows,
+    setTelemetrySize,
+    setTelemetryChartStyle,
+    setTelemetryColor,
+    setTelemetryLabels,
+    setTelemetryGrid,
     applyPresetById,
     setColor,
     setBackgroundColor,

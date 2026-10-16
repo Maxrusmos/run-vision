@@ -1,6 +1,6 @@
 export type ShareType = 'photo' | 'video';
 
-export type PhotoTemplateId = 'minimal' | 'topographic' | 'custom';
+export type PhotoTemplateId = 'minimal' | 'topographic' | 'telemetry' | 'custom';
 
 export type ShareStatKey =
   | 'distance'
@@ -75,8 +75,33 @@ export type ShareRoutePosition = {
   y: number;
 };
 
-/** Элемент карточки, который можно выделить: показатель, трек или название. */
-export type ShareCardElement = ShareStatKey | 'route' | 'title' | 'elevation';
+/** Виджет «Телеметрии» — полоса на всю ширину сетки показателей. */
+export type ShareWidgetKind = 'splits' | 'zones' | 'pace' | 'heartRate' | 'elevation';
+
+export type ShareWidget = {
+  kind: ShareWidgetKind;
+  /** Строка в сетке показателей; null — по порядку сразу под треком. */
+  row: number | null;
+};
+
+/** Шаблон «Телеметрия»: виджеты и общее оформление графиков. */
+export type ShareTelemetrySettings = {
+  /** Виджеты на карточке (порядок — для раскладки без заданных строк). */
+  widgets: ShareWidget[];
+  size: ShareElevationSize;
+  /** Вид графиков темпа, пульса и высоты (те же стили, что у графика высоты). */
+  chartStyle: ShareElevationStyle;
+  /** null — цвет трека. */
+  color: string | null;
+  /** Сводка в заголовке виджета (средний, лучший и т.п.). */
+  labels: boolean;
+  /** Тонкая сетка-разметка на фоне, как у приборной панели. */
+  grid: boolean;
+};
+
+/** Элемент карточки, который можно выделить: показатель, трек, название, график, виджет. */
+export type ShareCardElement =
+  ShareStatKey | 'route' | 'title' | 'elevation' | `widget-${ShareWidgetKind}`;
 
 export type ShareColorKey = 'backgroundColor' | 'routeColor' | 'textColor';
 
@@ -183,6 +208,8 @@ export type ShareCardSettings = {
   map: ShareMapSettings | null;
   /** График высоты (только у карточки с картой). */
   elevation: ShareElevationSettings | null;
+  /** Виджеты (только у «Телеметрии»). */
+  telemetry: ShareTelemetrySettings | null;
 };
 
 export type ShareStatOption = {

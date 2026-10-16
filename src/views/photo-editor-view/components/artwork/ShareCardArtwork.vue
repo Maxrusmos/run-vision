@@ -5,6 +5,7 @@ import type {
   ShareCardElement,
   ShareCardSettings,
   ShareColorKey,
+  ShareWidgetKind,
   ShareRoutePosition,
   ShareStat,
   ShareStatKey,
@@ -20,6 +21,11 @@ import ArtworkRoute from '@/views/photo-editor-view/components/artwork/ArtworkRo
 import ArtworkStatsGrid from '@/views/photo-editor-view/components/artwork/ArtworkStatsGrid.vue';
 import ArtworkMap from '@/views/photo-editor-view/components/artwork/ArtworkMap.vue';
 import ArtworkElevation from '@/views/photo-editor-view/components/artwork/ArtworkElevation.vue';
+import ArtworkWidget from '@/views/photo-editor-view/components/artwork/ArtworkWidget.vue';
+import {
+  getWidgetKey,
+  getWidgetRatio,
+} from '@/entities/activity/model/activity-share/activity-share-widgets';
 import type { MapFitPadding } from '@/entities/activity/model/activity-share/activity-share-map';
 import { getElevationSizeRatio } from '@/entities/activity/model/activity-share/activity-share-elevation';
 import type { StatLayout } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
@@ -52,7 +58,8 @@ const emit = defineEmits<{
   setTitle: [value: string];
   removeTitle: [];
   removeElevation: [];
-  moveElevation: [row: number, layout: StatLayout];
+  moveBands: [rows: Record<string, number>, layout: StatLayout];
+  removeWidget: [kind: ShareWidgetKind];
   rotateMap: [bearing: number];
 }>();
 
@@ -78,10 +85,39 @@ const reservedRatio = computed(() =>
   props.settings.routeVisible || props.settings.map ? ROUTE_SLOT_HEIGHT_RATIO : 0,
 );
 
-/** График высоты — полоса в сетке показателей: его можно переставлять между строками. */
-const elevationBand = computed(() =>
-  elevation.value ? { row: elevation.value.row, ratio: elevationRatio.value } : null,
-);
+/**
+ * Полосы в сетке показателей — график высоты и виджеты «Телеметрии»:
+ * занимают строку целиком и переставляются между строками.
+ */
+const bands = computed(() => {
+  const list: { key: ShareCardElement; row: number | null; ratio: number }[] = [];
+  if (elevation.value) {
+    list.push({ key: 'elevation', row: elevation.value.row, ratio: elevationRatio.value });
+  }
+  const telemetry = props.settings.telemetry;
+  for (const widget of telemetry?.widgets ?? []) {
+    list.push({
+      key: getWidgetKey(widget.kind),
+      row: widget.row,
+      ratio: getWidgetRatio(widget.kind, telemetry!.size),
+    });
+  }
+  return list;
+});
+
+/** Вид виджета по ключу полосы `widget-<вид>`. */
+function widgetKind(key: string): ShareWidgetKind | null {
+  return key.startsWith('widget-') ? (key.slice('widget-'.length) as ShareWidgetKind) : null;
+}
+
+function selectBand(key: ShareCardElement) {
+  selected.value = selected.value === key ? null : key;
+}
+
+function removeWidget(kind: ShareWidgetKind) {
+  selected.value = null;
+  emit('removeWidget', kind);
+}
 
 // Карта во весь фон: трек вписывается в свободную область — между названием и показателями.
 const mapArea = useTemplateRef<HTMLElement>('mapArea');
@@ -246,6 +282,9 @@ function removeRoute() {
       :image-position="settings.backgroundImagePosition"
     />
 
+    <!-- «Телеметрия»: тонкая сетка-разметка, как на приборной панели. -->
+    <div v-if="settings.telemetry?.grid" class="share-artwork__hud-grid" aria-hidden="true" />
+
     <div v-if="settings.titleVisible" class="share-artwork__header">
       <ArtworkTitle
         :value="title"
@@ -299,18 +338,29 @@ function removeRoute() {
         :stat-style="settings.statStyle"
         @set-layout="emit('setStatPositions', $event)"
         @reserved-height="visualHeight = $event"
-        :band="elevationBand"
-        @move-band="(row, layout) => emit('moveElevation', row, layout)"
+        :bands="bands"
+        @move-bands="(rows, layout) => emit('moveBands', rows, layout)"
       >
-        <template #band>
+        <template #band="{ bandKey }">
+          <ArtworkWidget
+            v-if="settings.telemetry && widgetKind(bandKey)"
+            :kind="widgetKind(bandKey)!"
+            :track="activity.track"
+            :telemetry="settings.telemetry"
+            :color="settings.telemetry.color ?? settings.routeColor"
+            :text-color="settings.textColor"
+            :selected="selected === bandKey"
+            @select="selectBand(bandKey)"
+            @remove="removeWidget(widgetKind(bandKey)!)"
+          />
           <ArtworkElevation
-            v-if="elevation"
+            v-else-if="elevation && bandKey === 'elevation'"
             :track="activity.track"
             :settings="elevation"
             :color="elevation.color ?? settings.routeColor"
             :text-color="settings.textColor"
             :selected="selected === 'elevation'"
-            @select="selected = selected === 'elevation' ? null : 'elevation'"
+            @select="selectBand('elevation')"
             @remove="removeElevation"
           />
         </template>
@@ -369,6 +419,23 @@ function removeRoute() {
 
 .share-artwork--transparent {
   background: transparent;
+}
+
+.share-artwork__hud-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  /* Обычные градиенты — html-to-image переносит их в PNG. */
+  background:
+    linear-gradient(color-mix(in srgb, var(--share-text) 7%, transparent) 1px, transparent 1px) 0
+      0 / 100% 24px,
+    linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--share-text) 7%, transparent) 1px,
+        transparent 1px
+      )
+      0 0 / 24px 100%;
+  pointer-events: none;
 }
 
 .share-artwork__header {

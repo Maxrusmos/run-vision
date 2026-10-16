@@ -3,7 +3,10 @@ import {
   applyStatDrop,
   getStatDropCells,
   getStatLayoutRows,
+  compactBands,
+  moveBand,
   moveLayoutRow,
+  placeBands,
   resolveStatLayout,
   snapStatColumn,
   type StatLayout,
@@ -194,5 +197,32 @@ describe('строка графика высоты', () => {
       distance: { row: 2, col: 0 },
       duration: { row: 3, col: 3 },
     });
+  });
+});
+
+describe('несколько полос', () => {
+  it('полосы без строки встают по порядку с первой строки под треком', () => {
+    expect(
+      placeBands(
+        [
+          { key: 'a', row: null },
+          { key: 'b', row: null },
+        ],
+        3,
+      ),
+    ).toEqual({ a: 3, b: 4 });
+  });
+
+  it('новый виджет из «конца» подтягивается под последний показатель', () => {
+    const layout = { distance: { row: 3, col: 0 } } as StatLayout;
+    const rows = compactBands({ a: 2, b: Number.MAX_SAFE_INTEGER }, layout, 2);
+    expect(rows).toEqual({ a: 2, b: 4 });
+  });
+
+  it('перенос полосы сдвигает показатели и другие полосы', () => {
+    const layout = { distance: { row: 4, col: 0 } } as StatLayout;
+    const result = moveBand({ a: 2, b: 3 }, layout, 'a', 4);
+    expect(result.rows).toEqual({ a: 4, b: 2 });
+    expect(result.layout.distance).toEqual({ row: 3, col: 0 });
   });
 });

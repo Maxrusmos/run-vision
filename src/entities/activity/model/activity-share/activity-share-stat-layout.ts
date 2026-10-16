@@ -255,14 +255,18 @@ export function applyStatDrop(
  * Строки между ними сдвигаются на одну навстречу: показатели со строки `to`
  * встают на прежнее место полосы, порядок остальных сохраняется.
  */
-export function moveLayoutRow(layout: StatLayout, from: number, to: number): StatLayout {
-  if (from === to) return layout;
-
-  const moveRow = (row: number) => {
+function rowMover(from: number, to: number) {
+  return (row: number) => {
     if (from < to && row > from && row <= to) return row - 1;
     if (to < from && row >= to && row < from) return row + 1;
     return row;
   };
+}
+
+export function moveLayoutRow(layout: StatLayout, from: number, to: number): StatLayout {
+  if (from === to) return layout;
+
+  const moveRow = rowMover(from, to);
 
   return Object.fromEntries(
     Object.entries(layout).map(([key, position]) => [
@@ -270,4 +274,62 @@ export function moveLayoutRow(layout: StatLayout, from: number, to: number): Sta
       { row: moveRow(position.row), col: position.col },
     ]),
   ) as StatLayout;
+}
+
+/** Полоса на всю ширину сетки (график, виджет): ключ и желаемая строка. */
+export type StatBand = { key: string; row: number | null };
+
+/** Строки полос: по порядку списка, не выше `startRow`, без совпадений. */
+export function placeBands(bands: readonly StatBand[], startRow: number): Record<string, number> {
+  const rows: Record<string, number> = {};
+  const taken = new Set<number>();
+  for (const band of bands) {
+    let row = Math.max(startRow, band.row ?? startRow);
+    while (taken.has(row)) row += 1;
+    taken.add(row);
+    rows[band.key] = row;
+  }
+  return rows;
+}
+
+/**
+ * Подтягивает полосы вверх в пустые строки — чтобы над полосой не оставалось
+ * дыры (например, после удаления показателей или у только что добавленного виджета).
+ */
+export function compactBands(
+  rows: Record<string, number>,
+  layout: StatLayout,
+  startRow: number,
+): Record<string, number> {
+  const statRows = Object.values(layout).map((position) => position.row);
+  const result: Record<string, number> = {};
+  const placed: number[] = [];
+
+  for (const [key, row] of Object.entries(rows).sort((a, b) => a[1] - b[1])) {
+    const below = [...statRows, ...placed].filter((other) => other < row);
+    const next = Math.max(startRow, below.length ? Math.max(...below) + 1 : startRow);
+    result[key] = next;
+    placed.push(next);
+  }
+  return result;
+}
+
+/**
+ * Перенос полосы `key` на строку `to`: строки между ними (показатели и другие полосы)
+ * сдвигаются на одну навстречу.
+ */
+export function moveBand(
+  rows: Record<string, number>,
+  layout: StatLayout,
+  key: string,
+  to: number,
+): { rows: Record<string, number>; layout: StatLayout } {
+  const from = rows[key];
+  if (from === undefined || from === to) return { rows, layout };
+
+  const moveRow = rowMover(from, to);
+  const nextRows = Object.fromEntries(
+    Object.entries(rows).map(([band, row]) => [band, band === key ? to : moveRow(row)]),
+  );
+  return { rows: nextRows, layout: moveLayoutRow(layout, from, to) };
 }

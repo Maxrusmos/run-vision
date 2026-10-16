@@ -2,11 +2,14 @@
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
 import type { ITrackPoint } from '@/entities/activity/model/activity.types';
 import type { ShareElevationSettings } from '@/entities/activity/model/activity-share/activity-share.types';
-import { getElevationProfile } from '@/entities/activity/model/activity-share/activity-share-elevation';
+import {
+  ELEVATION_SERIES_SAMPLES,
+  getElevationProfile,
+} from '@/entities/activity/model/activity-share/activity-share-elevation';
 import { ROUTE_LAYER_WIDTH } from '@/entities/activity/model/activity-share/activity-share-route';
 import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
 import SelectionFrame from '@/views/photo-editor-view/components/artwork/SelectionFrame.vue';
-import ElevationChart from '@/views/photo-editor-view/components/artwork/ElevationChart.vue';
+import ProfileChart from '@/views/photo-editor-view/components/artwork/ProfileChart.vue';
 
 const props = defineProps<{
   track: ITrackPoint[];
@@ -21,8 +24,8 @@ const emit = defineEmits<{
   remove: [];
 }>();
 
-// Подписи — по всему треку, независимо от числа точек на графике.
-const profile = computed(() => getElevationProfile(props.track, 2));
+const profile = computed(() => getElevationProfile(props.track, ELEVATION_SERIES_SAMPLES));
+const series = computed(() => profile.value.values);
 const labels = computed(() => {
   if (!props.settings.labels || profile.value.flat) return null;
   const { min, max, gain } = profile.value;
@@ -76,8 +79,8 @@ const unit = computed(() => (box.value.width + 32) / ROUTE_LAYER_WIDTH);
         :height="box.height"
         aria-hidden="true"
       >
-        <ElevationChart
-          :track="track"
+        <ProfileChart
+          :series="series"
           :style-id="settings.style"
           :color="color"
           :accent-color="textColor"

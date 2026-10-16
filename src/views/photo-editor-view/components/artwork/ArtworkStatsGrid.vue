@@ -17,7 +17,10 @@ import {
   getStatSpan,
   resolveStatLayout,
   applyStatDrop,
-  moveLayoutRow,
+  compactBands,
+  moveBand,
+  placeBands,
+  type StatBand,
   type StatDropCell,
   type StatDropTarget,
   type StatLayout,
@@ -35,10 +38,11 @@ const props = defineProps<{
   /** Высота места под трек (доля ширины) — эти строки сверху по умолчанию свободны. */
   reservedHeightRatio: number;
   /**
-   * Полоса на всю ширину (график высоты) — занимает строку сетки целиком,
-   * высота строки — по полосе (`ratio` — высота к ширине). Содержимое — слот `band`.
+   * Полосы на всю ширину (график высоты, виджеты) — каждая занимает строку сетки
+   * целиком, высота строки — по полосе (`ratio` — высота к ширине). Ключ полосы —
+   * он же элемент выделения. Содержимое — слот `band` с `{ key }`.
    */
-  band?: { row: number | null; ratio: number } | null;
+  bands?: readonly (StatBand & { key: ShareCardElement; ratio: number })[];
 }>();
 
 const emit = defineEmits<{
@@ -47,12 +51,9 @@ const emit = defineEmits<{
   setLayout: [layout: StatLayout];
   /** Высота строк над показателями (место под трек или карту), px раскладки. */
   reservedHeight: [height: number];
-  /** Полосу перенесли на строку `row`; `layout` — показатели после переноса. */
-  moveBand: [row: number, layout: StatLayout];
+  /** Полосу перенесли: строки всех полос и показатели после переноса. */
+  moveBands: [rows: Record<string, number>, layout: StatLayout];
 }>();
-
-/** Элемент карточки, который выделяется вместе с полосой. */
-const BAND_ELEMENT: ShareCardElement = 'elevation';
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
 
@@ -117,32 +118,33 @@ watch(
   { immediate: true },
 );
 
-/** Желаемая строка полосы: не выше первой строки под картой. */
-const desiredBandRow = computed(() =>
-  props.band ? Math.max(startRow.value, props.band.row ?? startRow.value) : null,
-);
+const bands = computed(() => props.bands ?? []);
+
+/** Желаемые строки полос: по порядку, не выше первой строки под треком/картой. */
+const desiredBandRows = computed(() => placeBands(bands.value, startRow.value));
 
 const layout = computed(() =>
   resolveStatLayout(items.value, props.statPositions, {
     startRow: startRow.value,
-    blockedRows: desiredBandRow.value === null ? [] : [desiredBandRow.value],
+    blockedRows: Object.values(desiredBandRows.value),
   }),
 );
 
-/** Строка полосы: без пустых строк между ней и последним показателем. */
-const bandRow = computed(() => {
-  const desired = desiredBandRow.value;
-  if (desired === null) return null;
-  return Math.max(startRow.value, Math.min(desired, getStatLayoutRows(layout.value)));
-});
+/** Строки полос: без пустых строк над ними. */
+const bandRows = computed(() => compactBands(desiredBandRows.value, layout.value, startRow.value));
 
-const blockedRows = computed(() => (bandRow.value === null ? [] : [bandRow.value]));
+const blockedRows = computed(() => Object.values(bandRows.value));
 
 const rows = computed(() =>
-  Math.max(getStatLayoutRows(layout.value), startRow.value, (bandRow.value ?? -1) + 1),
+  Math.max(
+    getStatLayoutRows(layout.value),
+    startRow.value,
+    ...blockedRows.value.map((row) => row + 1),
+  ),
 );
 
 type BandDragState = {
+  key: string;
   dy: number;
   scale: number;
   /** Строка, куда встанет полоса, если отпустить сейчас. */
@@ -151,14 +153,14 @@ type BandDragState = {
 
 const bandDrag = ref<BandDragState | null>(null);
 
-/** Пока полосу тащат, показатели сразу расступаются — видно, куда она встанет. */
-const displayLayout = computed(() => {
+/** Раскладка, если отпустить полосу сейчас: показатели и другие полосы уже расступились. */
+const preview = computed(() => {
   const drag = bandDrag.value;
-  if (!drag || bandRow.value === null) return layout.value;
-  return moveLayoutRow(layout.value, bandRow.value, drag.target);
+  if (!drag) return { rows: bandRows.value, layout: layout.value };
+  return moveBand(bandRows.value, layout.value, drag.key, drag.target);
 });
 
-const displayBandRow = computed(() => bandDrag.value?.target ?? bandRow.value);
+const displayLayout = computed(() => preview.value.layout);
 
 const gridStyle = computed<CSSProperties>(() => ({
   gridTemplateColumns: `repeat(${STAT_GRID_COLUMNS}, minmax(0, 1fr))`,
@@ -321,42 +323,47 @@ function setWidth(key: ShareStatKey, width: ShareStatWidth) {
 }
 
 // Перенос полосы: пальцем — после долгого нажатия, мышью и выделенную — сразу.
-const bandElement = useTemplateRef<HTMLElement>('bandElement');
+const gridRoot = gridElement;
 
-const { start: startBandDrag, isClickSuppressed: isBandClickSuppressed } = useLongPressDrag<'band'>(
+const { start: startBandDrag, isClickSuppressed: isBandClickSuppressed } = useLongPressDrag<string>(
   {
-    onStart: () => {
-      const element = bandElement.value;
-      if (!element || bandRow.value === null) return;
+    onStart: (key) => {
+      const element = gridRoot.value?.querySelector<HTMLElement>(`[data-band-key="${key}"]`);
+      const row = bandRows.value[key];
+      if (!element || row === undefined) return;
       const rect = element.getBoundingClientRect();
       selected.value = null;
       bandDrag.value = {
+        key,
         dy: 0,
         scale: element.offsetWidth ? rect.width / element.offsetWidth : 1,
-        target: bandRow.value,
+        target: row,
       };
     },
-    onMove: (_id, _dx, dy) => {
+    onMove: (key, _dx, dy) => {
       const drag = bandDrag.value;
-      if (!drag || bandRow.value === null) return;
+      const row = bandRows.value[key];
+      if (!drag || row === undefined) return;
       drag.dy = dy;
-      // Ближайшая строка: строки между стартом и целью — обычной высоты.
+      // Ближайшая строка: соседние строки — обычной высоты (у полос — своей, это приближение).
       const step = rowHeight.value + gap.value;
       const shift = step ? Math.round(dy / drag.scale / step) : 0;
       const last = Math.max(startRow.value, rows.value - 1);
-      drag.target = Math.min(last, Math.max(startRow.value, bandRow.value + shift));
+      drag.target = Math.min(last, Math.max(startRow.value, row + shift));
     },
-    onEnd: (_id, dropped) => {
+    onEnd: (key, dropped) => {
       const drag = bandDrag.value;
       bandDrag.value = null;
-      if (!dropped || !drag || bandRow.value === null || drag.target === bandRow.value) return;
-      emit('moveBand', drag.target, moveLayoutRow(layout.value, bandRow.value, drag.target));
+      const row = bandRows.value[key];
+      if (!dropped || !drag || row === undefined || drag.target === row) return;
+      const result = moveBand(bandRows.value, layout.value, key, drag.target);
+      emit('moveBands', result.rows, result.layout);
     },
   },
 );
 
-function handleBandPointerDown(event: PointerEvent) {
-  startBandDrag(event, 'band', event.pointerType === 'mouse' || selected.value === BAND_ELEMENT);
+function handleBandPointerDown(event: PointerEvent, key: ShareCardElement) {
+  startBandDrag(event, key, event.pointerType === 'mouse' || selected.value === key);
 }
 
 // Отпустили после перетаскивания — это не тап: выделение не переключаем.
@@ -364,21 +371,26 @@ function handleBandClickCapture(event: MouseEvent) {
   if (isBandClickSuppressed()) event.stopPropagation();
 }
 
-const bandStyle = computed<CSSProperties>(() => {
-  const row = displayBandRow.value ?? 0;
+/** Сумма высот строк между двумя строками (для смещения полосы под пальцем). */
+function rowsOffset(from: number, to: number): number {
+  return (to - from) * (rowHeight.value + gap.value);
+}
+
+function bandStyle(band: { key: string; ratio: number }): CSSProperties {
+  const row = preview.value.rows[band.key] ?? 0;
   const style: CSSProperties = {
     gridRow: `${row + 1}`,
     gridColumn: '1 / -1',
-    aspectRatio: props.band ? `${1 / props.band.ratio}` : undefined,
+    aspectRatio: `${1 / band.ratio}`,
   };
   const drag = bandDrag.value;
-  if (drag && bandRow.value !== null) {
+  const original = bandRows.value[band.key];
+  if (drag?.key === band.key && original !== undefined) {
     // Полоса уже стоит в целевой строке — сдвигаем её обратно под палец.
-    const offset = (drag.target - bandRow.value) * (rowHeight.value + gap.value);
-    style.transform = `translateY(${drag.dy / drag.scale - offset}px)`;
+    style.transform = `translateY(${drag.dy / drag.scale - rowsOffset(original, drag.target)}px)`;
   }
   return style;
-});
+}
 
 function remove(key: ShareStatKey) {
   if (selected.value === key) {
@@ -425,25 +437,25 @@ function remove(key: ShareStatKey) {
       @set-width="setWidth(stat.key, $event)"
     />
 
-    <template v-if="band && displayBandRow !== null">
-      <!-- Место, которое займёт полоса, если отпустить сейчас. -->
-      <div
-        v-if="bandDrag"
-        class="stats-grid__band-slot export-hidden"
-        :style="{ gridRow: `${displayBandRow + 1}`, gridColumn: '1 / -1' }"
-        aria-hidden="true"
-      />
-      <div
-        ref="bandElement"
-        class="stats-grid__band"
-        :class="{ 'stats-grid__band--dragging': bandDrag }"
-        :style="bandStyle"
-        @pointerdown="handleBandPointerDown"
-        @click.capture="handleBandClickCapture"
-      >
-        <slot name="band" />
-      </div>
-    </template>
+    <!-- Место, которое займёт полоса, если отпустить сейчас. -->
+    <div
+      v-if="bandDrag"
+      class="stats-grid__band-slot export-hidden"
+      :style="{ gridRow: `${bandDrag.target + 1}`, gridColumn: '1 / -1' }"
+      aria-hidden="true"
+    />
+    <div
+      v-for="band in bands"
+      :key="band.key"
+      class="stats-grid__band"
+      :class="{ 'stats-grid__band--dragging': bandDrag?.key === band.key }"
+      :style="bandStyle(band)"
+      :data-band-key="band.key"
+      @pointerdown="handleBandPointerDown($event, band.key)"
+      @click.capture="handleBandClickCapture"
+    >
+      <slot name="band" :band-key="band.key" />
+    </div>
 
     <!-- Эталон для высоты строки сетки. -->
     <ShareCardStatItem

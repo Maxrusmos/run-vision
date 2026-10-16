@@ -1,5 +1,5 @@
 export type EditorToolId =
-  'add' | 'background' | 'map' | 'elevation' | 'presets' | 'track' | 'stats';
+  'add' | 'background' | 'map' | 'elevation' | 'widgets' | 'presets' | 'track' | 'stats';
 
 export type EditorTool = {
   id: EditorToolId;
@@ -28,4 +28,12 @@ export const MAP_EDITOR_TOOLS: readonly EditorTool[] = EDITOR_TOOLS.flatMap(
     }
     return [tool];
   },
+);
+
+/** «Телеметрия»: перед «Показателями» — виджеты (сплиты, зоны, графики). */
+export const TELEMETRY_EDITOR_TOOLS: readonly EditorTool[] = EDITOR_TOOLS.flatMap(
+  (tool): EditorTool[] =>
+    tool.id === 'stats'
+      ? [{ id: 'widgets', icon: 'mdi-view-dashboard-outline', label: 'Виджеты' }, tool]
+      : [tool],
 );

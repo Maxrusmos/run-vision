@@ -13,6 +13,7 @@ export const SHARE_COLOR_PRESETS: readonly ShareColorPreset[] = [
   { id: 'neon', name: 'Неон', background: '#19152E', route: '#C6FF00', text: '#FFFFFF' },
   { id: 'sakura', name: 'Сакура', background: '#FCE7F3', route: '#DB2777', text: '#831843' },
   { id: 'graphite', name: 'Графитовый', background: '#27272A', route: '#A1A1AA', text: '#FFFFFF' },
+  { id: 'hud', name: 'HUD', background: '#0A1118', route: '#2EE6FF', text: '#DDF7FF' },
   // Яркие
   { id: 'fire', name: 'Огонь', background: '#FF4D00', route: '#FFF3B0', text: '#FFFFFF' },
   { id: 'electric', name: 'Электрик', background: '#1B4DFF', route: '#FFE600', text: '#FFFFFF' },

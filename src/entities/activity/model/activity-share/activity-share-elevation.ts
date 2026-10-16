@@ -138,6 +138,9 @@ export function getElevationProfile(track: ITrackPoint[], samples: number): Elev
   return { values, min, max, gain, loss, flat };
 }
 
+/** Точек в профиле, который рисует график (дальше `ProfileChart` пересчитывает под стиль). */
+export const ELEVATION_SERIES_SAMPLES = 400;
+
 /** Сколько точек профиля нужно стилю. */
 export const ELEVATION_STYLE_SAMPLES: Record<ShareElevationStyle, number> = {
   area: 120,

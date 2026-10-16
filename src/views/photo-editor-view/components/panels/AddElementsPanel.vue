@@ -3,7 +3,9 @@ import { computed } from 'vue';
 import type {
   ShareCardSettings,
   ShareStatKey,
+  ShareWidgetKind,
 } from '@/entities/activity/model/activity-share/activity-share.types';
+import { SHARE_WIDGETS } from '@/entities/activity/model/activity-share/activity-share-widgets';
 import { SHARE_STAT_EMPTY_VALUE } from '@/entities/activity/model/activity-share/activity-share-stats';
 import { SHARE_STAT_OPTIONS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
@@ -17,7 +19,18 @@ const emit = defineEmits<{
   addRoute: [];
   addStat: [key: ShareStatKey];
   addElevation: [];
+  addWidget: [kind: ShareWidgetKind];
 }>();
+
+/** «Телеметрия»: виджеты, которых нет на карточке. */
+const availableWidgets = computed(() => {
+  const telemetry = props.settings.telemetry;
+  if (!telemetry) return [];
+  const hasHeartRate = props.statValues.averageHeartRate !== SHARE_STAT_EMPTY_VALUE;
+  return SHARE_WIDGETS.filter(
+    (widget) => !telemetry.widgets.some((item) => item.kind === widget.kind),
+  ).map((widget) => ({ ...widget, hasData: !widget.needsHeartRate || hasHeartRate }));
+});
 
 const availableStats = computed(() =>
   SHARE_STAT_OPTIONS.filter((option) => !props.settings.visibleStats.includes(option.key)).map(
@@ -69,6 +82,23 @@ const hasElements = computed(
       </button>
     </div>
 
+    <div v-if="availableWidgets.length" class="add-panel__group">
+      <button
+        v-for="widget in availableWidgets"
+        :key="widget.kind"
+        type="button"
+        class="add-panel__item"
+        :disabled="!widget.hasData"
+        @click="emit('addWidget', widget.kind)"
+      >
+        <v-icon :icon="widget.icon" size="18" />
+        <span class="add-panel__text">
+          <span class="add-panel__label">{{ widget.name }}</span>
+          <span class="add-panel__value">{{ widget.hasData ? 'Виджет' : 'Нет данных в GPX' }}</span>
+        </span>
+      </button>
+    </div>
+
     <div v-if="availableStats.length" class="add-panel__group">
       <button
         v-for="stat in availableStats"
@@ -86,7 +116,10 @@ const hasElements = computed(
       </button>
     </div>
 
-    <p v-if="!hasElements && !availableStats.length" class="add-panel__empty">
+    <p
+      v-if="!hasElements && !availableStats.length && !availableWidgets.length"
+      class="add-panel__empty"
+    >
       Всё уже на карточке.
     </p>
   </div>

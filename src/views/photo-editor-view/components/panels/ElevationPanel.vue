@@ -7,14 +7,16 @@ import type {
   ShareElevationStyle,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import {
+  ELEVATION_SERIES_SAMPLES,
   SHARE_ELEVATION_SIZES,
   SHARE_ELEVATION_STYLES,
+  getElevationProfile,
 } from '@/entities/activity/model/activity-share/activity-share-elevation';
 import OptionTile from '@/views/photo-editor-view/components/settings/OptionTile.vue';
 import OptionTileRow from '@/views/photo-editor-view/components/settings/OptionTileRow.vue';
 import ColorOptionTile from '@/views/photo-editor-view/components/settings/ColorOptionTile.vue';
 import SegmentedGroup from '@/views/photo-editor-view/components/settings/SegmentedGroup.vue';
-import ElevationChart from '@/views/photo-editor-view/components/artwork/ElevationChart.vue';
+import ProfileChart from '@/views/photo-editor-view/components/artwork/ProfileChart.vue';
 
 /** Превью графика в плитке: размер и масштаб линий (крупнее пропорции карточки). */
 const PREVIEW = { width: 64, height: 34, unit: 0.22 };
@@ -34,6 +36,8 @@ const emit = defineEmits<{
   /** null — цвет трека. */
   setColor: [color: string | null];
 }>();
+
+const series = computed(() => getElevationProfile(props.track, ELEVATION_SERIES_SAMPLES).values);
 
 const color = computed(() => props.elevation.color ?? props.routeColor);
 
@@ -102,8 +106,8 @@ const labelOptions = [
             :style="{ background: backgroundColor }"
             aria-hidden="true"
           >
-            <ElevationChart
-              :track="track"
+            <ProfileChart
+              :series="series"
               :style-id="style.id"
               :color="color"
               :accent-color="textColor"
