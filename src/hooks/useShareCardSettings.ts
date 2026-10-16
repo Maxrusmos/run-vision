@@ -6,6 +6,7 @@ import type {
   ShareRoutePosition,
   ShareRouteSize,
   ShareStatKey,
+  ShareStatPosition,
   ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import {
@@ -30,6 +31,7 @@ function createSettings(preset: ShareColorPreset): ShareCardSettings {
     presetId: preset.id,
     visibleStats: [...DEFAULT_VISIBLE_SHARE_STATS],
     statWidths: {},
+    statPositions: {},
     transparentBackground: false,
     showStatBorders: true,
     backgroundImage: null,
@@ -39,7 +41,6 @@ function createSettings(preset: ShareColorPreset): ShareCardSettings {
     routeVisible: true,
     routeSize: DEFAULT_ROUTE_SIZE,
     routePosition: null,
-    routeBehindStats: false,
   };
 }
 
@@ -96,10 +97,11 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
 
   function removeStat(key: ShareStatKey) {
     settings.value.visibleStats = settings.value.visibleStats.filter((item) => item !== key);
+    delete settings.value.statPositions[key];
   }
 
-  function reorderStats(keys: ShareStatKey[]) {
-    settings.value.visibleStats = keys;
+  function setStatPositions(positions: Partial<Record<ShareStatKey, ShareStatPosition>>) {
+    settings.value.statPositions = { ...positions };
   }
 
   function setStatWidth(key: ShareStatKey, width: ShareStatWidth) {
@@ -151,10 +153,6 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     settings.value = createSettings(initialPreset);
   }
 
-  function setRouteBehindStats(value: boolean) {
-    settings.value.routeBehindStats = value;
-  }
-
   return {
     settings,
     setRouteVisible,
@@ -162,12 +160,11 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     setRoutePosition,
     setTitle,
     resetSettings,
-    setRouteBehindStats,
     applyPresetById,
     setColor,
     addStat,
     removeStat,
-    reorderStats,
+    setStatPositions,
     setStatWidth,
     setStatSpacing,
     setShowStatBorders,

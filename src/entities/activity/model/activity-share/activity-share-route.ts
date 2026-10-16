@@ -4,6 +4,9 @@ import type { ShareRoutePosition, ShareRouteSize } from './activity-share.types'
 /** Ширина слоя трека в условных единицах; высота считается по пропорциям слоя. */
 export const ROUTE_LAYER_WIDTH = 1000;
 
+/** Высота места под трек относительно ширины контента карточки. */
+export const ROUTE_SLOT_HEIGHT_RATIO = 3 / 5;
+
 export const DEFAULT_ROUTE_SIZE: ShareRouteSize = 'medium';
 
 /** Масштаб относительно места под трек (M — заполняет его целиком). */

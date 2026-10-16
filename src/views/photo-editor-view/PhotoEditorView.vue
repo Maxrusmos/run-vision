@@ -33,7 +33,7 @@ const {
   setColor,
   addStat,
   removeStat,
-  reorderStats,
+  setStatPositions,
   setStatWidth,
   setStatSpacing,
   setShowStatBorders,
@@ -45,7 +45,6 @@ const {
   setRoutePosition,
   setTitle,
   resetSettings,
-  setRouteBehindStats,
 } = useShareCardSettings(getPhotoTemplatePresetId(photoTemplateId.value));
 
 const { image, isRendering, isSaving, render, save } = useShareCardExport();
@@ -112,7 +111,6 @@ function goBack() {
         @set-transparent-background="setTransparentBackground"
         @set-background-image="setBackgroundImage"
         @remove-background-image="removeBackgroundImage"
-        @set-route-behind-stats="setRouteBehindStats"
         @apply-preset="applyPresetById"
       />
 
@@ -135,7 +133,7 @@ function goBack() {
             :exporting="isExporting"
             @set-color="setColor"
             @remove-stat="removeStat"
-            @reorder-stats="reorderStats"
+            @set-stat-positions="setStatPositions"
             @set-stat-width="setStatWidth"
             @set-route-size="setRouteSize"
             @set-route-position="setRoutePosition"

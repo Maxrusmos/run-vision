@@ -31,6 +31,7 @@ const emit = defineEmits<{
     ]"
     data-selectable
     @click="emit('select')"
+    @contextmenu.prevent
   >
     <SelectionFrame v-if="selected" />
 
@@ -59,22 +60,11 @@ const emit = defineEmits<{
   border: 1px solid transparent;
   border-radius: 12px;
   cursor: pointer;
-  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
   transition: border-color 180ms ease;
-}
-
-/* Сетка из 6 колонок: треть = 2, половина = 3, вся ширина = 6. */
-.stat--third {
-  grid-column: span 2;
-}
-
-.stat--half {
-  grid-column: span 3;
-}
-
-.stat--full {
-  grid-column: 1 / -1;
 }
 
 .stat--bordered {
@@ -83,6 +73,8 @@ const emit = defineEmits<{
 
 .stat--selected {
   z-index: 2;
+  /* Выделенный показатель перетаскивается сразу, без прокрутки страницы. */
+  touch-action: none;
 }
 
 .stat__toolbar {

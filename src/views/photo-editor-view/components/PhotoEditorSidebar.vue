@@ -13,7 +13,6 @@ const emit = defineEmits<{
   setTransparentBackground: [value: boolean];
   setBackgroundImage: [file: File];
   removeBackgroundImage: [];
-  setRouteBehindStats: [value: boolean];
   applyPreset: [id: string];
 }>();
 </script>
@@ -27,7 +26,6 @@ const emit = defineEmits<{
       @set-transparent-background="emit('setTransparentBackground', $event)"
       @set-background-image="emit('setBackgroundImage', $event)"
       @remove-background-image="emit('removeBackgroundImage')"
-      @set-route-behind-stats="emit('setRouteBehindStats', $event)"
     />
     <ShareColorPresets :settings="settings" @apply-preset="emit('applyPreset', $event)" />
   </aside>

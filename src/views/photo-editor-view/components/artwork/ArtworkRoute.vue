@@ -190,19 +190,28 @@ const { handlePointerDown } = usePointerDrag({
           stroke-linejoin="round"
         />
         <circle v-if="start" :cx="start.x" :cy="start.y" :r="START_RADIUS / scale" :fill="color" />
-        <polyline
-          v-if="!selected"
-          class="route-layer__hit export-hidden"
-          :points="polylinePoints"
-          fill="none"
-          stroke="transparent"
-          :stroke-width="HIT_STROKE_WIDTH / scale"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          data-selectable
-          @click="emit('select')"
-        />
       </g>
+    </svg>
+
+    <!-- Зона касания лежит под показателями: тап по показателю не выделяет трек. -->
+    <svg
+      v-if="polylinePoints && !selected"
+      class="route-layer__hit-svg export-hidden"
+      :viewBox="`0 0 ${layer.width} ${layer.height}`"
+      aria-hidden="true"
+    >
+      <polyline
+        class="route-layer__hit"
+        :transform="transform"
+        :points="polylinePoints"
+        fill="none"
+        stroke="transparent"
+        :stroke-width="HIT_STROKE_WIDTH / scale"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        data-selectable
+        @click="emit('select')"
+      />
     </svg>
 
     <!-- Выделенный трек перетаскивается за всю рамку, без прокрутки страницы. -->
@@ -241,13 +250,28 @@ const { handlePointerDown } = usePointerDrag({
   -webkit-tap-highlight-color: transparent;
 }
 
-.route-layer__svg {
+/*
+ * Слой без своего z-index, поэтому его части встают в общий порядок карточки:
+ * линия трека (2) — над показателями (1), зона касания (0) — под ними,
+ * рамка выделенного трека (5) — над всем, включая название (4).
+ */
+.route-layer__svg,
+.route-layer__hit-svg {
   position: absolute;
   inset: 0;
   display: block;
   width: 100%;
   height: 100%;
   overflow: visible;
+  pointer-events: none;
+}
+
+.route-layer__svg {
+  z-index: 2;
+}
+
+.route-layer__hit-svg {
+  z-index: 0;
 }
 
 .route-layer__hit {
@@ -257,6 +281,7 @@ const { handlePointerDown } = usePointerDrag({
 
 .route-layer__frame {
   position: absolute;
+  z-index: 5;
   border-radius: 16px;
   cursor: grab;
   pointer-events: auto;

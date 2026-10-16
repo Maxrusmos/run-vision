@@ -9,9 +9,11 @@ import type {
   ShareRouteSize,
   ShareStat,
   ShareStatKey,
+  ShareStatPosition,
   ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import { getShareStatCardLabel } from '@/entities/activity/model/activity-share/activity-share-stat-options';
+import { ROUTE_SLOT_HEIGHT_RATIO } from '@/entities/activity/model/activity-share/activity-share-route';
 import ArtworkBackground from '@/views/photo-editor-view/components/artwork/ArtworkBackground.vue';
 import ArtworkHeader from '@/views/photo-editor-view/components/artwork/ArtworkHeader.vue';
 import ArtworkRoute from '@/views/photo-editor-view/components/artwork/ArtworkRoute.vue';
@@ -32,7 +34,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   setColor: [key: ShareColorKey, color: string];
   removeStat: [key: ShareStatKey];
-  reorderStats: [keys: ShareStatKey[]];
+  setStatPositions: [positions: Partial<Record<ShareStatKey, ShareStatPosition>>];
   setStatWidth: [key: ShareStatKey, width: ShareStatWidth];
   setRouteSize: [size: ShareRouteSize];
   setRoutePosition: [position: ShareRoutePosition];
@@ -93,8 +95,6 @@ function removeRoute() {
     :class="{
       'share-artwork--transparent': settings.transparentBackground,
       'share-artwork--exporting': exporting,
-      'share-artwork--route-behind': settings.routeBehindStats,
-      'share-artwork--route-selected': selected === 'route',
     }"
     :style="cssVariables"
     @click="handleClick"
@@ -120,18 +120,25 @@ function removeRoute() {
     />
 
     <div class="share-artwork__body">
-      <!-- Место под трек в раскладке: задаёт его исходные положение и размер. -->
-      <div v-if="settings.routeVisible" ref="routeSlot" class="share-artwork__route-slot" />
+      <!-- Место под трек: задаёт его исходные положение и размер (M). -->
+      <div
+        v-if="settings.routeVisible"
+        ref="routeSlot"
+        class="share-artwork__route-slot"
+        :style="{ aspectRatio: 1 / ROUTE_SLOT_HEIGHT_RATIO }"
+      />
 
+      <!-- Показатели раскладываются по сетке на всей высоте — от названия до низа. -->
       <ArtworkStatsGrid
         v-model:selected="selected"
-        class="share-artwork__stats"
         :stats="stats"
         :stat-widths="settings.statWidths"
+        :stat-positions="settings.statPositions"
         :show-borders="settings.showStatBorders"
-        @reorder="emit('reorderStats', $event)"
+        :reserved-height-ratio="settings.routeVisible ? ROUTE_SLOT_HEIGHT_RATIO : 0"
         @remove="emit('removeStat', $event)"
         @set-width="(key, width) => emit('setStatWidth', key, width)"
+        @set-layout="emit('setStatPositions', $event)"
       />
 
       <!-- Трек двигается по всей области: от низа названия до низа карточки. -->
@@ -190,36 +197,24 @@ function removeRoute() {
    поэтому выделенный трек может подняться над названием. */
 .share-artwork__body {
   position: relative;
-  padding-top: 16px;
+  margin-top: 16px;
 }
 
 .share-artwork__route-slot {
-  aspect-ratio: 5 / 3;
-  margin-bottom: 12px;
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  pointer-events: none;
 }
 
-.share-artwork__stats {
-  position: relative;
-  z-index: 1;
-}
-
-/* Слой трека: от верха тела карточки (низ названия) до низа карточки, на всю ширину. */
+/* Слой трека: от низа названия до низа карточки, на всю ширину.
+   Порядок наложения его частей задан внутри ArtworkRoute. */
 .share-artwork__route {
   position: absolute;
-  z-index: 2;
-  top: 0;
+  top: -16px;
   right: calc(-1 * var(--share-card-padding));
   bottom: calc(-1 * var(--share-card-padding));
   left: calc(-1 * var(--share-card-padding));
-}
-
-/* Трек под показателями. */
-.share-artwork--route-behind .share-artwork__route {
-  z-index: 0;
-}
-
-/* Выделенный трек всегда сверху (и над названием), чтобы его можно было двигать. */
-.share-artwork--route-selected .share-artwork__route {
-  z-index: 5;
 }
 </style>

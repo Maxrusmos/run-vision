@@ -21,6 +21,12 @@ export type ShareStatKey =
 
 export type ShareStatWidth = 'third' | 'half' | 'full';
 
+/** Ячейка показателя в сетке из 6 колонок: строка и первая колонка. */
+export type ShareStatPosition = {
+  row: number;
+  col: number;
+};
+
 export type ShareRouteSize = 'small' | 'medium' | 'large';
 
 /**
@@ -56,6 +62,8 @@ export type ShareCardSettings = {
   presetId: string | null;
   visibleStats: ShareStatKey[];
   statWidths: Partial<Record<ShareStatKey, ShareStatWidth>>;
+  /** Позиции, выставленные пользователем; остальные раскладываются автоматически. */
+  statPositions: Partial<Record<ShareStatKey, ShareStatPosition>>;
   transparentBackground: boolean;
   showStatBorders: boolean;
   backgroundImage: string | null;
@@ -66,8 +74,6 @@ export type ShareCardSettings = {
   routeSize: ShareRouteSize;
   /** null — трек стоит на своём месте между названием и показателями. */
   routePosition: ShareRoutePosition | null;
-  /** Трек рисуется фоном под показателями. */
-  routeBehindStats: boolean;
 };
 
 export type ShareStatOption = {
