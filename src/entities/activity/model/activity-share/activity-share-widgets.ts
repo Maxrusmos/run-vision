@@ -58,14 +58,21 @@ export const SHARE_WIDGET_PLACEMENTS = [
   { value: 'right', label: '◨', title: 'Справа' },
 ] as const;
 
-export function createShareTelemetrySettings(hasHeartRate: boolean): ShareTelemetrySettings {
+export function createShareTelemetrySettings(
+  hasHeartRate: boolean,
+  hasElevation = true,
+): ShareTelemetrySettings {
   // По умолчанию одна «лента» справа от трека — чтобы карточка не была стопкой строк.
+  // Ставим только виджет с данными: зоны (есть пульс) или высоту (есть высота).
+  const sideKind: ShareWidgetKind | null = hasHeartRate
+    ? 'zones'
+    : hasElevation
+      ? 'elevation'
+      : null;
   const widgets: ShareTelemetrySettings['widgets'] = [
     { kind: 'splits', row: null, side: null },
     { kind: 'pace', row: null, side: null },
-    hasHeartRate
-      ? { kind: 'zones', row: null, side: 'right' }
-      : { kind: 'elevation', row: null, side: 'right' },
+    ...(sideKind ? [{ kind: sideKind, row: null, side: 'right' as const }] : []),
   ];
   return {
     widgets,

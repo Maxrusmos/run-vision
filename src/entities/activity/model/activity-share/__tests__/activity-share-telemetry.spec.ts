@@ -78,3 +78,32 @@ describe('ряды', () => {
     expect(normalizeSeries([5, 5])).toEqual([0.5, 0.5]);
   });
 });
+
+describe('длинные треки', () => {
+  it('пульс и зоны на 200 тыс. точек не падают (нет Math.max(...массив))', () => {
+    const long = track(
+      200_000,
+      () => 1,
+      (index) => 120 + (index % 50),
+    );
+    expect(() => getHeartRateSeries(long)).not.toThrow();
+    expect(getHeartRateZones(long)).not.toBeNull();
+  });
+});
+
+describe('без времени', () => {
+  it('сплитов и темпа нет', () => {
+    const noTime = track(30, () => 0);
+    expect(getSplits(noTime)).toEqual([]);
+    expect(getPaceSeries(noTime)).toBeNull();
+    expect(
+      getHeartRateZones(
+        track(
+          30,
+          () => 0,
+          () => 150,
+        ),
+      ),
+    ).toBeNull();
+  });
+});

@@ -38,7 +38,7 @@ import {
 } from '@/entities/activity/model/activity-share/activity-share-widgets';
 import {
   DEFAULT_SHARE_STAT_WIDTH,
-  DEFAULT_VISIBLE_SHARE_STATS,
+  getDefaultVisibleStats,
 } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
 export const STAT_SPACING_MIN = 0;
@@ -53,6 +53,10 @@ type ShareCardSettingsOptions = {
   withTelemetry?: boolean;
   /** В GPX есть пульс — от этого зависят виджеты по умолчанию. */
   hasHeartRate?: boolean;
+  /** В GPX есть высота — иначе график высоты и боковой виджет высоты не ставятся. */
+  hasElevation?: boolean;
+  /** Есть ли данные для показателя: пустые не ставятся на новую карточку. */
+  isStatAvailable?: (key: ShareStatKey) => boolean;
 };
 
 function createSettings(
@@ -66,7 +70,7 @@ function createSettings(
     routeColor: preset.route,
     textColor: preset.text,
     presetId: preset.id,
-    visibleStats: [...DEFAULT_VISIBLE_SHARE_STATS],
+    visibleStats: getDefaultVisibleStats(options.isStatAvailable),
     statWidths: {},
     statPositions: {},
     transparentBackground: false,
@@ -81,9 +85,12 @@ function createSettings(
     routeStyle: options.withTelemetry ? 'glow' : DEFAULT_ROUTE_STYLE,
     routePosition: null,
     map: options.withMap ? createShareMapSettings() : null,
-    elevation: options.withMap ? createShareElevationSettings() : null,
+    // Без высоты в GPX график был бы пустым — не ставим его (можно добавить вручную).
+    elevation: options.withMap
+      ? { ...createShareElevationSettings(), visible: options.hasElevation ?? true }
+      : null,
     telemetry: options.withTelemetry
-      ? createShareTelemetrySettings(options.hasHeartRate ?? false)
+      ? createShareTelemetrySettings(options.hasHeartRate ?? false, options.hasElevation ?? true)
       : null,
   };
 }

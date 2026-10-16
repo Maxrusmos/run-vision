@@ -1,10 +1,6 @@
 import type { IActivity, ITrackPoint } from '@/entities/activity/model/activity.types';
 import { getBestEffortSeconds } from '@/entities/activity/model/activity-best-effort';
-import {
-  buildElevationPoints,
-  getElevationStats,
-  smoothElevationPoints,
-} from '@/entities/activity/model/elevation/elevation-calculations';
+import { getElevationProfile } from './activity-share-elevation';
 import {
   formatClockDuration,
   formatElevation,
@@ -54,11 +50,15 @@ function withUnit(value: string, unit: string): string {
   return value === EMPTY_VALUE ? value : `${value} ${unit}`;
 }
 
-function getElevationStatsForTrack(track: ITrackPoint[]) {
-  if (track.length < 2) return null;
-
-  // Сглаживаем высоту, чтобы шум GPS не завышал набор и сброс.
-  return getElevationStats(smoothElevationPoints(buildElevationPoints(track)));
+/**
+ * Набор, сброс и максимум высоты — из того же профиля, что у графика высоты
+ * (сглаживание по дистанции, порог 3 м): иначе цифра на карточке и подпись графика
+ * расходятся в разы — шум GPS даёт ложный «набор».
+ */
+function getElevationStatsForActivity(activity: IActivity) {
+  if (!activity.hasElevation || activity.track.length < 2) return null;
+  const profile = getElevationProfile(activity.track, 2);
+  return { gain: profile.gain, loss: profile.loss, max: profile.max };
 }
 
 /**
@@ -70,7 +70,8 @@ export function getActivityShareStats(activity: IActivity): Record<ShareStatKey,
   const heartRates = getPositiveValues(track, (point) => point.heartRate);
   const cadences = getPositiveValues(track, (point) => point.cadence);
   const averageCadence = average(cadences);
-  const elevation = getElevationStatsForTrack(track);
+  const elevation = getElevationStatsForActivity(activity);
+  const hasTime = activity.hasTimestamps;
   const elapsedSeconds = (activity.finishedAt.getTime() - activity.startedAt.getTime()) / 1000;
   const bestKmSeconds = getBestEffortSeconds(track, 1000);
   const best5kSeconds = getBestEffortSeconds(track, 5000);
@@ -88,23 +89,25 @@ export function getActivityShareStats(activity: IActivity): Record<ShareStatKey,
   return {
     distance: hasDistance ? `${formatPlaybackDistance(distanceMeters)} км` : EMPTY_VALUE,
     duration: hasMovingTime ? formatClockDuration(durationSeconds) : EMPTY_VALUE,
-    elapsedTime: isPositive(elapsedSeconds) ? formatClockDuration(elapsedSeconds) : EMPTY_VALUE,
+    elapsedTime:
+      hasTime && isPositive(elapsedSeconds) ? formatClockDuration(elapsedSeconds) : EMPTY_VALUE,
     averagePace: isPositive(averagePaceSecondsPerKm)
       ? `${formatPace(averagePaceSecondsPerKm)} /км`
       : EMPTY_VALUE,
     averageSpeed: speedKmh === null ? EMPTY_VALUE : `${speedKmh.toFixed(1)} км/ч`,
-    bestKm: bestKmSeconds === null ? EMPTY_VALUE : `${formatPace(bestKmSeconds)} /км`,
-    best5k: best5kSeconds === null ? EMPTY_VALUE : formatClockDuration(best5kSeconds),
+    bestKm: isPositive(bestKmSeconds) ? `${formatPace(bestKmSeconds)} /км` : EMPTY_VALUE,
+    best5k: isPositive(best5kSeconds) ? formatClockDuration(best5kSeconds) : EMPTY_VALUE,
     averageHeartRate: withUnit(formatHeartRate(average(heartRates)), 'уд/мин'),
     maxHeartRate: withUnit(formatHeartRate(max(heartRates)), 'уд/мин'),
     averageCadence: isPositive(averageCadence)
       ? `${Math.round(averageCadence)} шаг/мин`
       : EMPTY_VALUE,
     strideLength: strideMeters === null ? EMPTY_VALUE : `${strideMeters.toFixed(2)} м`,
-    elevationGain: formatElevation(elevation?.totalAscentMeters ?? null),
-    elevationLoss: formatElevation(elevation?.totalDescentMeters ?? null),
-    maxElevation: formatElevation(elevation?.maxElevation ?? null),
-    startTime: formatTimeOfDay(activity.startedAt),
-    date: formatShortDate(activity.startedAt),
+    elevationGain: formatElevation(elevation?.gain ?? null),
+    elevationLoss: formatElevation(elevation?.loss ?? null),
+    maxElevation: formatElevation(elevation?.max ?? null),
+    // Без времени в GPX даты нет — не подставляем «сегодня».
+    startTime: hasTime ? formatTimeOfDay(activity.startedAt) : EMPTY_VALUE,
+    date: hasTime ? formatShortDate(activity.startedAt) : EMPTY_VALUE,
   };
 }

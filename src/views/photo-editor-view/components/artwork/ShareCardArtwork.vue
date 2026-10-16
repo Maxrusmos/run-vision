@@ -386,6 +386,7 @@ function removeRoute() {
             :kind="widgetKind(bandKey)!"
             :side="side"
             :track="activity.track"
+            :average-pace="activity.averagePaceSecondsPerKm"
             :telemetry="settings.telemetry"
             :color="settings.telemetry.color ?? settings.routeColor"
             :text-color="settings.textColor"

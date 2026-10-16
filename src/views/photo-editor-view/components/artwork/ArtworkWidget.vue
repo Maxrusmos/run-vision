@@ -41,6 +41,11 @@ const props = defineProps<{
   preview?: boolean;
   /** Вертикальная «лента» у края области трека; без него — строка на всю ширину. */
   side?: ShareWidgetSide | null;
+  /**
+   * Средний темп тренировки (по времени в движении) — тот же, что у показателя
+   * «Средний темп»; без него — по общему времени с остановками.
+   */
+  averagePace?: number;
 }>();
 
 const emit = defineEmits<{
@@ -60,6 +65,9 @@ const placement = computed({
 const option = computed(() => findShareWidget(props.kind));
 
 const pace = computed(() => (props.kind === 'pace' ? getPaceSeries(props.track) : null));
+const averagePace = computed(() =>
+  props.averagePace && props.averagePace > 0 ? props.averagePace : (pace.value?.average ?? 0),
+);
 const heartRate = computed(() =>
   props.kind === 'heartRate' ? getHeartRateSeries(props.track) : null,
 );
@@ -109,7 +117,7 @@ const summary = computed(() => {
   if (!props.telemetry.labels || props.preview) return '';
   if (vertical.value) return compactSummary.value;
   if (pace.value) {
-    return `ср. ${formatPace(pace.value.average)} · лучш. ${formatPace(pace.value.best)} /км`;
+    return `ср. ${formatPace(averagePace.value)} · лучш. ${formatPace(pace.value.best)} /км`;
   }
   if (heartRate.value) {
     return `ср. ${Math.round(heartRate.value.average)} · макс. ${Math.round(heartRate.value.best)}`;
@@ -130,7 +138,7 @@ const summary = computed(() => {
 });
 
 const compactSummary = computed(() => {
-  if (pace.value) return `${formatPace(pace.value.average)} /км`;
+  if (pace.value) return `${formatPace(averagePace.value)} /км`;
   if (heartRate.value) return `${Math.round(heartRate.value.average)} уд/мин`;
   if (elevation.value && !elevation.value.flat) return `↑ ${Math.round(elevation.value.gain)} м`;
   if (props.kind === 'splits' && fastestSplit.value !== null) {

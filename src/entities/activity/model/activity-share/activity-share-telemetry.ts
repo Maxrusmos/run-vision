@@ -109,6 +109,16 @@ export function normalizeSeries(values: number[], invert = false): number[] {
   });
 }
 
+/**
+ * Максимум циклом: `Math.max(...массив)` на треке из сотен тысяч точек падает
+ * с RangeError (предел числа аргументов; в Safari он ещё ниже).
+ */
+function maxOf(values: readonly number[]): number {
+  let result = -Infinity;
+  for (const value of values) if (value > result) result = value;
+  return result;
+}
+
 function quantile(sorted: number[], q: number): number {
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(q * (sorted.length - 1))))]!;
 }
@@ -158,7 +168,7 @@ export function getHeartRateSeries(track: ITrackPoint[]): TelemetrySeries | null
   return {
     values,
     average: rates.reduce((sum, rate) => sum + rate, 0) / rates.length,
-    best: Math.max(...rates),
+    best: maxOf(rates),
   };
 }
 
@@ -178,7 +188,9 @@ const MIN_LAST_SPLIT_KM = 0.2;
 export function getSplits(track: ITrackPoint[]): TelemetrySplit[] {
   const samples = measureTrack(track);
   const total = samples[samples.length - 1]?.distance ?? 0;
-  if (samples.length < 2 || total <= 0) return [];
+  const totalTime = samples[samples.length - 1]?.time ?? 0;
+  // Без времени в GPX темпа нет — не рисуем сплиты «0:00».
+  if (samples.length < 2 || total <= 0 || !(totalTime > 0)) return [];
 
   const timeAt = (distance: number) => {
     let index = samples.findIndex((sample) => sample.distance >= distance);
@@ -222,7 +234,7 @@ export function getHeartRateZones(track: ITrackPoint[]): HeartRateZone[] | null 
   const rates = samples.map((sample) => sample.heartRate).filter((rate) => rate !== null);
   if (rates.length < 2) return null;
 
-  const max = Math.max(...rates);
+  const max = maxOf(rates);
   const bounds = ZONE_BOUNDS.map((share) => share * max);
   const time = [0, 0, 0, 0, 0];
   for (let index = 1; index < samples.length; index++) {

@@ -26,6 +26,29 @@ export const DEFAULT_VISIBLE_SHARE_STATS: readonly ShareStatKey[] = [
   'averageHeartRate',
 ];
 
+/** Замена показателю по умолчанию, если для него нет данных (например, нет пульса в GPX). */
+const DEFAULT_STAT_FALLBACKS: readonly ShareStatKey[] = [
+  'elevationGain',
+  'averageSpeed',
+  'averageCadence',
+  'date',
+];
+
+/**
+ * Показатели новой карточки: набор по умолчанию, но без пустых («—») —
+ * их место занимают запасные с данными, чтобы на карточке не стояли прочерки.
+ */
+export function getDefaultVisibleStats(
+  isAvailable: (key: ShareStatKey) => boolean = () => true,
+): ShareStatKey[] {
+  const stats = DEFAULT_VISIBLE_SHARE_STATS.filter(isAvailable);
+  for (const key of DEFAULT_STAT_FALLBACKS) {
+    if (stats.length >= DEFAULT_VISIBLE_SHARE_STATS.length) break;
+    if (isAvailable(key) && !stats.includes(key)) stats.push(key);
+  }
+  return stats;
+}
+
 export const DEFAULT_SHARE_STAT_WIDTH: ShareStatWidth = 'half';
 
 export const SHARE_STAT_WIDTH_OPTIONS: readonly {

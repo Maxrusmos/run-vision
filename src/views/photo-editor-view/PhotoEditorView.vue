@@ -4,7 +4,10 @@ import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import type { ShareCardElement } from '@/entities/activity/model/activity-share/activity-share.types';
 import type { BandState } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
-import { getActivityShareStats } from '@/entities/activity/model/activity-share/activity-share-stats';
+import {
+  SHARE_STAT_EMPTY_VALUE,
+  getActivityShareStats,
+} from '@/entities/activity/model/activity-share/activity-share-stats';
 import { getPhotoTemplatePresetId } from '@/entities/activity/model/activity-share/photo-templates';
 import { useActivityStore } from '@/stores/activity.store';
 import { useShareStore } from '@/stores/share.store';
@@ -40,6 +43,8 @@ const DESELECT_ANIMATION_MS = 160;
 const router = useRouter();
 const { activity } = storeToRefs(useActivityStore());
 const { photoTemplateId } = storeToRefs(useShareStore());
+
+const initialStatValues = activity.value ? getActivityShareStats(activity.value) : null;
 
 const {
   settings,
@@ -92,6 +97,9 @@ const {
   withMap: photoTemplateId.value === 'topographic',
   withTelemetry: photoTemplateId.value === 'telemetry',
   hasHeartRate: activity.value?.track.some((point) => (point.heartRate ?? 0) > 0) ?? false,
+  hasElevation: activity.value?.hasElevation ?? false,
+  // Показатели без данных («—») на новую карточку не ставим.
+  isStatAvailable: (key) => initialStatValues?.[key] !== SHARE_STAT_EMPTY_VALUE,
 });
 
 const tools = computed(() => {
