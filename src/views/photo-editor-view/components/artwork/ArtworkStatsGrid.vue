@@ -15,7 +15,9 @@ import {
   getStatLayoutRows,
   getStatSpan,
   resolveStatLayout,
+  applyStatDrop,
   type StatDropCell,
+  type StatDropTarget,
   type StatLayout,
 } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
 import { useFlipAnimation } from '@/hooks/useFlipAnimation';
@@ -51,9 +53,10 @@ type DragState = {
   /** Центр элемента в момент начала перетаскивания (координаты экрана). */
   originX: number;
   originY: number;
-  /** Куда встанет показатель и какую ширину получит. */
-  target: StatDropCell | null;
+  target: DropTarget | null;
 };
+
+type DropTarget = StatDropTarget;
 
 const gridElement = useTemplateRef<HTMLElement>('grid');
 const probe = useTemplateRef<InstanceType<typeof ShareCardStatItem>>('probe');
@@ -131,7 +134,13 @@ const dropCells = computed<DropCell[]>(() => {
 });
 
 function isTarget(cell: DropCell): boolean {
-  return drag.value?.target?.row === cell.row && drag.value.target.col === cell.col;
+  const target = drag.value?.target;
+  return target?.kind === 'cell' && target.row === cell.row && target.col === cell.col;
+}
+
+function isSwapTarget(key: ShareStatKey): boolean {
+  const target = drag.value?.target;
+  return target?.kind === 'swap' && target.key === key;
 }
 
 // Анимируем смену ширины, перестановки, добавление и удаление показателей.
@@ -141,17 +150,20 @@ useFlipAnimation(gridElement, () => ({
   layout: layout.value,
 }));
 
-function findNearestCell(): StatDropCell | null {
+/** Ближайшая к центру перетаскиваемого показателя цель: свободное место или другой показатель. */
+function findNearestTarget(): DropTarget | null {
   const state = drag.value;
   const grid = gridElement.value;
   if (!state || !grid) return null;
 
   const centerX = state.originX + state.dx;
   const centerY = state.originY + state.dy;
-  let nearest: StatDropCell | null = null;
+  let nearest: DropTarget | null = null;
   let nearestDistance = Infinity;
 
-  grid.querySelectorAll<HTMLElement>('[data-drop-cell]').forEach((element) => {
+  const consider = (element: HTMLElement, target: DropTarget | null) => {
+    if (!target) return;
+
     const rect = element.getBoundingClientRect();
     const distance = Math.hypot(
       rect.left + rect.width / 2 - centerX,
@@ -160,8 +172,18 @@ function findNearestCell(): StatDropCell | null {
 
     if (distance < nearestDistance) {
       nearestDistance = distance;
-      nearest = dropCells.value.find((cell) => cell.id === element.dataset.dropCell) ?? nearest;
+      nearest = target;
     }
+  };
+
+  grid.querySelectorAll<HTMLElement>('[data-drop-cell]').forEach((element) => {
+    const cell = dropCells.value.find((item) => item.id === element.dataset.dropCell);
+    consider(element, cell ? { kind: 'cell', ...cell } : null);
+  });
+
+  grid.querySelectorAll<HTMLElement>('[data-flip-key]').forEach((element) => {
+    const key = element.dataset.flipKey as ShareStatKey;
+    consider(element, key === state.key ? null : { kind: 'swap', key });
   });
 
   return nearest;
@@ -179,14 +201,14 @@ const { start: startDrag, isClickSuppressed } = useLongPressDrag<ShareStatKey>({
       dy: 0,
       originX: rect ? rect.left + rect.width / 2 : 0,
       originY: rect ? rect.top + rect.height / 2 : 0,
-      target: { ...layout.value[key], width: getWidth(key) },
+      target: { kind: 'cell', ...layout.value[key], width: getWidth(key) },
     };
   },
   onMove: (_key, dx, dy) => {
     if (!drag.value) return;
     drag.value.dx = dx;
     drag.value.dy = dy;
-    drag.value.target = findNearestCell() ?? drag.value.target;
+    drag.value.target = findNearestTarget() ?? drag.value.target;
   },
   onEnd: (key, dropped) => {
     const target = drag.value?.target;
@@ -194,19 +216,11 @@ const { start: startDrag, isClickSuppressed } = useLongPressDrag<ShareStatKey>({
 
     if (!dropped || !target) return;
 
-    // В строке с другими показателями перетащенный принимает их ширину.
-    if (target.width !== getWidth(key)) {
-      emit('setWidth', key, target.width);
-    }
-
-    emit(
-      'setLayout',
-      resolveStatLayout(
-        items.value.map((item) => (item.key === key ? { key, width: target.width } : item)),
-        { ...layout.value, [key]: { row: target.row, col: target.col } },
-        { startRow: startRow.value, priorityKey: key },
-      ),
-    );
+    const result = applyStatDrop(items.value, layout.value, key, target, startRow.value);
+    result.widths.forEach((width, statKey) => {
+      if (width !== getWidth(statKey)) emit('setWidth', statKey, width);
+    });
+    emit('setLayout', result.layout);
   },
 });
 
@@ -262,7 +276,10 @@ function remove(key: ShareStatKey) {
       :width="getWidth(stat.key)"
       :selected="selected === stat.key"
       :show-border="showBorders"
-      :class="{ 'stat--dragging': drag?.key === stat.key }"
+      :class="{
+        'stat--dragging': drag?.key === stat.key,
+        'stat--swap-target': isSwapTarget(stat.key),
+      }"
       :style="itemStyle(stat.key)"
       @pointerdown="handlePointerDown($event, stat.key)"
       @select="toggleSelected(stat.key)"
@@ -322,6 +339,12 @@ function remove(key: ShareStatKey) {
 .stats-grid :deep(.stat) {
   z-index: 1;
   pointer-events: auto;
+}
+
+.stats-grid :deep(.stat--swap-target) {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--share-text) 70%, transparent);
+  background: color-mix(in srgb, var(--share-text) 8%, transparent);
 }
 
 .stats-grid :deep(.stat--dragging) {

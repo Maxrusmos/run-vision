@@ -175,16 +175,15 @@ function removeRoute() {
   --share-stat-gap: 12px;
   --share-stat-padding-y: 6px;
   --share-stat-padding-x: 8px;
-  --share-card-padding: clamp(16px, 4vw, 32px);
-  --share-top-strip: 48px;
+  /* Одинаковый отступ со всех сторон карточки. */
+  --share-card-padding: 16px;
 
   position: relative;
   box-sizing: border-box;
   width: 100%;
   max-width: 600px;
   margin-inline: auto;
-  /* Сверху — полоса под пипетку цвета фона, чтобы её ничто не перекрывало. */
-  padding: var(--share-top-strip) var(--share-card-padding) var(--share-card-padding);
+  padding: var(--share-card-padding);
   overflow: hidden;
   border-radius: 16px;
   font-family: Inter, Arial, sans-serif;
@@ -199,7 +198,8 @@ function removeRoute() {
 .share-artwork__header {
   position: relative;
   z-index: 4;
-  padding-right: 8px;
+  /* Справа — место под пипетку цвета фона в углу карточки. */
+  padding-right: 44px;
 }
 
 /* Без z-index: тело не создаёт свой контекст наложения,

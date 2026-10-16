@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyStatDrop,
   getStatDropCells,
   getStatLayoutRows,
   resolveStatLayout,
@@ -100,5 +101,44 @@ describe('getStatDropCells', () => {
       { row: 3, col: 2, width: 'third' },
       { row: 3, col: 4, width: 'third' },
     ]);
+  });
+});
+
+describe('applyStatDrop', () => {
+  it('меняет показатели местами и размерами', () => {
+    const items = [third('distance'), third('duration'), half('averagePace'), half('maxHeartRate')];
+    const layout = resolveStatLayout(items, {
+      distance: { row: 0, col: 0 },
+      duration: { row: 0, col: 2 },
+      averagePace: { row: 1, col: 0 },
+      maxHeartRate: { row: 1, col: 3 },
+    });
+
+    const result = applyStatDrop(items, layout, 'distance', { kind: 'swap', key: 'maxHeartRate' });
+
+    expect(result.widths.get('distance')).toBe('half');
+    expect(result.widths.get('maxHeartRate')).toBe('third');
+    expect(result.layout.distance).toEqual({ row: 1, col: 3 });
+    expect(result.layout.maxHeartRate).toEqual({ row: 0, col: 0 });
+    expect(result.layout.duration).toEqual({ row: 0, col: 2 });
+    expect(result.layout.averagePace).toEqual({ row: 1, col: 0 });
+  });
+
+  it('в свободное место показатель встаёт с шириной этого места', () => {
+    const items = [half('distance'), third('duration')];
+    const layout = resolveStatLayout(items, {
+      distance: { row: 0, col: 0 },
+      duration: { row: 2, col: 0 },
+    });
+
+    const result = applyStatDrop(items, layout, 'duration', {
+      kind: 'cell',
+      row: 0,
+      col: 3,
+      width: 'half',
+    });
+
+    expect(result.widths.get('duration')).toBe('half');
+    expect(result.layout.duration).toEqual({ row: 0, col: 3 });
   });
 });

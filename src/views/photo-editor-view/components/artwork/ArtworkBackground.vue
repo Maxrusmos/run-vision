@@ -55,8 +55,9 @@ const emit = defineEmits<{
 
 .artwork-background__editor {
   position: absolute;
-  top: 8px;
+  top: 12px;
   right: 12px;
-  z-index: 5;
+  /* Над названием, треком и показателями — пипетка фона видна всегда. */
+  z-index: 7;
 }
 </style>
