@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import type { ShareStatWidth } from '@/entities/activity/model/activity-share/activity-share.types';
+import type {
+  ShareStatStyle,
+  ShareStatWidth,
+} from '@/entities/activity/model/activity-share/activity-share.types';
 import { SHARE_STAT_WIDTH_OPTIONS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
+import ColorPickerButton from '@/shared/ui/ColorPickerButton.vue';
 import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
 import SelectionFrame from '@/views/photo-editor-view/components/artwork/SelectionFrame.vue';
 
@@ -10,12 +14,15 @@ defineProps<{
   width: ShareStatWidth;
   showBorder: boolean;
   selected: boolean;
+  textColor: string;
+  statStyle: ShareStatStyle;
 }>();
 
 const emit = defineEmits<{
   select: [];
   remove: [];
   setWidth: [width: ShareStatWidth];
+  changeTextColor: [color: string];
 }>();
 </script>
 
@@ -24,6 +31,7 @@ const emit = defineEmits<{
     class="stat"
     :class="[
       `stat--${width}`,
+      `stat--style-${statStyle}`,
       {
         'stat--bordered': showBorder,
         'stat--selected': selected,
@@ -44,7 +52,14 @@ const emit = defineEmits<{
       :inert="!selected"
       @update:model-value="emit('setWidth', $event!)"
       @remove="emit('remove')"
-    />
+    >
+      <!-- Цвет текста меняется для всей карточки. -->
+      <ColorPickerButton
+        label="Цвет текста"
+        :color="textColor"
+        @change="emit('changeTextColor', $event)"
+      />
+    </ArtworkElementToolbar>
 
     <div class="stat__label">{{ label }}</div>
     <div class="stat__value">{{ value }}</div>
@@ -69,6 +84,84 @@ const emit = defineEmits<{
 
 .stat--bordered {
   border-color: color-mix(in srgb, var(--share-text) 18%, transparent);
+}
+
+/*
+ * Пресеты внешнего вида. Без backdrop-filter и прочих эффектов, которые
+ * не попадают в PNG: в редакторе и на картинке показатель выглядит одинаково.
+ */
+
+/* Стекло: светлая полупрозрачная заливка с бликом по верхнему краю. */
+.stat--style-glass {
+  border-color: color-mix(in srgb, #fff 35%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, #fff 24%, transparent),
+    color-mix(in srgb, #fff 6%, transparent) 65%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 50%, transparent),
+    0 6px 18px rgb(0 0 0 / 18%);
+}
+
+/* Скорость: полосы движения, акцент цвета трека и наклонные цифры. */
+.stat--style-speed {
+  border-color: transparent;
+  border-left: 3px solid var(--share-route);
+  border-radius: 4px 12px 12px 4px;
+  background:
+    repeating-linear-gradient(
+      115deg,
+      transparent 0 10px,
+      color-mix(in srgb, var(--share-text) 7%, transparent) 10px 12px
+    ),
+    linear-gradient(90deg, color-mix(in srgb, var(--share-route) 24%, transparent), transparent 85%);
+}
+
+.stat--style-speed .stat__label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.stat--style-speed .stat__value {
+  font-style: italic;
+  letter-spacing: -0.02em;
+  transform: skewX(-8deg);
+  transform-origin: left bottom;
+}
+
+/* Плитка: сплошная мягкая заливка без рамки. */
+.stat--style-tile {
+  border-color: transparent;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--share-text) 12%, transparent);
+}
+
+/* Неон: светящаяся рамка и цифры цвета трека. */
+.stat--style-neon {
+  border-color: var(--share-route);
+  box-shadow:
+    0 0 8px color-mix(in srgb, var(--share-route) 70%, transparent),
+    inset 0 0 8px color-mix(in srgb, var(--share-route) 35%, transparent);
+}
+
+.stat--style-neon .stat__value {
+  color: var(--share-route);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--share-route) 80%, transparent);
+}
+
+/* Минимал: только тонкая линия снизу и подпись капсом. */
+.stat--style-minimal {
+  border-color: transparent;
+  border-bottom-color: color-mix(in srgb, var(--share-text) 28%, transparent);
+  border-radius: 0;
+}
+
+.stat--style-minimal .stat__label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .stat--selected {

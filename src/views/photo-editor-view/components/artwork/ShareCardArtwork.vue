@@ -6,7 +6,6 @@ import type {
   ShareCardSettings,
   ShareColorKey,
   ShareRoutePosition,
-  ShareRouteSize,
   ShareStat,
   ShareStatKey,
   ShareStatPosition,
@@ -14,8 +13,9 @@ import type {
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import { getShareStatCardLabel } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 import { ROUTE_SLOT_HEIGHT_RATIO } from '@/entities/activity/model/activity-share/activity-share-route';
+import { eventPathMatches } from '@/shared/lib/dom/event-path';
 import ArtworkBackground from '@/views/photo-editor-view/components/artwork/ArtworkBackground.vue';
-import ArtworkHeader from '@/views/photo-editor-view/components/artwork/ArtworkHeader.vue';
+import ArtworkTitle from '@/views/photo-editor-view/components/artwork/ArtworkTitle.vue';
 import ArtworkRoute from '@/views/photo-editor-view/components/artwork/ArtworkRoute.vue';
 import ArtworkStatsGrid from '@/views/photo-editor-view/components/artwork/ArtworkStatsGrid.vue';
 
@@ -36,10 +36,11 @@ const emit = defineEmits<{
   removeStat: [key: ShareStatKey];
   setStatPositions: [positions: Partial<Record<ShareStatKey, ShareStatPosition>>];
   setStatWidth: [key: ShareStatKey, width: ShareStatWidth];
-  setRouteSize: [size: ShareRouteSize];
+  setRouteScale: [scale: number];
   setRoutePosition: [position: ShareRoutePosition];
   removeRoute: [];
   setTitle: [value: string];
+  removeTitle: [];
 }>();
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
@@ -77,9 +78,14 @@ const cssVariables = computed(() => {
 
 // Тап мимо выделенного элемента снимает выделение.
 function handleClick(event: MouseEvent) {
-  if (!(event.target as Element).closest('[data-selectable]')) {
+  if (!eventPathMatches(event, '[data-selectable]')) {
     selected.value = null;
   }
+}
+
+function removeTitle() {
+  selected.value = null;
+  emit('removeTitle');
 }
 
 function removeRoute() {
@@ -100,24 +106,21 @@ function removeRoute() {
     @click="handleClick"
   >
     <ArtworkBackground
-      :color="settings.backgroundColor"
       :transparent="settings.transparentBackground"
       :image="settings.backgroundImage"
       :image-fit="settings.backgroundImageFit"
       :image-position="settings.backgroundImagePosition"
-      @change-color="emit('setColor', 'backgroundColor', $event)"
     />
 
-    <ArtworkHeader
-      class="share-artwork__header"
-      :title="title"
-      :date="activity.startedAt"
-      :text-color="settings.textColor"
-      :title-selected="selected === 'title'"
-      @select-title="selected = 'title'"
-      @change-title="emit('setTitle', $event)"
-      @change-text-color="emit('setColor', 'textColor', $event)"
-    />
+    <div v-if="settings.titleVisible" class="share-artwork__header">
+      <ArtworkTitle
+        :value="title"
+        :selected="selected === 'title'"
+        @select="selected = 'title'"
+        @change="emit('setTitle', $event)"
+        @remove="removeTitle"
+      />
+    </div>
 
     <div class="share-artwork__body">
       <!-- Место под трек: задаёт его исходные положение и размер (M). -->
@@ -138,7 +141,10 @@ function removeRoute() {
         :reserved-height-ratio="settings.routeVisible ? ROUTE_SLOT_HEIGHT_RATIO : 0"
         @remove="emit('removeStat', $event)"
         @set-width="(key, width) => emit('setStatWidth', key, width)"
+        :text-color="settings.textColor"
+        :stat-style="settings.statStyle"
         @set-layout="emit('setStatPositions', $event)"
+        @change-text-color="emit('setColor', 'textColor', $event)"
       />
 
       <!-- Трек двигается по всей области: от низа названия до низа карточки. -->
@@ -147,13 +153,13 @@ function removeRoute() {
         class="share-artwork__route"
         :track="activity.track"
         :color="settings.routeColor"
-        :size="settings.routeSize"
+        :scale="settings.routeScale"
         :position="settings.routePosition"
         :selected="selected === 'route'"
         :slot-element="routeSlot"
         @select="selected = 'route'"
         @change-color="emit('setColor', 'routeColor', $event)"
-        @set-size="emit('setRouteSize', $event)"
+        @set-scale="emit('setRouteScale', $event)"
         @set-position="emit('setRoutePosition', $event)"
         @remove="removeRoute"
       />
@@ -169,7 +175,8 @@ function removeRoute() {
   --share-stat-gap: 12px;
   --share-stat-padding-y: 6px;
   --share-stat-padding-x: 8px;
-  --share-card-padding: clamp(16px, 4vw, 32px);
+  /* Одинаковый отступ со всех сторон карточки. */
+  --share-card-padding: 16px;
 
   position: relative;
   box-sizing: border-box;

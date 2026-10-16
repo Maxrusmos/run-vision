@@ -1,11 +1,17 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useRoute } from 'vue-router';
 import AppHeader from '@/views/layouts/components/AppHeader.vue';
 import GpxImportErrorAlert from '@/components/gpx-import/GpxImportErrorAlert.vue';
+
+const route = useRoute();
+// Полноэкранные страницы (редактор) показывают свою панель вместо шапки приложения.
+const hasAppHeader = computed(() => !route.meta.hideAppHeader);
 </script>
 
 <template>
-  <v-app class="app">
-    <AppHeader />
+  <v-app class="app" :class="{ 'app--with-header': hasAppHeader }">
+    <AppHeader v-if="hasAppHeader" />
 
     <v-main class="app-main">
       <div class="app-content">
@@ -42,7 +48,7 @@ import GpxImportErrorAlert from '@/components/gpx-import/GpxImportErrorAlert.vue
 }
 
 @media (max-width: 600px) {
-  :deep(.v-main) {
+  .app--with-header :deep(.v-main) {
     padding-top: 48px !important;
   }
 

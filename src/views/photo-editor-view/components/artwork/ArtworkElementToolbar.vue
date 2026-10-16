@@ -1,9 +1,12 @@
 <script setup lang="ts" generic="T extends string">
+import { computed } from 'vue';
+
 /**
- * Панель действий выделенного элемента карточки:
- * слот для своих кнопок (например, пипетки), переключатель вариантов и удаление.
+ * Панель действий выделенного элемента карточки: слот для своих кнопок
+ * (например, пипетки), переключатель вариантов и удаление.
+ * Переключатель — одна кнопка, которая по нажатию перебирает варианты по кругу.
  */
-defineProps<{
+const props = defineProps<{
   options?: readonly { value: T; label: string; title: string }[];
   optionsLabel?: string;
   /** Подпись кнопки удаления; без неё кнопка не показывается. */
@@ -11,6 +14,17 @@ defineProps<{
 }>();
 
 const value = defineModel<T>();
+
+const currentIndex = computed(() =>
+  Math.max(0, props.options?.findIndex((option) => option.value === value.value) ?? 0),
+);
+const current = computed(() => props.options?.[currentIndex.value]);
+
+function selectNext() {
+  const options = props.options;
+  if (!options?.length) return;
+  value.value = options[(currentIndex.value + 1) % options.length]!.value;
+}
 
 const emit = defineEmits<{
   remove: [];
@@ -21,27 +35,16 @@ const emit = defineEmits<{
   <div class="element-toolbar" data-selectable @click.stop @pointerdown.stop>
     <slot />
 
-    <div
-      v-if="options?.length"
-      class="element-toolbar__options"
-      role="radiogroup"
-      :aria-label="optionsLabel"
+    <button
+      v-if="current"
+      class="element-toolbar__cycle"
+      type="button"
+      :aria-label="`${optionsLabel}: ${current.title}. Нажмите, чтобы изменить`"
+      :title="current.title"
+      @click="selectNext"
     >
-      <button
-        v-for="option in options"
-        :key="option.value"
-        class="element-toolbar__option"
-        :class="{ 'element-toolbar__option--active': value === option.value }"
-        type="button"
-        role="radio"
-        :aria-checked="value === option.value"
-        :aria-label="option.title"
-        :title="option.title"
-        @click="value = option.value"
-      >
-        {{ option.label }}
-      </button>
-    </div>
+      {{ current.label }}
+    </button>
 
     <button
       v-if="removeLabel"
@@ -72,15 +75,7 @@ const emit = defineEmits<{
   font-size: 12px;
 }
 
-.element-toolbar__options {
-  display: flex;
-  padding: 1px;
-  border-radius: 999px;
-  background: #475569;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 30%);
-}
-
-.element-toolbar__option,
+.element-toolbar__cycle,
 .element-toolbar__remove {
   display: flex;
   align-items: center;
@@ -95,23 +90,16 @@ const emit = defineEmits<{
   -webkit-tap-highlight-color: transparent;
 }
 
-.element-toolbar__option {
-  min-width: var(--toolbar-button-size);
+.element-toolbar__cycle {
+  min-width: calc(var(--toolbar-button-size) + 6px);
+  padding: 0 6px;
   border-radius: 999px;
-  background: transparent;
+  background: #475569;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 30%);
   font:
-    700 11px/1 Inter,
+    700 12px/1 Inter,
     Arial,
     sans-serif;
-  opacity: 0.75;
-  transition:
-    background-color 150ms ease,
-    opacity 150ms ease;
-}
-
-.element-toolbar__option--active {
-  background: rgb(255 255 255 / 28%);
-  opacity: 1;
 }
 
 .element-toolbar__remove {

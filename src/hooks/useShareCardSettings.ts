@@ -1,12 +1,13 @@
 import { onScopeDispose, ref } from 'vue';
+import { useUndoRedo } from '@/hooks/useUndoRedo';
 import type {
   ShareCardSettings,
   ShareColorKey,
   ShareColorPreset,
   ShareRoutePosition,
-  ShareRouteSize,
   ShareStatKey,
   ShareStatPosition,
+  ShareStatStyle,
   ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import {
@@ -14,7 +15,8 @@ import {
   findSharePreset,
   findSharePresetByColors,
 } from '@/entities/activity/model/activity-share/activity-share-presets';
-import { DEFAULT_ROUTE_SIZE } from '@/entities/activity/model/activity-share/activity-share-route';
+import { DEFAULT_ROUTE_SCALE } from '@/entities/activity/model/activity-share/activity-share-route';
+import { DEFAULT_STAT_STYLE } from '@/entities/activity/model/activity-share/activity-share-stat-styles';
 import { DEFAULT_VISIBLE_SHARE_STATS } from '@/entities/activity/model/activity-share/activity-share-stat-options';
 
 export const STAT_SPACING_MIN = 0;
@@ -25,6 +27,7 @@ const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 function createSettings(preset: ShareColorPreset): ShareCardSettings {
   return {
     title: null,
+    titleVisible: true,
     backgroundColor: preset.background,
     routeColor: preset.route,
     textColor: preset.text,
@@ -34,34 +37,39 @@ function createSettings(preset: ShareColorPreset): ShareCardSettings {
     statPositions: {},
     transparentBackground: false,
     showStatBorders: true,
+    statStyle: DEFAULT_STAT_STYLE,
     backgroundImage: null,
     backgroundImageFit: 'cover',
     backgroundImagePosition: 'center',
     statSpacing: 12,
     routeVisible: true,
-    routeSize: DEFAULT_ROUTE_SIZE,
+    routeScale: DEFAULT_ROUTE_SCALE,
     routePosition: null,
   };
 }
 
 /**
  * Состояние редактора карточки. Object URL фонового фото освобождается
- * при замене, удалении и уничтожении области видимости.
+ * только при уничтожении области видимости: старое фото может понадобиться при отмене.
  */
 export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRESET_ID) {
   const initialPreset =
     findSharePreset(initialPresetId) ?? findSharePreset(DEFAULT_SHARE_PRESET_ID)!;
 
   const settings = ref<ShareCardSettings>(createSettings(initialPreset));
+  const history = useUndoRedo(settings, { limit: 10 });
 
-  function releaseBackgroundImage() {
-    if (settings.value.backgroundImage) {
-      URL.revokeObjectURL(settings.value.backgroundImage);
-      settings.value.backgroundImage = null;
-    }
+  // Object URL всех загруженных фото: отмена может вернуть любое из них.
+  const backgroundImageUrls = new Set<string>();
+
+  function removeBackgroundImage() {
+    settings.value.backgroundImage = null;
   }
 
-  onScopeDispose(releaseBackgroundImage);
+  onScopeDispose(() => {
+    backgroundImageUrls.forEach((url) => URL.revokeObjectURL(url));
+    backgroundImageUrls.clear();
+  });
 
   function applyPreset(preset: ShareColorPreset) {
     settings.value.routeColor = preset.route;
@@ -90,6 +98,12 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
       })?.id ?? null;
   }
 
+  /** Цвет фона из меню; выбор цвета выключает прозрачность. */
+  function setBackgroundColor(value: string) {
+    setColor('backgroundColor', value);
+    settings.value.transparentBackground = false;
+  }
+
   function addStat(key: ShareStatKey) {
     if (settings.value.visibleStats.includes(key)) return;
     settings.value.visibleStats.push(key);
@@ -116,6 +130,29 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     settings.value.showStatBorders = value;
   }
 
+  function setStatStyle(style: ShareStatStyle) {
+    settings.value.statStyle = style;
+  }
+
+  /**
+   * Сетка «N в ряд»: все показатели получают одну ширину и заново
+   * раскладываются по порядку — сохраняется текущий порядок на карточке.
+   */
+  function setStatColumns(width: ShareStatWidth) {
+    const { visibleStats, statPositions } = settings.value;
+    const order = (key: ShareStatKey) => {
+      const position = statPositions[key];
+      return position ? position.row * 100 + position.col : Infinity;
+    };
+
+    // Infinity у показателей без позиции: они остаются в конце в прежнем порядке.
+    settings.value.visibleStats = [...visibleStats].sort((a, b) =>
+      order(a) === order(b) ? 0 : order(a) < order(b) ? -1 : 1,
+    );
+    settings.value.statWidths = Object.fromEntries(visibleStats.map((key) => [key, width]));
+    settings.value.statPositions = {};
+  }
+
   function setTransparentBackground(value: boolean) {
     // Прозрачный фон недоступен, пока загружено фоновое фото.
     settings.value.transparentBackground = value && !settings.value.backgroundImage;
@@ -124,8 +161,9 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
   function setBackgroundImage(file: File) {
     if (!file.type.startsWith('image/')) return;
 
-    releaseBackgroundImage();
-    settings.value.backgroundImage = URL.createObjectURL(file);
+    const url = URL.createObjectURL(file);
+    backgroundImageUrls.add(url);
+    settings.value.backgroundImage = url;
     settings.value.transparentBackground = false;
   }
 
@@ -133,12 +171,16 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
     settings.value.routeVisible = value;
   }
 
-  function setRouteSize(size: ShareRouteSize) {
-    settings.value.routeSize = size;
+  function setRouteScale(scale: number) {
+    settings.value.routeScale = scale;
   }
 
   function setRoutePosition(position: ShareRoutePosition) {
     settings.value.routePosition = position;
+  }
+
+  function setTitleVisible(value: boolean) {
+    settings.value.titleVisible = value;
   }
 
   function setTitle(value: string) {
@@ -149,27 +191,34 @@ export function useShareCardSettings(initialPresetId: string = DEFAULT_SHARE_PRE
 
   /** Возвращает карточку к исходному виду выбранного шаблона. */
   function resetSettings() {
-    releaseBackgroundImage();
     settings.value = createSettings(initialPreset);
   }
 
   return {
     settings,
     setRouteVisible,
-    setRouteSize,
+    setRouteScale,
     setRoutePosition,
     setTitle,
+    setTitleVisible,
     resetSettings,
     applyPresetById,
     setColor,
+    setBackgroundColor,
     addStat,
     removeStat,
     setStatPositions,
     setStatWidth,
     setStatSpacing,
     setShowStatBorders,
+    setStatStyle,
+    setStatColumns,
     setTransparentBackground,
     setBackgroundImage,
-    removeBackgroundImage: releaseBackgroundImage,
+    removeBackgroundImage,
+    undo: history.undo,
+    redo: history.redo,
+    canUndo: history.canUndo,
+    canRedo: history.canRedo,
   };
 }

@@ -3,6 +3,13 @@ import { storeToRefs } from 'pinia';
 import { useTemplateRef } from 'vue';
 import { useActivityStore } from '@/stores/activity.store';
 
+/**
+ * iOS сопоставляет accept с типами файлов (UTI). У .gpx нет системного типа:
+ * в зависимости от источника файл бывает помечен как GPX, XML или вообще без типа,
+ * и тогда он недоступен для выбора. Поэтому перечисляем и XML-типы.
+ */
+const GPX_ACCEPT = '.gpx,application/gpx+xml,application/xml,text/xml';
+
 withDefaults(
   defineProps<{
     /** Только иконка — для узких экранов. */
@@ -10,12 +17,18 @@ withDefaults(
     label?: string;
     variant?: 'tonal' | 'flat' | 'text' | 'outlined';
     size?: 'small' | 'default' | 'large';
+    /** Иконка кнопки; пустая строка — без иконки. */
+    icon?: string;
+    /** Разрешить выбор любых файлов — запасной путь, если фильтр не пускает GPX. */
+    acceptAll?: boolean;
   }>(),
   {
     compact: false,
     label: 'Импортировать GPX',
     variant: 'tonal',
     size: 'default',
+    acceptAll: false,
+    icon: 'mdi-upload',
   },
 );
 
@@ -49,7 +62,7 @@ async function handleFileChange(event: Event) {
     <v-btn
       v-if="compact"
       color="primary"
-      icon="mdi-upload"
+      :icon="icon || 'mdi-upload'"
       :variant="variant"
       :size="size"
       :loading="isImporting"
@@ -59,7 +72,7 @@ async function handleFileChange(event: Event) {
     <v-btn
       v-else
       color="primary"
-      prepend-icon="mdi-upload"
+      :prepend-icon="icon || undefined"
       :variant="variant"
       :size="size"
       :loading="isImporting"
@@ -72,7 +85,7 @@ async function handleFileChange(event: Event) {
       ref="fileInput"
       class="visually-hidden"
       type="file"
-      accept=".gpx,application/gpx+xml"
+      :accept="acceptAll ? undefined : GPX_ACCEPT"
       tabindex="-1"
       aria-hidden="true"
       @change="handleFileChange"

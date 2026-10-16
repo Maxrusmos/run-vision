@@ -93,6 +93,15 @@ export function formatActivityDate(date: Date): string {
   }).format(date);
 }
 
+/** Короткая дата «12.09.2026» — помещается в показатель любой ширины. */
+export function formatShortDate(date: Date): string {
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+}
+
 export function formatTimeOfDay(date: Date): string {
   return new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(date);
 }

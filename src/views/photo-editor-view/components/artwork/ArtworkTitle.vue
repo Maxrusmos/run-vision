@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onMounted, useTemplateRef, watch } from 'vue';
-import ColorPickerButton from '@/shared/ui/ColorPickerButton.vue';
 import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
 import SelectionFrame from '@/views/photo-editor-view/components/artwork/SelectionFrame.vue';
 
@@ -8,14 +7,13 @@ const MAX_LENGTH = 80;
 
 const props = defineProps<{
   value: string;
-  textColor: string;
   selected: boolean;
 }>();
 
 const emit = defineEmits<{
   select: [];
   change: [value: string];
-  changeTextColor: [color: string];
+  remove: [];
 }>();
 
 const textElement = useTemplateRef<HTMLElement>('text');
@@ -76,24 +74,22 @@ function handleKeydown(event: KeyboardEvent) {
       @keydown="handleKeydown"
     />
 
-    <ArtworkElementToolbar v-if="selected" class="artwork-title__toolbar export-hidden">
-      <ColorPickerButton
-        label="Цвет текста"
-        :color="textColor"
-        @change="emit('changeTextColor', $event)"
-      />
-    </ArtworkElementToolbar>
+    <ArtworkElementToolbar
+      v-if="selected"
+      class="artwork-title__toolbar export-hidden"
+      remove-label="Удалить название"
+      @remove="emit('remove')"
+    />
   </div>
 </template>
 
 <style scoped>
 .artwork-title {
   position: relative;
-  width: max-content;
-  max-width: calc(100% + 12px);
-  margin: 4px -6px -4px;
-  padding: 4px 6px;
-  border-radius: 10px;
+  /* Блок на всю ширину (как показатель), текст остаётся на линии отступа карточки. */
+  margin: -8px;
+  padding: 8px;
+  border-radius: 12px;
   font-size: clamp(23px, 5vw, 34px);
   font-weight: 800;
   line-height: 1;
@@ -111,7 +107,8 @@ function handleKeydown(event: KeyboardEvent) {
 .artwork-title__toolbar {
   position: absolute;
   z-index: 3;
-  top: -14px;
-  right: -14px;
+  /* Как у показателей, но ниже: название у самого верха карточки, иначе панель обрежется. */
+  top: -6px;
+  right: -6px;
 }
 </style>

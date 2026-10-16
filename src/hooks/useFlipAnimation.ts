@@ -41,8 +41,11 @@ export function useFlipAnimation(
       if (!previous) return;
 
       const next = element.getBoundingClientRect();
-      const dx = previous.left - next.left;
-      const dy = previous.top - next.top;
+      // Карточка может быть уменьшена (transform у предка): переводим экранные
+      // пиксели в пиксели раскладки элемента.
+      const scale = element.offsetWidth ? next.width / element.offsetWidth : 1;
+      const dx = (previous.left - next.left) / scale;
+      const dy = (previous.top - next.top) / scale;
       const isResized =
         Math.abs(previous.width - next.width) > 0.5 ||
         Math.abs(previous.height - next.height) > 0.5;
@@ -53,11 +56,15 @@ export function useFlipAnimation(
         [
           {
             transform: `translate(${dx}px, ${dy}px)`,
-            ...(isResized ? { width: `${previous.width}px`, height: `${previous.height}px` } : {}),
+            ...(isResized
+              ? { width: `${previous.width / scale}px`, height: `${previous.height / scale}px` }
+              : {}),
           },
           {
             transform: 'translate(0, 0)',
-            ...(isResized ? { width: `${next.width}px`, height: `${next.height}px` } : {}),
+            ...(isResized
+              ? { width: `${next.width / scale}px`, height: `${next.height / scale}px` }
+              : {}),
           },
         ],
         { duration, easing },

@@ -15,21 +15,21 @@ function confirm() {
 
 <template>
   <v-btn
-    class="reset-card-button"
+    icon="mdi-restore"
     variant="text"
     size="small"
-    prepend-icon="mdi-restore"
+    density="comfortable"
+    aria-label="Сбросить оформление"
+    title="Сбросить оформление"
     @click="isDialogOpen = true"
-  >
-    Сбросить
-  </v-btn>
+  />
 
   <v-dialog v-model="isDialogOpen" max-width="360">
     <v-card class="reset-card-dialog">
       <div class="reset-card-dialog__title">Сбросить оформление?</div>
       <div class="reset-card-dialog__text">
         Карточка вернётся к исходному виду шаблона: цвета, показатели, трек, название и фоновое
-        фото.
+        фото. Сброс можно отменить стрелкой «назад».
       </div>
 
       <div class="reset-card-dialog__actions">
@@ -41,13 +41,6 @@ function confirm() {
 </template>
 
 <style scoped>
-.reset-card-button {
-  flex: 0 0 auto;
-  margin: -4px -8px -4px 0;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
 .reset-card-dialog {
   padding: 20px;
 }

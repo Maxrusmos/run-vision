@@ -187,3 +187,51 @@ export function getStatDropCells(
 
   return cells;
 }
+
+/**
+ * Цель перетаскивания: свободное место (показатель встанет туда и примет его ширину)
+ * или другой показатель (поменяются местами и размерами).
+ */
+export type StatDropTarget =
+  ({ kind: 'cell' } & StatDropCell) | { kind: 'swap'; key: ShareStatKey };
+
+export type StatDropResult = {
+  /** Ширины после броска (только у показателей, которых он коснулся). */
+  widths: Map<ShareStatKey, ShareStatWidth>;
+  layout: StatLayout;
+};
+
+/** Раскладка после броска показателя `key` на цель. */
+export function applyStatDrop(
+  items: StatLayoutItem[],
+  layout: StatLayout,
+  key: ShareStatKey,
+  target: StatDropTarget,
+  startRow = 0,
+): StatDropResult {
+  const widthOf = (statKey: ShareStatKey) =>
+    items.find((item) => item.key === statKey)?.width ?? 'half';
+  const widths = new Map<ShareStatKey, ShareStatWidth>();
+  const positions: Partial<StatLayout> = { ...layout };
+
+  if (target.kind === 'cell') {
+    widths.set(key, target.width);
+    positions[key] = { row: target.row, col: target.col };
+  } else {
+    // Меняются местами и размерами — строки остаются однородными.
+    widths.set(key, widthOf(target.key));
+    widths.set(target.key, widthOf(key));
+    positions[key] = layout[target.key];
+    positions[target.key] = layout[key];
+  }
+
+  const nextItems = items.map((item) => ({
+    key: item.key,
+    width: widths.get(item.key) ?? item.width,
+  }));
+
+  return {
+    widths,
+    layout: resolveStatLayout(nextItems, positions, { startRow, priorityKey: key }),
+  };
+}

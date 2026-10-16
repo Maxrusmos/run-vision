@@ -16,6 +16,7 @@ export const SHARE_STAT_OPTIONS: readonly ShareStatOption[] = [
   { key: 'elevationLoss', label: 'Сброс высоты', cardLabel: 'Сброс высоты' },
   { key: 'maxElevation', label: 'Максимальная высота', cardLabel: 'Макс. высота' },
   { key: 'startTime', label: 'Время старта', cardLabel: 'Старт' },
+  { key: 'date', label: 'Дата', cardLabel: 'Дата' },
 ];
 
 export const DEFAULT_VISIBLE_SHARE_STATS: readonly ShareStatKey[] = [

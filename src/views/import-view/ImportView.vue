@@ -23,6 +23,17 @@ function goToShare() {
       </p>
 
       <GpxImportButton variant="flat" size="large" label="Загрузить GPX" @imported="goToShare" />
+
+      <!-- На части iPhone фильтр по типу не пускает .gpx — запасной путь без фильтра. -->
+      <GpxImportButton
+        class="import-view__fallback"
+        variant="text"
+        size="small"
+        label="Файл не выбирается? Показать все файлы"
+        icon=""
+        accept-all
+        @imported="goToShare"
+      />
     </div>
   </div>
 </template>
@@ -62,6 +73,14 @@ function goToShare() {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
+}
+
+.import-view__fallback :deep(.v-btn) {
+  color: color-mix(in srgb, var(--app-on-surface) 60%, transparent) !important;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-decoration: underline;
+  text-transform: none;
 }
 
 .import-view__description {
