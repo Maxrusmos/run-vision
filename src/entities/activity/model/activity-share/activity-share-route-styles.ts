@@ -19,6 +19,12 @@ export type RouteStrokeLayer = {
   dash?: 'dash' | 'dot';
   /** Градиент от цвета трека к цвету текста. */
   gradient?: boolean;
+  /**
+   * Объём «выдавливанием»: `steps` непрозрачных копий со сдвигом (dx, dy) на шаг,
+   * прозрачность — у группы целиком. Так грань сплошная: полупрозрачные копии
+   * по отдельности накладываются в узлах линии и дают точки.
+   */
+  extrude?: { steps: number; dx: number; dy: number };
 };
 
 export type ShareRouteStyleOption = {
@@ -30,18 +36,10 @@ export type ShareRouteStyleOption = {
 
 export const DEFAULT_ROUTE_STYLE: ShareRouteStyle = 'solid';
 
-/**
- * Объём «выдавливанием»: много полупрозрачных копий со сдвигом, которые
- * сливаются в сплошную боковую грань. Идут от дальней к ближней.
- */
-function extrude(steps: number, dx: number, dy: number, opacity: number): RouteStrokeLayer[] {
-  return Array.from({ length: steps }, (_, index) => {
-    const distance = steps - index;
-    return { dx: dx * distance, dy: dy * distance, opacity };
-  });
+/** Объём «выдавливанием»: сплошная боковая грань из копий линии. */
+function extrude(steps: number, dx: number, dy: number, opacity: number): RouteStrokeLayer {
+  return { extrude: { steps, dx, dy }, opacity };
 }
-
-const RAINBOW = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#0a84ff', '#bf5af2'] as const;
 
 /**
  * Пресеты трека. Эффекты собраны из обычных линий (без SVG-фильтров и режимов
@@ -99,7 +97,7 @@ export const SHARE_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
     layers: [
       // Тень у основания, грань стены, верх с бликом.
       { dy: 44, width: 1.4, color: '#000000', opacity: 0.3 },
-      ...extrude(14, 0, 3, 0.22),
+      extrude(14, 0, 3, 0.45),
       {},
       { width: 0.35, color: '#ffffff', opacity: 0.85 },
     ],
@@ -107,7 +105,7 @@ export const SHARE_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
   {
     id: 'iso',
     name: 'Изометрия',
-    layers: [...extrude(12, -2, 2.5, 0.2), {}, { width: 0.35, color: '#ffffff', opacity: 0.8 }],
+    layers: [extrude(12, -2, 2.5, 0.4), {}, { width: 0.35, color: '#ffffff', opacity: 0.8 }],
   },
   {
     id: 'tube',
@@ -127,15 +125,6 @@ export const SHARE_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
       { width: 3 },
       { width: 1, color: 'background', opacity: 0.35 },
     ],
-  },
-  {
-    id: 'rainbow',
-    name: 'Радуга',
-    layers: RAINBOW.map((color, index) => ({
-      dy: (index - (RAINBOW.length - 1) / 2) * 7,
-      width: 0.9,
-      color,
-    })),
   },
 ];
 

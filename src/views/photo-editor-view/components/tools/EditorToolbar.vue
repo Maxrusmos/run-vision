@@ -43,10 +43,12 @@ function toggle(id: EditorToolId) {
 <style scoped>
 .editor-toolbar {
   display: flex;
+  align-items: center;
   justify-content: center;
   gap: 4px;
-  /* Снизу — небольшой отступ от края экрана (и от «полоски» на iPhone). */
-  padding: 4px 6px max(12px, calc(env(safe-area-inset-bottom) + 4px));
+  min-height: 64px;
+  /* Снизу — запас под «полоску» на iPhone, чтобы она не перекрывала кнопки. */
+  padding: 8px 6px max(20px, calc(env(safe-area-inset-bottom) + 12px));
   border-top: 1px solid var(--app-border);
   background: var(--app-background);
 }
@@ -56,10 +58,11 @@ function toggle(id: EditorToolId) {
   flex: 1 1 0;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
+  justify-content: center;
+  gap: 2px;
   max-width: 88px;
-  min-height: 46px;
-  padding: 4px 2px;
+  min-height: 52px;
+  padding: 6px 2px;
   color: color-mix(in srgb, var(--app-on-surface) 70%, transparent);
   border: 0;
   border-radius: 12px;
