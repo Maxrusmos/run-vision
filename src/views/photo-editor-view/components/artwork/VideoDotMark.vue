@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import {
+  VIDEO_CHART_MARKER,
   VIDEO_DOT,
-  VIDEO_ELEVATION_MARKER,
 } from '@/entities/activity/model/activity-share/activity-share-video';
 
 /**
- * Видео: точка на треке (или поменьше — на графике высоты), SVG-фрагмент. Те же размеры
- * рисует холст в кадрах видео (`drawVideoDot` / `drawElevationMarker`).
+ * Видео: точка на треке (или поменьше — на графике), SVG-фрагмент. Те же размеры
+ * рисует холст в кадрах видео (`drawVideoDot` / `drawChartMarker`).
  */
 const props = defineProps<{
   x: number;
@@ -16,15 +16,15 @@ const props = defineProps<{
   ringColor: string;
   /** Пикселей SVG в единице слоя трека. */
   unit: number;
-  size?: 'route' | 'elevation';
+  size?: 'route' | 'chart';
 }>();
 
 const dot = computed(() =>
-  props.size === 'elevation'
+  props.size === 'chart'
     ? {
-        radius: VIDEO_ELEVATION_MARKER.radius,
-        ring: VIDEO_ELEVATION_MARKER.ring,
-        halo: VIDEO_ELEVATION_MARKER.halo,
+        radius: VIDEO_CHART_MARKER.radius,
+        ring: VIDEO_CHART_MARKER.ring,
+        halo: VIDEO_CHART_MARKER.halo,
       }
     : VIDEO_DOT,
 );

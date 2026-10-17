@@ -228,16 +228,21 @@ const ZONE_BOUNDS = [0.5, 0.6, 0.7, 0.8, 0.9];
 /**
  * Время в пульсовых зонах. Максимум пульса — наибольший за тренировку
  * (своего максимума у нас нет); время ниже Z1 не учитывается.
+ * `progress` (видео) — доля дистанции: время считается только до этого места, а границы
+ * зон — по всей тренировке, чтобы по ходу видео не «плыли». До первой секунды в зонах —
+ * нулевые доли (а не null: виджет не должен мигать «нет данных»).
  */
-export function getHeartRateZones(track: ITrackPoint[]): HeartRateZone[] | null {
+export function getHeartRateZones(track: ITrackPoint[], progress = 1): HeartRateZone[] | null {
   const samples = measureTrack(track);
   const rates = samples.map((sample) => sample.heartRate).filter((rate) => rate !== null);
   if (rates.length < 2) return null;
 
   const max = maxOf(rates);
   const bounds = ZONE_BOUNDS.map((share) => share * max);
+  const limit = (samples[samples.length - 1]?.distance ?? 0) * Math.min(1, Math.max(0, progress));
   const time = [0, 0, 0, 0, 0];
   for (let index = 1; index < samples.length; index++) {
+    if (progress < 1 && samples[index]!.distance > limit) break;
     const rate = samples[index]!.heartRate;
     const dt = samples[index]!.time - samples[index - 1]!.time;
     if (rate === null || !(dt > 0) || dt > 60) continue;
@@ -249,10 +254,10 @@ export function getHeartRateZones(track: ITrackPoint[]): HeartRateZone[] | null 
   }
 
   const sum = time.reduce((total, value) => total + value, 0);
-  if (sum <= 0) return null;
+  if (sum <= 0 && progress >= 1) return null;
   return time.map((value, index) => ({
     zone: index + 1,
-    share: value / sum,
+    share: sum > 0 ? value / sum : 0,
     from: Math.round(bounds[index]!),
   }));
 }

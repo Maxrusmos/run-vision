@@ -420,17 +420,18 @@ async function createVideo() {
       showStatsAt: async (progress) => {
         exportStatProgress.value = progress;
         await nextTick();
-        return settings.value.visibleStats.map((key) => statValues.value?.[key]).join('|');
+        const values = settings.value.visibleStats.map((key) => statValues.value?.[key]);
+        // Сплиты и зоны «Телеметрии» меняются вместе со ступенькой, даже если цифры те же.
+        const hasStepWidgets = settings.value.telemetry?.widgets.some(
+          (widget) => widget.kind === 'splits' || widget.kind === 'zones',
+        );
+        return [...values, hasStepWidgets ? progress : ''].join('|');
       },
       getMarks: (progress) => {
-        const marks = artwork.value?.getVideoMarks(progress) ?? { dot: null, elevation: null };
+        const marks = artwork.value?.getVideoMarks(progress) ?? { dot: null, charts: [] };
         return settings.value.routeVisible ? marks : { ...marks, dot: null };
       },
       dotColors: { route: settings.value.routeColor, ring: settings.value.textColor },
-      elevationColors: {
-        route: settings.value.elevation?.color ?? settings.value.routeColor,
-        ring: settings.value.textColor,
-      },
       backgroundColor: settings.value.backgroundColor,
     });
   } finally {
@@ -545,6 +546,7 @@ function goBack() {
         :stat-values="statValues"
         :exporting="isExporting"
         :progress="routeProgress"
+        :stat-progress="isVideoMode ? statProgress : null"
         @set-color="setColor"
         @remove-stat="removeStat"
         @set-stat-positions="setStatPositions"

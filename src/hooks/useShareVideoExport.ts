@@ -2,10 +2,11 @@ import { onBeforeUnmount, ref, shallowRef } from 'vue';
 import { toCanvas } from 'html-to-image';
 import {
   VIDEO_FPS,
-  drawElevationMarker,
+  drawChartMarker,
   drawVideoDot,
   getRouteProgressAt,
   getStatProgress,
+  mapChartMarker,
   type VideoDotColors,
   type VideoMarks,
 } from '@/entities/activity/model/activity-share/activity-share-video';
@@ -35,11 +36,10 @@ type RenderVideoOptions = {
    * Возвращает ключ значений: одинаковые цифры подряд не рендерятся заново.
    */
   showStatsAt: (statProgress: number) => Promise<string>;
-  /** Точка на треке и маркер графика высоты в пикселях раскладки карточки. */
+  /** Точка на треке и маркеры графиков в пикселях раскладки карточки. */
   getMarks: (progress: number) => VideoMarks;
+  /** Цвета точки; кольцо (цвет текста) — и у маркеров графиков, их цвет — свой. */
   dotColors: VideoDotColors;
-  /** Цвета маркера на графике высоты (у графика может быть свой цвет). */
-  elevationColors: VideoDotColors;
   backgroundColor: string;
 };
 
@@ -111,7 +111,6 @@ export function useShareVideoExport() {
     showStatsAt,
     getMarks,
     dotColors,
-    elevationColors,
     backgroundColor,
   }: RenderVideoOptions): Promise<VideoResult | null> {
     await document.fonts?.ready;
@@ -147,22 +146,17 @@ export function useShareVideoExport() {
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Canvas 2D недоступен');
 
-    const drawFrame = (background: CanvasImageSource, { dot, elevation }: VideoMarks) => {
+    const drawFrame = (background: CanvasImageSource, { dot, charts }: VideoMarks) => {
       // Под скруглёнными углами карточки — цвет фона: в видео нет прозрачности.
       context.fillStyle = backgroundColor;
       context.fillRect(0, 0, size.width, size.height);
       context.drawImage(background, 0, 0, size.width, size.height);
-      if (elevation) {
-        drawElevationMarker(
+      for (const chart of charts) {
+        drawChartMarker(
           context,
-          {
-            x: elevation.x * pixelRatio,
-            y: elevation.y * pixelRatio,
-            top: elevation.top * pixelRatio,
-            bottom: elevation.bottom * pixelRatio,
-          },
-          elevation.unit * pixelRatio,
-          elevationColors,
+          mapChartMarker(chart, ({ x, y }) => ({ x: x * pixelRatio, y: y * pixelRatio })),
+          chart.unit * pixelRatio,
+          { route: chart.color, ring: dotColors.ring },
         );
       }
       if (dot) {

@@ -67,6 +67,36 @@ describe('пульс', () => {
   });
 });
 
+describe('зоны «до точки» (видео)', () => {
+  // Пульс растёт от 120 до ~180: в начале — нижние зоны, к концу — Z5.
+  const rising = () =>
+    track(
+      100,
+      () => 30,
+      (index) => 120 + index * 0.6,
+    );
+
+  it('считают время только до доли дистанции, а границы — по всей тренировке', () => {
+    const full = getHeartRateZones(rising())!;
+    const early = getHeartRateZones(rising(), 0.3)!;
+    expect(early.map((zone) => zone.from)).toEqual(full.map((zone) => zone.from));
+    expect(early.reduce((sum, zone) => sum + zone.share, 0)).toBeCloseTo(1);
+    // В начале пульс ещё не дошёл до Z5.
+    expect(early[4]!.share).toBe(0);
+    expect(full[4]!.share).toBeGreaterThan(0);
+  });
+
+  it('до первых секунд в зонах — нулевые доли, а не «нет данных»', () => {
+    const zones = getHeartRateZones(rising(), 0);
+    expect(zones).not.toBeNull();
+    expect(zones!.every((zone) => zone.share === 0)).toBe(true);
+  });
+
+  it('progress = 1 — как без него', () => {
+    expect(getHeartRateZones(rising(), 1)).toEqual(getHeartRateZones(rising()));
+  });
+});
+
 describe('ряды', () => {
   it('resampleSeries усредняет и растягивает', () => {
     expect(resampleSeries([1, 3, 5, 7], 2)).toEqual([2, 6]);

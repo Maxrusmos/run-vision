@@ -2,7 +2,7 @@
 
 Мобильное (в первую очередь) веб-приложение, в котором пользователь гибко настраивает
 внешний вид карточки тренировки, чтобы поделиться ею. Источник данных — GPX-файл.
-Сценарии «Фото» (PNG-карточка) и «Видео» (MP4: точка бежит по треку; «Минимализм» и «Топография»).
+Сценарии «Фото» (PNG-карточка) и «Видео» (MP4: точка бежит по треку; все три стиля).
 
 Общение с пользователем, комментарии в коде и сообщения коммитов — на русском.
 
@@ -115,22 +115,31 @@ npx vite build
   `ArtworkRoute` (точки повёрнутого трека, индексы как у `projectRoute`), с картой — в
   `ArtworkMap` (точки `map.project`, индексы как у `getRouteLngLats`). Поворот/наклон/перенос
   трека и карты — как в фото.
-- «Топография»: ещё маркер на графике высоты (`ArtworkElevation`, `progress`) — черта на всю
-  высоту графика и точка поменьше (`VIDEO_ELEVATION_MARKER`) на линии профиля
-  (`getElevationMarker`, тот же ряд и запас сверху `getElevationChartTop`, что у `ProfileChart`;
-  с тестом). SVG графика `overflow: visible` — у края маркер не обрезается, как и в кадре.
+- Маркер на графиках (`ChartMarker`: точка на линии + концы черты; SVG — `VideoChartMark`,
+  размеры `VIDEO_CHART_MARKER`) — график высоты (`ArtworkElevation`) и графики-виджеты
+  «Телеметрии» (`ArtworkWidget`: темп, пульс, высота). Считает `getProfileChartMarker` (тот же
+  ряд под стиль и запас сверху `getElevationChartTop`, что у `ProfileChart`; `getElevationMarker`
+  с тестом). В вертикальной «ленте» маркер переводится той же матрицей, что `tapeTransform`
+  (`mapChartMarker`) — черта становится горизонтальной. SVG графиков `overflow: visible`.
+- «Телеметрия»: сплиты и зоны — по ступеньке показателей (`statProgress` у карточки и виджета):
+  сплиты впереди точки приглушены (масштаб по всей тренировке), зоны — время «до точки»
+  (`getHeartRateZones(track, progress)`: границы по всей тренировке, до первых секунд — нули,
+  с тестами). В ключ ступеньки экспорта входит доля, если есть сплиты/зоны (иначе кадр не
+  перерендерится при тех же цифрах). Виджеты — ссылки-функции по ключу полосы (`widgetRefs`):
+  они рендерятся слотом сетки, строковая ссылка хранила бы последний.
 - Экспорт — `useShareVideoExport`: карточка рендерится html-to-image только при смене цифр
   (`showStatsAt` ставит ступеньку, одинаковые значения не рендерятся), точку и маркер графика
-  на каждом кадре рисует холст (`drawVideoDot`, `drawElevationMarker`; позиции — `getVideoMarks`
-  у `ShareCardArtwork` в пикселях раскладки, тип `VideoMarks`). Пока пишется видео, карточка не
+  на каждом кадре рисует холст (`drawVideoDot`, `drawChartMarker`; позиции — `getVideoMarks`
+  у `ShareCardArtwork` в пикселях раскладки, тип `VideoMarks`: точка + маркеры всех графиков
+  со своим цветом). Пока пишется видео, карточка не
   передаёт `progress` (`liveProgress`) ни треку, ни карте, ни графику: `export-hidden` внутри
   SVG html-to-image не учитывает — в кадрах было две точки (было).
 - Кодирование (`shared/lib/video/video-writer.ts`): WebCodecs `VideoEncoder` + `mp4-muxer`,
   1080 px по ширине, 30 к/с, H.264 (в Chromium песочницы без H.264 — VP9 в MP4); без
   WebCodecs — `MediaRecorder` по `captureStream()` в реальном времени, 720 px.
   Результат — `ShareCardResultDialog` с `<video>`, сохранение — `shareOrDownloadFile`.
-- Дальше: «Телеметрия» в видео, своя иконка/фото вместо точки. Подложки карты в видео
-  проверяет пользователь на телефоне (из песочницы тайлы недоступны).
+- Дальше: своя иконка/фото вместо точки. Подложки карты в видео проверяет пользователь на
+  телефоне (из песочницы тайлы недоступны).
 
 ## Шаблон «Топография» (карта)
 
@@ -465,8 +474,9 @@ vue-devtools (`#__vue-devtools-container__{display:none}`); после перв�
 `feature/draft-preview-colors` (превью черновика в карусели) слиты в `main`. `feature/saved-templates`
 («Избранное», «Мои шаблоны»), `feature/template-edit-mode` (режим шаблона) и
 `feature/account-ux` (кабинет) и `feature/telemetry-bg-trash` (узоры, корзина) слиты.
-`feature/trash-polish` слита. `feature/route-longpress` слита. `feature/video-minimal` слита.
-Текущая — `feature/video-topographic`: видео, стиль «Топография».
+`feature/trash-polish` слита. `feature/route-longpress` слита. `feature/video-minimal` и `feature/video-topographic` слиты.
+`bugfix/video-dot-on-track` (точка рядом с треком — шапка `flow-root`) запушена, не слита;
+`feature/video-telemetry` сделана поверх неё.
 
 ## Идеи на потом (обсуждали, не сделано)
 

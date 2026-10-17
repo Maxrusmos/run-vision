@@ -26,6 +26,12 @@ import { formatPace } from '@/shared/lib/formatters/formatters';
 import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
 import SelectionFrame from '@/views/photo-editor-view/components/artwork/SelectionFrame.vue';
 import ProfileChart from '@/views/photo-editor-view/components/artwork/ProfileChart.vue';
+import VideoChartMark from '@/views/photo-editor-view/components/artwork/VideoChartMark.vue';
+import {
+  getProfileChartMarker,
+  mapChartMarker,
+  type ChartMarker,
+} from '@/entities/activity/model/activity-share/activity-share-video';
 
 /** Самый медленный сплит — не ниже этой доли высоты, иначе столбик пропадает. */
 const SPLIT_FLOOR = 0.22;
@@ -46,6 +52,13 @@ const props = defineProps<{
    * «Средний темп»; без него — по общему времени с остановками.
    */
   averagePace?: number;
+  /** Видео: точка на треке прошла эту долю дистанции — маркер на графике; null — фото. */
+  progress?: number | null;
+  /**
+   * Видео: та же доля ступеньками (как у показателей) — сплиты и зоны «до точки».
+   * Меняются реже маркера: их пересчёт и рендер кадра дороже.
+   */
+  statProgress?: number | null;
 }>();
 
 const emit = defineEmits<{
@@ -74,7 +87,9 @@ const elevation = computed(() =>
   props.kind === 'elevation' ? getElevationProfile(props.track, ELEVATION_SERIES_SAMPLES) : null,
 );
 const splits = computed(() => (props.kind === 'splits' ? getSplits(props.track) : []));
-const zones = computed(() => (props.kind === 'zones' ? getHeartRateZones(props.track) : null));
+const zones = computed(() =>
+  props.kind === 'zones' ? getHeartRateZones(props.track, props.statProgress ?? 1) : null,
+);
 
 /** Ряд для графика (0…1): у темпа быстрее — выше. */
 const series = computed(() => {
@@ -91,17 +106,25 @@ const fastestSplit = computed(() =>
   }, null),
 );
 
+const totalKm = computed(() => splits.value.reduce((total, split) => total + split.length, 0));
+
 /** Столбики сплитов: быстрее — выше. */
 const splitBars = computed(() => {
   const paces = splits.value.map((split) => split.pace);
   if (!paces.length) return [];
   const min = Math.min(...paces);
   const max = Math.max(...paces);
+  // Видео: километры впереди точки приглушены (масштаб — по всей тренировке, не «прыгает»).
+  const passedKm = (props.statProgress ?? 1) * totalKm.value;
   return splits.value.map((split, index) => ({
     km: split.km,
     level: max > min ? SPLIT_FLOOR + (1 - SPLIT_FLOOR) * ((max - split.pace) / (max - min)) : 0.7,
     fastest: index === fastestSplit.value,
     partial: split.length < 0.999,
+    future:
+      props.statProgress !== null && props.statProgress !== undefined
+        ? split.km - split.length >= passedKm - 1e-6
+        : false,
   }));
 });
 
@@ -183,6 +206,51 @@ onBeforeUnmount(() => resizeObserver?.disconnect());
 const unit = computed(() => (cardWidth.value || box.value.width + 32) / ROUTE_LAYER_WIDTH);
 
 const splitGap = computed(() => (splitBars.value.length > 24 ? 1 : 3));
+
+/**
+ * Видео: маркер для доли `progress` дистанции — в пикселях области графика. В «ленте»
+ * график повёрнут (`tapeTransform`): маркер считается в его координатах и поворачивается так же.
+ */
+function getMarker(progress: number): ChartMarker | null {
+  if (!series.value) return null;
+  const { width, height } = box.value;
+  if (!vertical.value) {
+    return getProfileChartMarker(
+      series.value,
+      props.telemetry.chartStyle,
+      progress,
+      width,
+      height,
+      unit.value,
+    );
+  }
+  const marker = getProfileChartMarker(
+    series.value,
+    props.telemetry.chartStyle,
+    progress,
+    height,
+    width,
+    unit.value,
+  );
+  // Те же матрицы, что у `tapeTransform`: слева — (x, y) → (width − y, x), справа — (y, x).
+  return mapChartMarker(marker, ({ x, y }) =>
+    props.side === 'left' ? { x: width - y, y: x } : { x: y, y: x },
+  );
+}
+
+const marker = computed(() =>
+  props.progress === null || props.progress === undefined || !box.value.width
+    ? null
+    : getMarker(props.progress),
+);
+
+defineExpose({
+  /** Область графика: её размер на экране переводит пиксели графика в пиксели карточки. */
+  getChartElement: () => body.value,
+  getMarker,
+  getUnit: () => unit.value,
+  getColor: () => props.color,
+});
 </script>
 
 <template>
@@ -233,6 +301,14 @@ const splitGap = computed(() => (splitBars.value.length > 24 ? 1 : 3));
           :height="box.height"
           :unit="unit"
         />
+        <!-- Видео: где сейчас точка трека (в кадры видео маркер рисует холст). -->
+        <VideoChartMark
+          v-if="marker"
+          :marker="marker"
+          :color="color"
+          :ring-color="textColor"
+          :unit="unit"
+        />
       </svg>
 
       <div
@@ -247,6 +323,7 @@ const splitGap = computed(() => (splitBars.value.length > 24 ? 1 : 3));
           :class="{
             'artwork-widget__split--fastest': bar.fastest,
             'artwork-widget__split--partial': bar.partial,
+            'artwork-widget__split--future': bar.future,
           }"
           :style="
             vertical
@@ -366,6 +443,8 @@ const splitGap = computed(() => (splitBars.value.length > 24 ? 1 : 3));
 
 .artwork-widget__body svg {
   display: block;
+  /* Маркер видео у края графика не обрезается — как и в кадрах видео (холст). */
+  overflow: visible;
 }
 
 .artwork-widget__empty {
@@ -398,6 +477,11 @@ const splitGap = computed(() => (splitBars.value.length > 24 ? 1 : 3));
 
 .artwork-widget__split--partial {
   opacity: 0.25;
+}
+
+/* Видео: километры, до которых точка ещё не дошла. */
+.artwork-widget__split--future {
+  opacity: 0.14;
 }
 
 .artwork-widget__zones {
