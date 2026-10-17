@@ -13,6 +13,10 @@ const props = defineProps<{
   secondaryLabel: string;
 }>();
 
+const emit = defineEmits<{
+  delete: [];
+}>();
+
 const colors = computed(() => ({
   background: props.template.settings.backgroundColor,
   route: props.template.settings.routeColor,
@@ -29,25 +33,69 @@ const meta = computed(() => {
 </script>
 
 <template>
-  <router-link
-    :to="{ name: ROUTE_NAMES.savedTemplate, params: { id: template.id } }"
-    class="saved-template-card"
-  >
-    <div class="saved-template-card__preview">
-      <TemplateRoutePreview
-        :template-id="template.baseTemplate"
-        :colors="colors"
-        :route-points="routePoints"
-        :primary-label="primaryLabel"
-        :secondary-label="secondaryLabel"
-      />
-    </div>
-    <span class="saved-template-card__name">{{ template.name }}</span>
-    <span class="saved-template-card__meta">{{ meta }}</span>
-  </router-link>
+  <!-- Кнопка удаления — соседка ссылки, а не внутри неё (кнопка в ссылке — невалидно). -->
+  <div class="saved-template-card-wrap">
+    <router-link
+      :to="{ name: ROUTE_NAMES.savedTemplate, params: { id: template.id } }"
+      class="saved-template-card"
+    >
+      <div class="saved-template-card__preview">
+        <TemplateRoutePreview
+          :template-id="template.baseTemplate"
+          :colors="colors"
+          :route-points="routePoints"
+          :primary-label="primaryLabel"
+          :secondary-label="secondaryLabel"
+        />
+      </div>
+      <span class="saved-template-card__name">{{ template.name }}</span>
+      <span class="saved-template-card__meta">{{ meta }}</span>
+    </router-link>
+    <button
+      type="button"
+      class="saved-template-card__delete"
+      :aria-label="`Удалить шаблон «${template.name}»`"
+      @click="emit('delete')"
+    >
+      <v-icon icon="mdi-delete-outline" size="18" />
+    </button>
+  </div>
 </template>
 
 <style scoped>
+.saved-template-card-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+/* Удаление — в правом верхнем углу превью: кружок с подложкой, читается на любом фоне. */
+.saved-template-card__delete {
+  position: absolute;
+  z-index: 3;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 0;
+  color: #fff;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 45%);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.saved-template-card__delete:active {
+  background: rgb(0 0 0 / 65%);
+}
+
+.saved-template-card__delete:focus-visible {
+  outline: 2px solid var(--app-primary);
+  outline-offset: 2px;
+}
+
 .saved-template-card {
   display: flex;
   flex-direction: column;

@@ -11,7 +11,8 @@ import { useSavedTemplatesStore } from '@/stores/saved-templates.store';
 import { useApplySavedTemplate } from '@/hooks/useApplySavedTemplate';
 import { usePreviewActivity } from '@/hooks/usePreviewActivity';
 import FitToBox from '@/shared/ui/FitToBox.vue';
-import StepPage from '@/shared/ui/StepPage.vue';
+import PageTopRow from '@/views/account-view/components/PageTopRow.vue';
+import DeleteTemplateDialog from '@/views/account-view/components/DeleteTemplateDialog.vue';
 import ShareCardArtwork from '@/views/photo-editor-view/components/artwork/ShareCardArtwork.vue';
 
 /** Сохранённый шаблон: превью настоящей карточкой, редактирование, переименование, удаление. */
@@ -63,7 +64,7 @@ const meta = computed(() => {
   if (!template.value) return '';
   const date = new Date(template.value.updatedAt).toLocaleDateString('ru-RU', {
     day: 'numeric',
-    month: 'long',
+    month: 'short',
     year: 'numeric',
   });
   return `Основа — «${getPhotoTemplateTitle(template.value.baseTemplate)}» · изменён ${date}`;
@@ -132,40 +133,31 @@ async function rename() {
   }
 }
 
-// Удаление
+// Удаление — иконкой в верхней строке, с подтверждением.
 const isDeleteOpen = ref(false);
-const deleteError = ref('');
-const isDeleting = ref(false);
 
-async function remove() {
-  if (!template.value || isDeleting.value) return;
-  isDeleting.value = true;
-  deleteError.value = '';
-  try {
-    await savedTemplates.remove(template.value.id);
-    isDeleteOpen.value = false;
-    void router.replace({ name: ROUTE_NAMES.account });
-  } catch (error) {
-    deleteError.value = isApiError(error) ? error.message : UNKNOWN_ERROR_MESSAGE;
-  } finally {
-    isDeleting.value = false;
-  }
+function handleDeleted() {
+  isDeleteOpen.value = false;
+  void router.replace({ name: ROUTE_NAMES.account });
 }
 </script>
 
 <template>
-  <StepPage max-width="600px">
-    <div class="saved-template__top">
-      <button
-        type="button"
-        class="saved-template__back"
-        aria-label="Назад к моим шаблонам"
-        @click="goBack"
-      >
-        <v-icon icon="mdi-arrow-left" size="22" />
-      </button>
+  <!-- Страница без прокрутки: превью карточки занимает всё свободное место и уменьшается. -->
+  <div class="saved-template">
+    <PageTopRow back-label="Назад к моим шаблонам" @back="goBack">
       <span class="saved-template__crumb">Мои шаблоны</span>
-    </div>
+      <template v-if="template" #actions>
+        <v-btn
+          icon="mdi-delete-outline"
+          variant="text"
+          color="error"
+          size="small"
+          aria-label="Удалить шаблон"
+          @click="isDeleteOpen = true"
+        />
+      </template>
+    </PageTopRow>
 
     <div v-if="isLoading" class="saved-template__state">
       <v-progress-circular indeterminate />
@@ -209,7 +201,7 @@ async function remove() {
       <p class="saved-template__hint">
         {{
           isDemo
-            ? 'Показан на демо-пробежке. Картинку для публикации можно сделать на своей тренировке.'
+            ? 'Показан на демо-пробежке.'
             : `Показан на вашей тренировке «${previewActivity?.name}».`
         }}
       </p>
@@ -237,15 +229,6 @@ async function remove() {
           @click="edit"
         >
           Редактировать шаблон
-        </v-btn>
-        <v-btn
-          variant="text"
-          color="error"
-          block
-          prepend-icon="mdi-delete-outline"
-          @click="isDeleteOpen = true"
-        >
-          Удалить шаблон
         </v-btn>
       </div>
     </template>
@@ -276,51 +259,26 @@ async function remove() {
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="isDeleteOpen" max-width="360">
-      <v-card class="saved-template-dialog">
-        <div class="saved-template-dialog__title">Удалить шаблон?</div>
-        <div class="saved-template-dialog__text">
-          «{{ template?.name }}» пропадёт из «Моих шаблонов» на всех устройствах. Карточки, которые
-          вы уже сохранили картинкой, не изменятся.
-        </div>
-        <v-alert
-          v-if="deleteError"
-          type="error"
-          variant="tonal"
-          density="compact"
-          class="saved-template-dialog__alert"
-        >
-          {{ deleteError }}
-        </v-alert>
-        <div class="saved-template-dialog__actions">
-          <v-btn variant="tonal" @click="isDeleteOpen = false">Отмена</v-btn>
-          <v-btn color="error" variant="flat" :loading="isDeleting" @click="remove">Удалить</v-btn>
-        </div>
-      </v-card>
-    </v-dialog>
-  </StepPage>
+    <DeleteTemplateDialog
+      :template="isDeleteOpen ? template : null"
+      @close="isDeleteOpen = false"
+      @deleted="handleDeleted"
+    />
+  </div>
 </template>
 
 <style scoped>
-.saved-template__top {
+.saved-template {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: -8px;
-}
-
-.saved-template__back {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  place-items: center;
-  padding: 0;
-  color: var(--app-on-surface);
-  border: 0;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--app-on-surface) 10%, transparent);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 600px;
+  min-height: 0;
+  margin: 0 auto;
+  padding: 16px 16px max(16px, env(safe-area-inset-bottom));
+  overflow: hidden;
 }
 
 .saved-template__crumb {
@@ -330,22 +288,26 @@ async function remove() {
 
 .saved-template__heading {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 4px;
   min-width: 0;
-  margin-bottom: -16px;
+  margin-bottom: -10px;
 }
 
 .saved-template__name {
   min-width: 0;
   margin: 0;
-  overflow-wrap: anywhere;
-  font-size: 22px;
+  overflow: hidden;
+  font-size: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 600;
   line-height: 1.3;
 }
 
 .saved-template__meta {
+  flex: 0 0 auto;
   margin: 0;
   color: color-mix(in srgb, var(--app-on-surface) 60%, transparent);
   font-size: 13px;
@@ -355,7 +317,8 @@ async function remove() {
 .saved-template__preview {
   position: relative;
   display: grid;
-  height: min(52dvh, 520px);
+  flex: 1 1 0;
+  min-height: 120px;
   place-items: center;
   border-radius: 16px;
   background: color-mix(in srgb, var(--app-on-surface) 4%, var(--app-background));
@@ -367,7 +330,8 @@ async function remove() {
 }
 
 .saved-template__hint {
-  margin: -8px 0 0;
+  flex: 0 0 auto;
+  margin: -4px 0 0;
   color: color-mix(in srgb, var(--app-on-surface) 55%, transparent);
   font-size: 13px;
   text-align: center;
@@ -375,6 +339,7 @@ async function remove() {
 
 .saved-template__actions {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   gap: 10px;
 }
@@ -414,23 +379,12 @@ async function remove() {
   font-weight: 600;
 }
 
-.saved-template-dialog__text {
-  margin-top: 8px;
-  color: color-mix(in srgb, var(--app-on-surface) 70%, transparent);
-  font-size: 14px;
-  line-height: 1.45;
-}
-
 .saved-template-dialog__field {
   margin-top: 16px;
 }
 
 .saved-template-dialog__field :deep(input) {
   font-size: 16px;
-}
-
-.saved-template-dialog__alert {
-  margin-top: 12px;
 }
 
 .saved-template-dialog__actions {
