@@ -343,7 +343,9 @@ DBeaver (`sudo snap install dbeaver-ce`) → новое соединение Pos
 - Подключено: показатели и полосы (график высоты, виджеты) — опция `onTrash` у
   `useLongPressDrag` (onEnd(id, false) → onTrash(id)); полосы → `removeBand` из
   `ArtworkStatsGrid`; трек без карты — `onTrash` у `usePinchDrag` (корзина — только после
-  сдвига одним пальцем > 8px, щипок её убирает); название — долгое нажатие, пока не
+  сдвига одним пальцем > 8px, щипок её убирает), а невыделенный трек — долгим нажатием на
+  линию (`useLongPressDrag` на зоне касания, как у показателей; рамка с углами 6px видна,
+  пока тащат, и едет с треком за край); название — долгое нажатие, пока не
   редактируется (`ArtworkTitle`, после переноса фокус не включается — `justDragged`).
 - **Крестиков удаления на карточке нет** (у `ArtworkElementToolbar` больше нет `remove`):
   удаление только переносом в корзину (фото фона по-прежнему удаляется в меню «Фон»).
@@ -418,7 +420,8 @@ vue-devtools (`#__vue-devtools-container__{display:none}`); после перв�
 `feature/draft-preview-colors` (превью черновика в карусели) слиты в `main`. `feature/saved-templates`
 («Избранное», «Мои шаблоны»), `feature/template-edit-mode` (режим шаблона) и
 `feature/account-ux` (кабинет) и `feature/telemetry-bg-trash` (узоры, корзина) слиты.
-Текущая — `feature/trash-polish`: элемент виден за краем карточки, без крестиков, сброс шаблона.
+`feature/trash-polish` слита. Текущая — `feature/route-longpress`: трек переносится долгим
+нажатием без выделения.
 
 ## Идеи на потом (обсуждали, не сделано)
 
