@@ -30,6 +30,10 @@ npx vite build
 3. `/share/photo/editor` — `PhotoEditorView`: полноэкранный редактор (шапка приложения
    скрыта через `meta.hideAppHeader`).
 
+4. `/login`, `/register` — `AuthView` (один компонент на оба режима, `meta.guestOnly`:
+   вошедшего уводит на `/`). После входа — назад по `?redirect=` (только внутренние пути,
+   `router/redirect.ts`). В `AppHeader` справа «Войти» или `UserMenu` (email, тариф, «Выйти»).
+
 Страницы с `meta.requiresActivity` без загруженного GPX редиректят на `/`.
 Старая 3D-карта (`views/activity-view`) оставлена в коде, но маршрут не зарегистрирован.
 
@@ -172,6 +176,27 @@ npx vite build
 - `ProfileChart` — общий SVG-график ряда 0…1 (высота, темп, пульс) для карточки и превью.
 - Инструменты: Добавить, Фон, Оформление, Трек, Виджеты, Показатели (`TELEMETRY_EDITOR_TOOLS`).
 
+## Бэкенд и аккаунты
+
+- Контракт API — `docs/api.md` (единственный источник правды; меняя API, сначала правим его).
+- Сервер — `server/` (отдельный npm-проект: Node.js + TypeScript, Fastify 5, PostgreSQL через
+  `pg`, SQL-миграции в `server/migrations/`, тесты Vitest на реальной БД). Подробно —
+  `server/README.md`. Корневые eslint и vitest папку `server/` не трогают.
+- Авторизация — непрозрачный токен сессии (30 дней, в БД только SHA-256) в заголовке
+  `Authorization: Bearer`. Не куки: фронт на GitHub Pages, бэк на другом домене, iOS Safari
+  режет сторонние куки. Пароли — scrypt. Лимит 10 попыток/мин с IP на вход и регистрацию.
+- Тарифы: `users.plan` (`free`/`pro`) + `plan_expires_at`; в API отдаётся действующий тариф.
+  Уровни доступа `guest` < `free` < `pro`: на бэке `app.authenticate` + `requirePlan('pro')`
+  (403 `PLAN_REQUIRED`), на фронте `useAccess()` и реестр фич `shared/config/features.ts`
+  (пока пустой — ничего не заблокировано).
+- Фронт: `shared/api/` (fetch-обёртка, `ApiError`, таймаут, `NETWORK` при недоступном
+  сервере), `entities/user/`, `stores/auth.store.ts` (токен в `localStorage` `rv.auth.token`).
+  Адрес API — `VITE_API_URL` (по умолчанию `http://localhost:3000`, см. `.env.example`).
+  Сервер недоступен → токен не стираем (статус `offline`), приложение работает как гость;
+  401 `UNAUTHORIZED` на запрос с текущим токеном → разлогин.
+- Локально: `pg_ctlcluster 16 main start` (в песочнице; роль и базы `runvision`,
+  `runvision_test`), `cd server && npm run migrate && npm run dev`, `npm test`.
+
 ## Состояние
 
 `useShareCardSettings` — единый объект `ShareCardSettings` (сериализуемый JSON) + методы.
@@ -227,15 +252,20 @@ vue-devtools (`#__vue-devtools-container__{display:none}`); после перв�
 
 ## Агенты
 
+- `.claude/agents/backend-dev.md` — бэкенд-разработчик (`server/`, по `docs/api.md`).
+- `.claude/agents/frontend-dev.md` — фронтенд-разработчик (`src/`, по `docs/api.md`).
 - `.claude/agents/tester.md` — тестировщик: проверки, разбор рискованных мест, сценарии
   в Playwright; код не меняет, выдаёт отчёт только с подтверждёнными багами.
 
 ## Ветки
 
-`feature/stats-grid-layout` слита в `main`. Текущая — `feature/topo-style`
-(от `main`): шаблоны «Топография» (карта) и «Телеметрия» (виджеты).
+`feature/stats-grid-layout` и `feature/topo-style` слиты в `main`. Текущая — `backend/init`
+(от `main`): бэкенд, регистрация и вход.
 
 ## Идеи на потом (обсуждали, не сделано)
+
+- Аккаунт: смена/сброс пароля, подтверждение email, чистка просроченных сессий по
+  расписанию, подписка и платежи (схема в `server/README.md`), деплой сервера.
 
 - Отдельный цвет названия (сейчас общий с показателями).
 - Видео-режим (анимация прохождения маршрута).

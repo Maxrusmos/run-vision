@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import { useActivityStore } from '@/stores/activity.store';
+import { useAuthStore } from '@/stores/auth.store';
 import { ROUTE_NAMES } from './routes';
 
 declare module 'vue-router' {
@@ -8,6 +9,8 @@ declare module 'vue-router' {
     requiresActivity?: boolean;
     /** Страница со своей верхней панелью — шапка приложения скрыта. */
     hideAppHeader?: boolean;
+    /** Страница только для гостя (вход, регистрация) — вошедшего отправляем на главную. */
+    guestOnly?: boolean;
   }
 }
 
@@ -32,6 +35,20 @@ const router = createRouter({
       component: () => import('@/views/photo-editor-view/PhotoEditorView.vue'),
       meta: { requiresActivity: true, hideAppHeader: true },
     },
+    {
+      path: '/login',
+      name: ROUTE_NAMES.login,
+      component: () => import('@/views/auth-view/AuthView.vue'),
+      props: { mode: 'login' },
+      meta: { guestOnly: true },
+    },
+    {
+      path: '/register',
+      name: ROUTE_NAMES.register,
+      component: () => import('@/views/auth-view/AuthView.vue'),
+      props: { mode: 'register' },
+      meta: { guestOnly: true },
+    },
     // Страница с 3D-картой (`@/views/activity-view/ActivityView.vue`) временно скрыта.
     // Чтобы вернуть её, добавьте маршрут:
     // { path: '/activity', component: () => import('@/views/activity-view/ActivityView.vue') },
@@ -45,6 +62,10 @@ const router = createRouter({
 router.beforeEach((to) => {
   // Без загруженной тренировки делать нечего — возвращаем к загрузке GPX.
   if (to.meta.requiresActivity && !useActivityStore().activity) {
+    return { name: ROUTE_NAMES.import };
+  }
+
+  if (to.meta.guestOnly && useAuthStore().isAuthenticated) {
     return { name: ROUTE_NAMES.import };
   }
 });
