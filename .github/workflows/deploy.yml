@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+  # Ручной запуск: Actions → Deploy to GitHub Pages → Run workflow (например, после смены VITE_API_URL).
+  workflow_dispatch:
 
 permissions:
   contents: read
