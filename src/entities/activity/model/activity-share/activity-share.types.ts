@@ -128,19 +128,13 @@ export type ShareMapStyle =
   | 'satellite-dark'
   | 'satellite-tinted';
 
-/** Наклон карты, градусы. */
-export type ShareMapPitch = 0 | 35 | 60;
+/** Наклон трека (вместе с картой, если она есть), градусы. */
+export type ShareRoutePitch = 0 | 35 | 60;
 
 /** Карта — фиксированная картинка: трек всегда вписан целиком, жестами не двигается. */
 export type ShareMapSettings = {
   layout: ShareMapLayout;
   style: ShareMapStyle;
-  pitch: ShareMapPitch;
-  /** Поворот карты вокруг трека, градусы (0 — север сверху). Трек всегда вписан целиком. */
-  bearing: number;
-  /** Флажки на треке: отметки километров (шаг — по дистанции) и старт/финиш. */
-  kmMarkers: boolean;
-  startFinish: boolean;
 };
 
 /** Вид графика высоты. */
@@ -209,10 +203,16 @@ export type ShareCardSettings = {
   routeStyle: ShareRouteStyle;
   /** null — трек стоит на своём месте между названием и показателями. */
   routePosition: ShareRoutePosition | null;
-  /** Поворот трека без карты, градусы (как у карты: больше — против часовой). */
+  /**
+   * Поворот трека, градусы (0 — север сверху, больше — против часовой). С картой
+   * поворачивается и карта вокруг трека; трек всегда вписан целиком.
+   */
   routeBearing: number;
-  /** Наклон трека без карты (у карты — свой, в `map.pitch`). */
-  routePitch: ShareMapPitch;
+  /** Наклон трека (с картой — наклон карты). */
+  routePitch: ShareRoutePitch;
+  /** Флажки на треке: отметки километров (шаг — по дистанции) и старт/финиш. */
+  routeKmMarkers: boolean;
+  routeStartFinish: boolean;
   /** Карта под треком (шаблон «Топография»); null — карточка без карты. */
   map: ShareMapSettings | null;
   /** График высоты (только у карточки с картой). */

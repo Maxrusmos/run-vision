@@ -3,17 +3,18 @@ import { computed } from 'vue';
 import type { ITrackPoint } from '@/entities/activity/model/activity.types';
 import type {
   ShareCardSettings,
-  ShareMapPitch,
+  ShareRoutePitch,
   ShareRouteStyle,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import { SHARE_ROUTE_STYLES } from '@/entities/activity/model/activity-share/activity-share-route-styles';
-import { SHARE_MAP_PITCHES } from '@/entities/activity/model/activity-share/activity-share-map';
+import { SHARE_ROUTE_PITCHES } from '@/entities/activity/model/activity-share/activity-share-map';
 import {
   orientRoute,
   projectRoute,
   toSvgPolylinePoints,
 } from '@/entities/activity/lib/route-projection';
 import SegmentedGroup from '@/views/photo-editor-view/components/settings/SegmentedGroup.vue';
+import ToggleGroup from '@/views/photo-editor-view/components/settings/ToggleGroup.vue';
 import OptionTile from '@/views/photo-editor-view/components/settings/OptionTile.vue';
 import OptionTileRow from '@/views/photo-editor-view/components/settings/OptionTileRow.vue';
 import ColorOptionTile from '@/views/photo-editor-view/components/settings/ColorOptionTile.vue';
@@ -23,6 +24,11 @@ import RouteStyleLayers from '@/views/photo-editor-view/components/artwork/Route
 const PREVIEW = { width: 70, height: 46, padding: 9 };
 /** Эффекты в превью крупнее пропорции карточки, иначе сдвиги копий не разглядеть. */
 const PREVIEW_UNIT = 0.22;
+/**
+ * Точек трека в превью: плитка крошечная, а 16 плиток с полным треком (десятки тысяч
+ * точек) перерисовывались на каждом шаге поворота — меню заметно подлагивало.
+ */
+const PREVIEW_POINTS = 200;
 
 const props = defineProps<{
   settings: ShareCardSettings;
@@ -33,17 +39,37 @@ const emit = defineEmits<{
   setRouteColor: [color: string];
   setRouteStyle: [style: ShareRouteStyle];
   setRouteBearing: [bearing: number];
-  setRoutePitch: [pitch: ShareMapPitch];
+  setRoutePitch: [pitch: ShareRoutePitch];
+  setRouteKmMarkers: [value: boolean];
+  setRouteStartFinish: [value: boolean];
 }>();
 
-/** Свой поворот и наклон — только у трека без карты (у карты они в меню «Карта»). */
-const orientable = computed(() => !props.settings.map);
+/** Флажки на треке: старт/финиш и отметки километров (шаг — по дистанции). */
+const markerOptions = computed(() => [
+  {
+    key: 'startFinish',
+    icon: 'mdi-flag-checkered',
+    title: 'Старт и финиш',
+    active: props.settings.routeStartFinish,
+  },
+  {
+    key: 'km',
+    label: 'км',
+    title: 'Отметки километров',
+    active: props.settings.routeKmMarkers,
+  },
+]);
+
+function toggleMarker(key: string) {
+  if (key === 'km') emit('setRouteKmMarkers', !props.settings.routeKmMarkers);
+  else emit('setRouteStartFinish', !props.settings.routeStartFinish);
+}
 
 const pitch = computed({
   get: () => props.settings.routePitch,
-  set: (value: ShareMapPitch) => emit('setRoutePitch', value),
+  set: (value: ShareRoutePitch) => emit('setRoutePitch', value),
 });
-const pitchOptions = SHARE_MAP_PITCHES.map((value) => ({
+const pitchOptions = SHARE_ROUTE_PITCHES.map((value) => ({
   value,
   label: `${value}°`,
   title: value ? `Наклон ${value}°` : 'Без наклона',
@@ -54,20 +80,22 @@ function handleBearingInput(event: Event) {
 }
 
 // Точки относительно центра превью — так же, как у трека на карточке (с поворотом и наклоном).
-const flatPoints = computed(() =>
-  projectRoute(props.track, PREVIEW).map((point) => ({
+const flatPoints = computed(() => {
+  const stride = Math.max(1, Math.floor(props.track.length / PREVIEW_POINTS));
+  const sample = props.track.filter(
+    (_, index) => index % stride === 0 || index === props.track.length - 1,
+  );
+  return projectRoute(sample, PREVIEW).map((point) => ({
     x: point.x - PREVIEW.width / 2,
     y: point.y - PREVIEW.height / 2,
-  })),
-);
+  }));
+});
 const localPoints = computed(() =>
-  orientable.value
-    ? orientRoute(
-        flatPoints.value,
-        { bearing: props.settings.routeBearing, pitch: props.settings.routePitch },
-        PREVIEW,
-      )
-    : flatPoints.value,
+  orientRoute(
+    flatPoints.value,
+    { bearing: props.settings.routeBearing, pitch: props.settings.routePitch },
+    PREVIEW,
+  ),
 );
 const points = computed(() => toSvgPolylinePoints(localPoints.value));
 const start = computed(() => localPoints.value[0] ?? null);
@@ -76,9 +104,15 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
 
 <template>
   <div class="track-panel">
-    <!-- Наклон и поворот трека — одной строкой над стилями. На карточке — двумя пальцами. -->
-    <div v-if="orientable" class="track-panel__orientation">
-      <SegmentedGroup v-model="pitch" :options="pitchOptions" group-label="Наклон трека" />
+    <!-- Наклон, флажки и поворот — для всех шаблонов (с картой — заодно и карты).
+         На карточке поворот — двумя пальцами. -->
+    <div class="track-panel__controls">
+      <SegmentedGroup v-model="pitch" :options="pitchOptions" group-label="Наклон трека" grow />
+      <ToggleGroup :options="markerOptions" group-label="Флажки на треке" @toggle="toggleMarker" />
+    </div>
+
+    <div class="track-panel__rotation">
+      <v-icon icon="mdi-rotate-3d-variant" size="18" aria-hidden="true" />
       <input
         class="track-panel__range"
         type="range"
@@ -94,8 +128,8 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
         type="button"
         class="track-panel__reset"
         :disabled="!settings.routeBearing"
-        aria-label="Без поворота"
-        title="Без поворота"
+        aria-label="Север сверху"
+        title="Север сверху"
         @click="emit('setRouteBearing', 0)"
       >
         <v-icon
@@ -147,11 +181,23 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
 </template>
 
 <style scoped>
-.track-panel__orientation {
+.track-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.track-panel__controls {
+  display: flex;
+  gap: 8px;
+}
+
+.track-panel__rotation {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  height: 28px;
+  padding-inline: 4px;
   color: color-mix(in srgb, var(--app-on-surface) 75%, transparent);
 }
 

@@ -11,7 +11,7 @@ import type {
   ShareWidget,
   ShareWidgetSide,
   ShareMapLayout,
-  ShareMapPitch,
+  ShareRoutePitch,
   ShareMapStyle,
   ShareRoutePosition,
   ShareRouteStyle,
@@ -98,11 +98,12 @@ function createSettings(
     routeStyle: styles.route,
     routePosition: null,
     routeBearing: 0,
-    routePitch: 0,
-    // «Топография»: карта во весь фон «в тон» с наклоном 60°, график-силуэт.
-    map: withMap
-      ? { ...createShareMapSettings(), layout: 'full', style: 'tinted', pitch: 60 }
-      : null,
+    // «Топография»: карта с наклоном 60° и флажками на треке.
+    routePitch: withMap ? 60 : 0,
+    routeKmMarkers: withMap,
+    routeStartFinish: withMap,
+    // «Топография»: карта во весь фон «в тон», график-силуэт.
+    map: withMap ? { ...createShareMapSettings(), layout: 'full', style: 'tinted' } : null,
     // Без высоты в GPX график был бы пустым — не ставим его (можно добавить вручную).
     elevation: withMap
       ? {
@@ -277,8 +278,16 @@ export function useShareCardSettings(
     settings.value.routeBearing = normalizeMapBearing(bearing);
   }
 
-  function setRoutePitch(pitch: ShareMapPitch) {
+  function setRoutePitch(pitch: ShareRoutePitch) {
     settings.value.routePitch = pitch;
+  }
+
+  function setRouteKmMarkers(value: boolean) {
+    settings.value.routeKmMarkers = value;
+  }
+
+  function setRouteStartFinish(value: boolean) {
+    settings.value.routeStartFinish = value;
   }
 
   function setTitleVisible(value: boolean) {
@@ -302,22 +311,6 @@ export function useShareCardSettings(
 
   function setMapStyle(style: ShareMapStyle) {
     updateMap({ style });
-  }
-
-  function setMapPitch(pitch: ShareMapPitch) {
-    updateMap({ pitch });
-  }
-
-  function setMapBearing(bearing: number) {
-    updateMap({ bearing: normalizeMapBearing(bearing) });
-  }
-
-  function setMapKmMarkers(kmMarkers: boolean) {
-    updateMap({ kmMarkers });
-  }
-
-  function setMapStartFinish(startFinish: boolean) {
-    updateMap({ startFinish });
   }
 
   function updateElevation(patch: Partial<ShareElevationSettings>) {
@@ -467,6 +460,8 @@ export function useShareCardSettings(
     setRouteScale,
     setRouteBearing,
     setRoutePitch,
+    setRouteKmMarkers,
+    setRouteStartFinish,
     setRouteStyle,
     setRoutePosition,
     setTitle,
@@ -474,16 +469,12 @@ export function useShareCardSettings(
     resetSettings,
     setMapLayout,
     setMapStyle,
-    setMapPitch,
     setElevationVisible,
     setElevationStyle,
     setElevationSize,
     setElevationLabels,
     setElevationColor,
     setElevationRow,
-    setMapKmMarkers,
-    setMapStartFinish,
-    setMapBearing,
     setWidgetVisible,
     setWidgetSide,
     setBandRows,

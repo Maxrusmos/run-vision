@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ITrackPoint } from '@/entities/activity/model/activity.types';
-import { getKmMarkerStep, getKmMarkers, isLoopRoute } from '../activity-share-map';
+import { getKmMarkerStep, getKmMarkers, isLoopRoute, spreadKmMarkers } from '../activity-share-map';
 
 /** Прямой трек на восток по экватору: 0,001° долготы ≈ 111 м. */
 function straightTrack(km: number): ITrackPoint[] {
@@ -28,10 +28,26 @@ describe('getKmMarkers', () => {
     expect(markers.map((marker) => marker.km)).toEqual([1, 2, 3, 4]);
     // 1 км ≈ 0,009° долготы на экваторе.
     expect(markers[0]!.lngLat[0]).toBeCloseTo(0.009, 3);
+    // Отрезок и доля пути по нему — та же точка (для трека без карты).
+    const { index, t } = markers[0]!;
+    expect((index + t) * 0.001).toBeCloseTo(markers[0]!.lngLat[0], 6);
   });
 
   it('короткий трек — без отметок', () => {
     expect(getKmMarkers(straightTrack(0.8))).toEqual([]);
+  });
+});
+
+describe('spreadKmMarkers', () => {
+  it('пропускает флажки вплотную к старту/финишу и друг к другу', () => {
+    const markers = [
+      { x: 5, y: 0, km: 1 },
+      { x: 100, y: 0, km: 2 },
+      { x: 110, y: 0, km: 3 },
+      { x: 200, y: 0, km: 4 },
+    ];
+    const kept = spreadKmMarkers(markers, [{ x: 0, y: 0 }], 64);
+    expect(kept.map((marker) => marker.km)).toEqual([2, 4]);
   });
 });
 

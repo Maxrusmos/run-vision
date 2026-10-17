@@ -67,6 +67,8 @@ const {
   setRouteScale,
   setRouteBearing,
   setRoutePitch,
+  setRouteKmMarkers,
+  setRouteStartFinish,
   setRouteStyle,
   setRoutePosition,
   setTitle,
@@ -74,7 +76,6 @@ const {
   resetSettings,
   setMapLayout,
   setMapStyle,
-  setMapPitch,
   setElevationVisible,
   setElevationStyle,
   setElevationSize,
@@ -88,9 +89,6 @@ const {
   setTelemetryColor,
   setTelemetryLabels,
   setTelemetryGrid,
-  setMapKmMarkers,
-  setMapStartFinish,
-  setMapBearing,
   undo,
   redo,
   canUndo,
@@ -132,7 +130,8 @@ const displayedToolTitle = computed(
 const disabledTools = computed<EditorToolId[]>(() => {
   const tools: EditorToolId[] = [];
   if (!settings.value.visibleStats.length) tools.push('stats');
-  if (!settings.value.routeVisible) tools.push('track');
+  // С картой в «Треке» ещё наклон и поворот карты — меню нужно и без трека.
+  if (!settings.value.routeVisible && !settings.value.map) tools.push('track');
   if (!settings.value.elevation?.visible) tools.push('elevation');
   return tools;
 });
@@ -249,7 +248,6 @@ function goBack() {
         @drop-bands="dropBands"
         @remove-widget="setWidgetVisible($event, false)"
         @set-widget-side="setWidgetSide"
-        @rotate-map="setMapBearing"
         @rotate-route="setRouteBearing"
       />
     </FitToBox>
@@ -281,10 +279,6 @@ function goBack() {
             :track="activity.track"
             @set-layout="setMapLayout"
             @set-style="setMapStyle"
-            @set-pitch="setMapPitch"
-            @set-km-markers="setMapKmMarkers"
-            @set-start-finish="setMapStartFinish"
-            @set-bearing="setMapBearing"
           />
           <WidgetsPanel
             v-else-if="displayedTool === 'widgets' && settings.telemetry"
@@ -332,6 +326,8 @@ function goBack() {
             @set-route-style="setRouteStyle"
             @set-route-bearing="setRouteBearing"
             @set-route-pitch="setRoutePitch"
+            @set-route-km-markers="setRouteKmMarkers"
+            @set-route-start-finish="setRouteStartFinish"
           />
           <StatsAppearancePanel
             v-else-if="displayedTool === 'stats'"

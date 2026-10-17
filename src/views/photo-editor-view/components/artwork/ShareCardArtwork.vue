@@ -62,8 +62,7 @@ const emit = defineEmits<{
   dropBands: [state: BandState];
   removeWidget: [kind: ShareWidgetKind];
   setWidgetSide: [kind: ShareWidgetKind, side: ShareWidgetSide | null];
-  rotateMap: [bearing: number];
-  /** Поворот трека без карты двумя пальцами. */
+  /** Поворот трека (с картой — и карты) двумя пальцами. */
   rotateRoute: [bearing: number];
 }>();
 
@@ -200,10 +199,8 @@ onBeforeUnmount(() => areaObserver?.disconnect());
  */
 let twist: { angle: number; bearing: number } | null = null;
 
-const twistBearing = computed(() => {
-  if (props.settings.map) return props.settings.map.bearing;
-  return props.settings.routeVisible ? props.settings.routeBearing : null;
-});
+// Без карты и без трека вращать нечего.
+const canTwist = computed(() => Boolean(props.settings.map) || props.settings.routeVisible);
 
 function touchAngle(event: TouchEvent): number | null {
   const [a, b] = [event.touches[0], event.touches[1]];
@@ -212,9 +209,8 @@ function touchAngle(event: TouchEvent): number | null {
 }
 
 function handleTouchStart(event: TouchEvent) {
-  const bearing = twistBearing.value;
-  const angle = bearing === null ? null : touchAngle(event);
-  twist = angle === null || bearing === null ? null : { angle, bearing };
+  const angle = canTwist.value ? touchAngle(event) : null;
+  twist = angle === null ? null : { angle, bearing: props.settings.routeBearing };
 }
 
 function handleTouchMove(event: TouchEvent) {
@@ -223,9 +219,7 @@ function handleTouchMove(event: TouchEvent) {
   // Иначе браузер масштабирует страницу.
   event.preventDefault();
   // Пальцы по часовой — карта (трек) тоже по часовой, то есть угол (bearing) уменьшается.
-  const bearing = twist.bearing - (angle - twist.angle);
-  if (props.settings.map) emit('rotateMap', bearing);
-  else emit('rotateRoute', bearing);
+  emit('rotateRoute', twist.bearing - (angle - twist.angle));
 }
 
 function handleTouchEnd(event: TouchEvent) {
@@ -294,7 +288,7 @@ function removeRoute() {
     :class="{
       'share-artwork--transparent': settings.transparentBackground && !settings.map,
       'share-artwork--map-full': mapLayout === 'full',
-      'share-artwork--twist': settings.map || settings.routeVisible,
+      'share-artwork--twist': canTwist,
       'share-artwork--exporting': exporting,
     }"
     :style="cssVariables"
@@ -310,6 +304,10 @@ function removeRoute() {
         ref="map"
         class="share-artwork__map-full"
         :map="settings.map"
+        :pitch="settings.routePitch"
+        :bearing="settings.routeBearing"
+        :km-markers="settings.routeKmMarkers"
+        :start-finish="settings.routeStartFinish"
         :track="activity.track"
         :route-visible="settings.routeVisible"
         :route-style="settings.routeStyle"
@@ -363,6 +361,10 @@ function removeRoute() {
           ref="map"
           class="share-artwork__map-block"
           :map="settings.map"
+          :pitch="settings.routePitch"
+          :bearing="settings.routeBearing"
+          :km-markers="settings.routeKmMarkers"
+          :start-finish="settings.routeStartFinish"
           :track="activity.track"
           :route-visible="settings.routeVisible"
           :route-style="settings.routeStyle"
@@ -431,6 +433,8 @@ function removeRoute() {
         :position="settings.routePosition"
         :bearing="settings.routeBearing"
         :pitch="settings.routePitch"
+        :km-markers="settings.routeKmMarkers"
+        :start-finish="settings.routeStartFinish"
         :selected="selected === 'route'"
         :slot-element="routeSlot"
         @select="selected = 'route'"
