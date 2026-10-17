@@ -144,7 +144,7 @@ UPDATE users SET plan = 'pro', plan_expires_at = now() + interval '1 month' WHER
 ## Деплой
 
 Схема: база — **Neon** (бесплатная PostgreSQL), сервер — **Render** (бесплатный веб-сервис),
-фронт — GitHub Pages (как и раньше). Карта не нужна ни там, ни там.
+фронт — GitHub Pages (как и раньше). Банковская карта для бесплатных тарифов не нужна.
 
 1. **Neon** (neon.tech): создать проект (регион — Frankfurt), скопировать строку подключения
    (`postgresql://…?sslmode=require`).
