@@ -143,12 +143,23 @@ UPDATE users SET plan = 'pro', plan_expires_at = now() + interval '1 month' WHER
 
 ## Деплой
 
-Подойдёт любой хостинг Node с управляемой PostgreSQL: **Render**, **Railway**, **Fly.io**.
+Схема: база — **Neon** (бесплатная PostgreSQL), сервер — **Render** (бесплатный веб-сервис),
+фронт — GitHub Pages (как и раньше). Карта не нужна ни там, ни там.
 
-1. Создать PostgreSQL на хостинге, взять её `DATABASE_URL`.
-2. Создать веб-сервис из репозитория, корень — `server/`.
-   Сборка: `npm ci && npm run build`, запуск: `node dist/migrate.js && npm start`.
-3. Переменные: `DATABASE_URL`, `TRUST_PROXY=true`,
-   `CORS_ORIGINS=https://maxrusmos.github.io` (порт `PORT` хостинг задаёт сам).
-4. На фронте при сборке задать `VITE_API_URL=https://<адрес-сервиса>`
-   (для GitHub Pages — переменная в workflow сборки).
+1. **Neon** (neon.tech): создать проект (регион — Frankfurt), скопировать строку подключения
+   (`postgresql://…?sslmode=require`).
+2. **Render** (render.com): New → Web Service → репозиторий `run-vision`, ветка `main`.
+   - Root Directory: `server`
+   - Build Command: `npm ci && npm run build`
+   - Start Command: `npm run start:prod` (сначала миграции, потом сервер)
+   - Instance Type: Free
+   - Environment: `DATABASE_URL` (из Neon), `CORS_ORIGINS=https://maxrusmos.github.io`,
+     `TRUST_PROXY=true`, `NODE_VERSION=22`. `PORT` Render задаёт сам.
+   - Advanced → Health Check Path: `/api/health`.
+3. **GitHub** → Settings → Secrets and variables → Actions → Variables → `VITE_API_URL` =
+   адрес сервиса Render (`https://….onrender.com`, без `/` в конце). Workflow деплоя
+   подставляет его при сборке фронта.
+
+Бесплатный Render засыпает через 15 минут без запросов, первый запрос после сна — до минуты.
+Фронт будит сервер при открытии приложения (`wakeApi`), поэтому к форме входа он обычно уже готов.
+Каждый пуш в `main` пересобирает и сервер (Render), и фронт (GitHub Pages).
