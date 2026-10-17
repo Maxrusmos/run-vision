@@ -253,7 +253,7 @@ sudo -u postgres createdb -O runvision runvision_test
 cd ~/WebstormProjects/run-vision/server && npm install && cp .env.example .env && npm run migrate
 ```
 Каждый раз — из корня: `npm run dev` (= `dev:all`; фронт http://localhost:5173/run-vision/ +
-сервер http://localhost:3000, Ctrl+C останавливает оба; зависимости сервера, `server/.env` и новые миграции — сами, `scripts/prepare-server.mjs`). Раньше `npm run dev` поднимал только Vite → вход падал с `ERR_CONNECTION_REFUSED`, а без миграции после `git pull` — `relation "templates" does not exist` (было). Вручную — `cd server && npm run migrate`. Проверка сервера — `/api/health` → `{"ok":true}`.
+сервер http://localhost:3000, Ctrl+C останавливает оба; недостающие пакеты фронта и сервера, `server/.env` и новые миграции — сами: `scripts/ensure-deps.mjs` (predev) и `scripts/prepare-server.mjs`; без этого после `pull` с новым пакетом Vite отдавал 500 «Failed to resolve import» — было с `mp4-muxer`). Раньше `npm run dev` поднимал только Vite → вход падал с `ERR_CONNECTION_REFUSED`, а без миграции после `git pull` — `relation "templates" does not exist` (было). Вручную — `cd server && npm run migrate`. Проверка сервера — `/api/health` → `{"ok":true}`.
 Vite не на 5173 → добавить его адрес в `CORS_ORIGINS` в `server/.env`.
 Вариант с Docker — `cd server && docker compose up -d` (до установки Docker не дошли).
 

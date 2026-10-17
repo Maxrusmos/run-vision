@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node scripts/ensure-deps.mjs",
     "dev": "run-p --continue-on-error dev:front dev:server",
     "dev:front": "vite",
     "predev:server": "node scripts/prepare-server.mjs",
