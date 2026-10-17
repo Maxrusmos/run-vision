@@ -11,6 +11,9 @@ import {
 } from '@/shared/lib/formatters/formatters';
 import PhotoTemplateCard from '@/views/share-view/components/PhotoTemplateCard.vue';
 import TemplateRoutePreview from '@/views/share-view/components/TemplateRoutePreview.vue';
+import DraftCardPreview from '@/views/share-view/components/DraftCardPreview.vue';
+import { getActivityShareStats } from '@/entities/activity/model/activity-share/activity-share-stats';
+import { useShareDraftsStore } from '@/stores/share-drafts.store';
 
 const PREVIEW_VIEWPORT = { width: 100, height: 100, padding: 12 };
 
@@ -19,6 +22,10 @@ const props = defineProps<{
 }>();
 
 const selected = defineModel<PhotoTemplateId>({ required: true });
+
+const draftsStore = useShareDraftsStore();
+// Нужны только для превью черновиков.
+const statValues = computed(() => getActivityShareStats(props.activity));
 
 const routePoints = computed(() =>
   toSvgPolylinePoints(projectRoute(props.activity.track, PREVIEW_VIEWPORT)),
@@ -34,16 +41,32 @@ const secondaryLabel = computed(() => {
 </script>
 
 <template>
-  <v-slide-group show-arrows="desktop" class="template-carousel">
-    <v-slide-group-item v-for="template in PHOTO_TEMPLATES" :key="template.id">
+  <!-- Выбранный шаблон — по центру (и при возврате из редактора, и после перезагрузки). -->
+  <v-slide-group
+    v-model="selected"
+    show-arrows="desktop"
+    center-active
+    mandatory
+    class="template-carousel"
+  >
+    <v-slide-group-item v-for="template in PHOTO_TEMPLATES" :key="template.id" :value="template.id">
       <PhotoTemplateCard
         :title="template.title"
         :description="template.description"
         :selected="selected === template.id"
+        :edited="Boolean(draftsStore.drafts[template.id])"
         @select="selected = template.id"
       >
         <template #preview>
+          <!-- Шаблон уже настраивали — показываем карточку, на которой остановились. -->
+          <DraftCardPreview
+            v-if="draftsStore.drafts[template.id]"
+            :activity="activity"
+            :settings="draftsStore.drafts[template.id]!"
+            :stat-values="statValues"
+          />
           <TemplateRoutePreview
+            v-else
             :template-id="template.id"
             :route-points="routePoints"
             :primary-label="distanceLabel"

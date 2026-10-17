@@ -228,6 +228,10 @@ DBeaver (`sudo snap install dbeaver-ce`) → новое соединение Pos
 
 ### Прод
 
+Остановить на время: Render → сервис → Settings → **Suspend Web Service** (Resume — вернуть);
+сайт — Settings → Pages → «⋯» у адреса сайта → Unpublish site (вернуть — Actions → Run workflow); Neon
+засыпает сам без запросов.
+
 - **База** — Neon (бесплатно, регион Frankfurt), строка подключения `…?sslmode=require`
   (если не подключается — убрать `&channel_binding=require`).
 - **Сервер** — Render, Web Service `run-vision` → https://run-vision.onrender.com, ветка
@@ -248,6 +252,25 @@ DBeaver (`sudo snap install dbeaver-ce`) → новое соединение Pos
   проверка здоровья; нет `OPTIONS`/`POST /api/auth/*` при входе → сайт стучится не туда
   (`VITE_API_URL`/пересборка); есть `OPTIONS` без `POST` → `CORS_ORIGINS`.
 - Из песочницы Claude onrender.com и github.io недоступны (403 прокси) — проверяет пользователь.
+
+## Черновики и сессия
+
+- **Черновики карточек** — `stores/share-drafts.store.ts`: по одному на шаблон для текущей
+  тренировки. Редактор стартует с черновика (`initialSettings` в `useShareCardSettings`) и
+  пишет его на каждое изменение; карточка как по шаблону (`isDefault()`) → черновика нет.
+  Новый GPX (`importGpx`) черновики сбрасывает. История отмены — заново при каждом входе.
+- **Карусель** показывает черновик настоящей карточкой (`DraftCardPreview`: `ShareCardArtwork`
+  в раскладке 360px, уменьшенный, `inert`) и пометку «Ваш вариант»; без черновика — простое
+  превью. Выбранный шаблон — по центру (`center-active`).
+- **Фото фона** в черновике — object URL: редактор при уходе освобождает все свои URL,
+  кроме текущего (его держит черновик); черновики освобождают свои в `clear()`.
+- **Сессия вкладки** — `stores/work-session.ts`: GPX (`activity.sourceFile`), тип/шаблон и
+  черновики (+ файлы фото) пишутся в IndexedDB (`shared/lib/storage/idb-store.ts`, ошибки
+  тихие) с задержкой 400 мс и сразу при скрытии вкладки. Метка сессии — в sessionStorage:
+  перезагрузка (iOS выгружает вкладку, пока делишься картинкой) возвращает работу, новая
+  вкладка — начинает с нуля (старую запись удаляет). Восстановление — в `router.beforeEach`
+  для страниц с `requiresActivity`; без GPX запись не перезаписывается. Тесты — с моком
+  idb-store (jsdom-файлы не проходят `structuredClone`), сам idb-store — с `fake-indexeddb`.
 
 ## Состояние
 
@@ -291,6 +314,11 @@ DBeaver (`sudo snap install dbeaver-ce`) → новое соединение Pos
 - **Зона касания трека** лежит под показателями (z-index 0), видимая линия — над ними.
   Сетка показателей `pointer-events: none`, сами показатели — `auto`.
 - **iOS и GPX**: accept включает XML-типы; есть запасной выбор без фильтра.
+- **Автозаполнение в формах входа** красило поле жёлтым поверх подписи на рамке:
+  `.v-field__outline` поверх поля (z-index), заливка перекрыта тенью внутрь цвета фона,
+  а анимация `rv-autofill` на `:-webkit-autofill` забирает значение в форму
+  (`handleAutofill` в `AuthView`) — подпись уходит наверх, даже если не было `input`.
+- **Шапка**: на телефоне 56px (`AppHeader` + `padding-top` в `AppLayout`), «Войти» — пилюля 40px.
 - `scroll-snap` в рядах плиток требует `scroll-padding-inline`, иначе пропадает отступ.
 
 ## Как проверять изменения
@@ -312,7 +340,8 @@ vue-devtools (`#__vue-devtools-container__{display:none}`); после перв�
 ## Ветки
 
 `feature/stats-grid-layout`, `feature/topo-style` и `backend/init` (бэкенд, регистрация и
-вход, PR #23) слиты в `main`. В `backend/init` после слияния — ручной запуск деплоя Pages.
+вход) слиты в `main`. Текущая — `feature/session-drafts` (от `main`): черновики карточек и
+сессия в IndexedDB, автозаполнение в формах входа, шапка крупнее.
 
 ## Идеи на потом (обсуждали, не сделано)
 

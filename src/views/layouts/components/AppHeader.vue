@@ -36,9 +36,9 @@ const hasSession = computed(() => authStore.isAuthenticated || authStore.token !
         v-else-if="!isAuthPage"
         :to="loginLocation"
         variant="tonal"
-        size="small"
         class="app-bar__login"
         prepend-icon="mdi-login"
+        rounded="pill"
       >
         Войти
       </v-btn>
@@ -53,18 +53,22 @@ const hasSession = computed(() => authStore.isAuthenticated || authStore.token !
 }
 
 .app-bar__login {
+  height: 40px !important;
+  padding-inline: 18px !important;
+  font-size: 15px;
+  font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
 }
 
 @media (max-width: 600px) {
   .app-bar {
-    height: 48px !important;
+    height: 56px !important;
   }
 
   .app-bar :deep(.v-toolbar__content) {
-    height: 48px !important;
-    min-height: 48px !important;
+    height: 56px !important;
+    min-height: 56px !important;
   }
 
   .app-bar :deep(.v-toolbar__append) {
@@ -72,7 +76,7 @@ const hasSession = computed(() => authStore.isAuthenticated || authStore.token !
   }
 
   .app-title {
-    font-size: 16px;
+    font-size: 18px;
   }
 }
 </style>
