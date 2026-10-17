@@ -25,6 +25,7 @@ import {
   spreadKmMarkers,
 } from '@/entities/activity/model/activity-share/activity-share-map';
 import { usePinchDrag } from '@/hooks/usePinchDrag';
+import { useLongPressDrag } from '@/hooks/useLongPressDrag';
 import { dragTrash } from '@/hooks/useDragTrash';
 import { usePointerDrag } from '@/hooks/usePointerDrag';
 import { useResizeObserver } from '@/hooks/useResizeObserver';
@@ -182,12 +183,19 @@ const frame = computed(() => {
   if (!bounds.value) return null;
 
   const { width, height } = layer.value;
-  const left = Math.max(0, center.value.x + bounds.value.minX * scale.value - FRAME_PADDING);
-  const top = Math.max(0, center.value.y + bounds.value.minY * scale.value - FRAME_PADDING);
-  const right = Math.min(width, center.value.x + bounds.value.maxX * scale.value + FRAME_PADDING);
-  const bottom = Math.min(height, center.value.y + bounds.value.maxY * scale.value + FRAME_PADDING);
+  const left = center.value.x + bounds.value.minX * scale.value - FRAME_PADDING;
+  const top = center.value.y + bounds.value.minY * scale.value - FRAME_PADDING;
+  const right = center.value.x + bounds.value.maxX * scale.value + FRAME_PADDING;
+  const bottom = center.value.y + bounds.value.maxY * scale.value + FRAME_PADDING;
 
-  return { left, top, right, bottom };
+  // Трек тащат к корзине — рамка едет с ним и за край карточки.
+  if (isDragging.value && dragTrash.state.active) return { left, top, right, bottom };
+  return {
+    left: Math.max(0, left),
+    top: Math.max(0, top),
+    right: Math.min(width, right),
+    bottom: Math.min(height, bottom),
+  };
 });
 
 const frameStyle = computed<CSSProperties | null>(() => {
@@ -256,6 +264,37 @@ const { handlePointerDown } = usePinchDrag({
   // Отпустили над корзиной — трек убирается с карточки (вернуть — «Добавить» или отмена).
   onTrash: () => emit('trash'),
 });
+
+// Долгое нажатие на невыделенный трек — сразу перенос (как у показателей): рамка видна,
+// пока тащат; отпустили над корзиной — трек удалён, мимо — встал на место (в пределах слоя).
+const { start: startLongPressDrag, isClickSuppressed } = useLongPressDrag<'route'>({
+  onStart: () => {
+    isDragging.value = true;
+    gestureStart = { scale: scale.value, center: center.value };
+  },
+  onMove: (_id, dx, dy) => {
+    const units = unitsPerPixel();
+    applyTransform(
+      gestureStart.scale,
+      { x: gestureStart.center.x + dx * units, y: gestureStart.center.y + dy * units },
+      !dragTrash.state.active,
+    );
+  },
+  onEnd: () => {
+    isDragging.value = false;
+    applyTransform(scale.value, center.value);
+  },
+  onTrash: () => emit('trash'),
+});
+
+function handleHitPointerDown(event: PointerEvent) {
+  startLongPressDrag(event, 'route', false);
+}
+
+// Отпускание после переноса — не тап: трек не выделяем.
+function handleHitClick() {
+  if (!isClickSuppressed()) emit('select');
+}
 
 // Десктоп: уголок рамки масштабирует трек относительно его центра.
 let resizeStart = { scale: 1, distance: 1, centerX: 0, centerY: 0 };
@@ -345,13 +384,15 @@ function handleWheel(event: WheelEvent) {
         stroke-linecap="round"
         stroke-linejoin="round"
         data-selectable
-        @click="emit('select')"
+        @pointerdown="handleHitPointerDown"
+        @click="handleHitClick"
       />
     </svg>
 
-    <!-- Выделенный трек перетаскивается за всю рамку, без прокрутки страницы. -->
+    <!-- Выделенный трек перетаскивается за всю рамку, без прокрутки страницы.
+         Рамка видна и пока трек тащат долгим нажатием (без выделения). -->
     <div
-      v-if="selected && frameStyle"
+      v-if="(selected || isDragging) && frameStyle"
       class="route-layer__frame"
       :style="frameStyle"
       data-selectable
@@ -404,12 +445,16 @@ function handleWheel(event: WheelEvent) {
 .route-layer__hit {
   cursor: pointer;
   pointer-events: stroke;
+  /* Долгое нажатие — перенос трека, а не меню iOS или прокрутка. */
+  -webkit-touch-callout: none;
+  touch-action: none;
+  user-select: none;
 }
 
 .route-layer__frame {
   position: absolute;
   z-index: 5;
-  border-radius: 16px;
+  border-radius: 6px;
   cursor: grab;
   pointer-events: auto;
   touch-action: none;
