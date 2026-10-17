@@ -1,6 +1,19 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 
+withDefaults(
+  defineProps<{
+    /** Сбрасывать нечего (режим шаблона без изменений). */
+    disabled?: boolean;
+    /** Пояснение в диалоге: к чему вернётся карточка. */
+    description?: string;
+  }>(),
+  {
+    description:
+      'Карточка вернётся к исходному виду шаблона: цвета, показатели, трек, название и фоновое фото. Сброс можно отменить стрелкой «назад».',
+  },
+);
+
 const emit = defineEmits<{
   confirm: [];
 }>();
@@ -19,6 +32,7 @@ function confirm() {
     class="history-actions__button"
     aria-label="Сбросить оформление"
     title="Сбросить оформление"
+    :disabled="disabled"
     @click="isDialogOpen = true"
   >
     <v-icon icon="mdi-restore" size="20" />
@@ -27,10 +41,7 @@ function confirm() {
   <v-dialog v-model="isDialogOpen" max-width="360">
     <v-card class="reset-card-dialog">
       <div class="reset-card-dialog__title">Сбросить оформление?</div>
-      <div class="reset-card-dialog__text">
-        Карточка вернётся к исходному виду шаблона: цвета, показатели, трек, название и фоновое
-        фото. Сброс можно отменить стрелкой «назад».
-      </div>
+      <div class="reset-card-dialog__text">{{ description }}</div>
 
       <div class="reset-card-dialog__actions">
         <v-btn variant="tonal" @click="isDialogOpen = false">Отмена</v-btn>

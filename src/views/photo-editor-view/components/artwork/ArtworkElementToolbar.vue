@@ -2,15 +2,13 @@
 import { computed } from 'vue';
 
 /**
- * Панель действий выделенного элемента карточки: слот для своих кнопок,
- * переключатель вариантов и удаление.
- * Переключатель — одна кнопка, которая по нажатию перебирает варианты по кругу.
+ * Панель действий выделенного элемента карточки: слот для своих кнопок и
+ * переключатель вариантов (одна кнопка перебирает варианты по кругу).
+ * Удаления здесь нет — элементы удаляются перетаскиванием в корзину.
  */
 const props = defineProps<{
   options?: readonly { value: T; label: string; title: string }[];
   optionsLabel?: string;
-  /** Подпись кнопки удаления; без неё кнопка не показывается. */
-  removeLabel?: string;
 }>();
 
 const value = defineModel<T>();
@@ -25,10 +23,6 @@ function selectNext() {
   if (!options?.length) return;
   value.value = options[(currentIndex.value + 1) % options.length]!.value;
 }
-
-const emit = defineEmits<{
-  remove: [];
-}>();
 </script>
 
 <template>
@@ -45,17 +39,6 @@ const emit = defineEmits<{
     >
       {{ current.label }}
     </button>
-
-    <button
-      v-if="removeLabel"
-      class="element-toolbar__remove"
-      type="button"
-      :aria-label="removeLabel"
-      :title="removeLabel"
-      @click="emit('remove')"
-    >
-      <v-icon icon="mdi-close" size="14" />
-    </button>
   </div>
 </template>
 
@@ -68,8 +51,7 @@ const emit = defineEmits<{
   gap: 4px;
 }
 
-.element-toolbar__cycle,
-.element-toolbar__remove {
+.element-toolbar__cycle {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -93,12 +75,5 @@ const emit = defineEmits<{
     700 12px/1 Inter,
     Arial,
     sans-serif;
-}
-
-.element-toolbar__remove {
-  width: var(--toolbar-button-size);
-  border-radius: 50%;
-  background: #d94848;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 30%);
 }
 </style>

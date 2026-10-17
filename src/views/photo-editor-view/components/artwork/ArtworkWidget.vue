@@ -50,7 +50,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [];
-  remove: [];
   setSide: [side: ShareWidgetSide | null];
 }>();
 
@@ -298,8 +297,6 @@ const splitGap = computed(() => (splitBars.value.length > 24 ? 1 : 3));
       class="artwork-widget__toolbar export-hidden"
       :options="SHARE_WIDGET_PLACEMENTS"
       options-label="Положение виджета"
-      remove-label="Удалить виджет"
-      @remove="emit('remove')"
     />
   </div>
 </template>

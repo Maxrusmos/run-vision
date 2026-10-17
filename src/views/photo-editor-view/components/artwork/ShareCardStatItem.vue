@@ -17,7 +17,6 @@ defineProps<{
 
 const emit = defineEmits<{
   select: [];
-  remove: [];
   setWidth: [width: ShareStatWidth];
 }>();
 </script>
@@ -43,10 +42,8 @@ const emit = defineEmits<{
       :model-value="width"
       :options="SHARE_STAT_WIDTH_OPTIONS"
       options-label="Ширина показателя"
-      remove-label="Удалить показатель"
       :inert="!selected"
       @update:model-value="emit('setWidth', $event!)"
-      @remove="emit('remove')"
     />
 
     <div class="stat__label">{{ label }}</div>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, useTemplateRef, watch } from 'vue';
-import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
+import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 import SelectionFrame from '@/views/photo-editor-view/components/artwork/SelectionFrame.vue';
+import { useLongPressDrag } from '@/hooks/useLongPressDrag';
+import { dragTrash } from '@/hooks/useDragTrash';
 
 const MAX_LENGTH = 80;
 
@@ -17,6 +18,57 @@ const emit = defineEmits<{
 }>();
 
 const textElement = useTemplateRef<HTMLElement>('text');
+const rootElement = useTemplateRef<HTMLElement>('root');
+
+// Удаление — перетаскиванием в корзину: долгое нажатие на название (не во время ввода)
+// и тянуть вниз. Название едет за пальцем; отпустили не над корзиной — вернулось на место.
+const drag = ref<{ dx: number; dy: number; scale: number } | null>(null);
+let justDragged = false;
+
+function handleFocus() {
+  if (justDragged) {
+    textElement.value?.blur();
+    return;
+  }
+  emit('select');
+}
+
+const { start: startDrag } = useLongPressDrag<'title'>({
+  onStart: () => {
+    const element = rootElement.value;
+    const rect = element?.getBoundingClientRect();
+    drag.value = {
+      dx: 0,
+      dy: 0,
+      // Карточка на экране уменьшена: экранные пиксели переводим в пиксели раскладки.
+      scale: rect && element?.offsetWidth ? rect.width / element.offsetWidth : 1,
+    };
+  },
+  onMove: (_id, dx, dy) => {
+    if (drag.value) Object.assign(drag.value, { dx, dy });
+  },
+  onEnd: () => {
+    drag.value = null;
+    // Отпускание после переноса — не тап: не начинать редактирование (и клавиатуру).
+    justDragged = true;
+    window.setTimeout(() => (justDragged = false), 400);
+  },
+  onTrash: () => emit('remove'),
+});
+
+function handlePointerDown(event: PointerEvent) {
+  // Во время ввода жесты — для текста (выделение, курсор), а не для переноса.
+  if (props.selected) return;
+  startDrag(event, 'title', false);
+}
+
+const dragStyle = computed(() =>
+  drag.value
+    ? {
+        transform: `translate(${drag.value.dx / drag.value.scale}px, ${drag.value.dy / drag.value.scale}px)`,
+      }
+    : undefined,
+);
 
 // Текст пишем в DOM вручную: при реактивном рендере Vue перезаписывал бы
 // содержимое contenteditable прямо во время ввода.
@@ -58,7 +110,18 @@ function handleKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="artwork-title" :class="{ 'artwork-title--selected': selected }" data-selectable>
+  <div
+    ref="root"
+    class="artwork-title"
+    :class="{
+      'artwork-title--selected': selected,
+      'artwork-title--dragging': drag,
+      'artwork-title--over-trash': drag && dragTrash.state.over,
+    }"
+    :style="dragStyle"
+    data-selectable
+    @pointerdown="handlePointerDown"
+  >
     <SelectionFrame v-if="selected" />
 
     <span
@@ -69,16 +132,9 @@ function handleKeydown(event: KeyboardEvent) {
       aria-label="Название тренировки"
       spellcheck="false"
       enterkeyhint="done"
-      @focus="emit('select')"
+      @focus="handleFocus"
       @blur="commit"
       @keydown="handleKeydown"
-    />
-
-    <ArtworkElementToolbar
-      v-if="selected"
-      class="artwork-title__toolbar export-hidden"
-      remove-label="Удалить название"
-      @remove="emit('remove')"
     />
   </div>
 </template>
@@ -104,11 +160,22 @@ function handleKeydown(event: KeyboardEvent) {
   -webkit-tap-highlight-color: transparent;
 }
 
-.artwork-title__toolbar {
-  position: absolute;
-  z-index: 3;
-  /* Как у показателей, но ниже: название у самого верха карточки, иначе панель обрежется. */
-  top: -6px;
-  right: -6px;
+/* Пока не редактируют, долгое нажатие — перенос, а не меню iOS. */
+.artwork-title:not(.artwork-title--selected) {
+  -webkit-touch-callout: none;
+}
+
+.artwork-title--dragging {
+  user-select: none;
+  z-index: 10;
+  background: color-mix(in srgb, var(--share-background) 88%, transparent);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+}
+
+.artwork-title--over-trash {
+  opacity: 0.45;
+  outline: 2px solid #e5484d;
+  outline-offset: 2px;
+  scale: 0.92;
 }
 </style>

@@ -473,9 +473,17 @@ export function useShareCardSettings(
     updateTelemetry({ pattern });
   }
 
-  /** Возвращает карточку к исходному виду выбранного шаблона. */
-  function resetSettings() {
-    settings.value = createSettings(initialPreset, options);
+  /**
+   * Возвращает карточку к исходному виду выбранного шаблона — или к переданным
+   * настройкам (режим шаблона: к последнему сохранённому виду сохранённого шаблона).
+   */
+  function resetSettings(to?: ShareCardSettings) {
+    settings.value = to
+      ? normalizeShareCardSettings({
+          ...createSettings(initialPreset, options),
+          ...(JSON.parse(JSON.stringify(to)) as ShareCardSettings),
+        })
+      : createSettings(initialPreset, options);
   }
 
   return {
