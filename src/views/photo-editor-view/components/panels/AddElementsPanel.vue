@@ -147,6 +147,8 @@ const hasElements = computed(
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* Сверху кнопки, а не плитки: тот же отступ от «ручки», что у ряда плиток (8px). */
+  padding-top: 8px;
 }
 
 .add-panel__group {
