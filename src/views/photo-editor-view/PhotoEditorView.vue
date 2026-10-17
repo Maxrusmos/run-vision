@@ -428,10 +428,15 @@ async function createVideo() {
         return [...values, hasStepWidgets ? progress : ''].join('|');
       },
       getMarks: (progress) => {
-        const marks = artwork.value?.getVideoMarks(progress) ?? { dot: null, charts: [] };
+        const marks = artwork.value?.getVideoMarks(progress) ?? {
+          dot: null,
+          charts: [],
+          flags: [],
+        };
         return settings.value.routeVisible ? marks : { ...marks, dot: null };
       },
       dotColors: { route: settings.value.routeColor, ring: settings.value.textColor },
+      flagColors: { text: settings.value.textColor, background: settings.value.backgroundColor },
       backgroundColor: settings.value.backgroundColor,
     });
   } finally {
@@ -547,6 +552,8 @@ function goBack() {
         :exporting="isExporting"
         :progress="routeProgress"
         :stat-progress="isVideoMode ? statProgress : null"
+        :video-time="isVideoMode ? videoTime : null"
+        :video-duration="isVideoMode ? videoDuration : null"
         @set-color="setColor"
         @remove-stat="removeStat"
         @set-stat-positions="setStatPositions"

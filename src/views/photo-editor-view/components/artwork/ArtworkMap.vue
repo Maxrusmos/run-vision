@@ -27,6 +27,11 @@ import {
   buildTrackTimeline,
   getTrackLocation,
 } from '@/entities/activity/model/activity-share/activity-share-video';
+import {
+  getFlagReach,
+  type RouteFlagKey,
+  type RouteFlagPoint,
+} from '@/entities/activity/model/activity-share/route-flags';
 
 /** Время ожидания тайлов перед экспортом: дальше рендерим то, что успело загрузиться. */
 const READY_TIMEOUT_MS = 8000;
@@ -53,6 +58,11 @@ const props = defineProps<{
   fitPadding: MapFitPadding;
   /** Видео: точка на треке прошла эту долю дистанции; null — точки нет (фото). */
   progress?: number | null;
+  /**
+   * Видео: масштаб флажка по его доле дистанции (0 — точка не дошла, потом «выпрыгивает»);
+   * null — фото, флажки видны все.
+   */
+  flagPop?: ((reach: number) => number) | null;
 }>();
 
 const root = useTemplateRef<HTMLElement>('root');
@@ -247,6 +257,28 @@ function getDotPoint(progress: number): RoutePoint | null {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
 }
 
+/** Видео: масштаб флажка — по его месту на треке. */
+const flagScale = computed(() => {
+  const pop = props.flagPop;
+  if (!pop) return null;
+  const total = timeline.value.totalDistance;
+  return (flag: RouteFlagKey) => pop(getFlagReach(flag, total));
+});
+
+/** Флажки для кадров видео — в пикселях карты (как и точка). */
+function getFlags(): RouteFlagPoint[] {
+  if (!props.routeVisible) return [];
+  const total = timeline.value.totalDistance;
+  const flags: RouteFlagPoint[] = projectedKm.value.map((point) => ({
+    x: point.x,
+    y: point.y,
+    flag: point.km,
+    reach: getFlagReach(point.km, total),
+  }));
+  if (props.startFinish && finish.value) flags.push({ ...finish.value, flag: 'finish', reach: 1 });
+  return flags;
+}
+
 const dotPoint = computed(() =>
   props.progress === null || props.progress === undefined ? null : getDotPoint(props.progress),
 );
@@ -256,6 +288,7 @@ defineExpose({
   /** Карта в документе: её размер на экране переводит пиксели карты в пиксели карточки. */
   getElement: () => root.value,
   getDotPoint,
+  getFlags,
   /** Пикселей карты в единице слоя трека. */
   getUnit: () => unit.value,
 });
@@ -287,6 +320,7 @@ defineExpose({
         :text-color="textColor"
         :background-color="backgroundColor"
         :unit="unit"
+        :flag-scale="flagScale"
       />
       <!-- Видео: точка на треке (в кадры видео её рисует холст). -->
       <VideoDotMark

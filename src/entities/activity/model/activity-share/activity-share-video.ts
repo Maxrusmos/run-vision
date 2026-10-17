@@ -7,6 +7,7 @@ import {
   getElevationMarker,
 } from './activity-share-elevation';
 import { resampleSeries } from './activity-share-telemetry';
+import type { RouteFlagPoint } from './route-flags';
 
 /** Длительность видео на выбор, секунды. */
 export const VIDEO_DURATIONS = [5, 10, 15, 20] as const;
@@ -96,6 +97,16 @@ export function getTrackLocation(timeline: TrackTimeline, progress: number): Tra
 export function getRouteProgressAt(time: number, duration: number): number {
   const moving = Math.max(0.1, duration - VIDEO_FINISH_HOLD_SECONDS);
   return Math.min(1, Math.max(0, time / moving));
+}
+
+/**
+ * Сколько секунд видео прошло с момента, когда точка дошла до доли `reach` дистанции
+ * (флажок километра, финиш — 1). Отрицательное — ещё не дошла. Финиш достигается в начале
+ * паузы на финише — флажок «выпрыгивает», пока точка стоит.
+ */
+export function getTimeSinceReach(time: number, reach: number, duration: number): number {
+  const moving = Math.max(0.1, duration - VIDEO_FINISH_HOLD_SECONDS);
+  return time - Math.min(1, Math.max(0, reach)) * moving;
 }
 
 /**
@@ -265,6 +276,8 @@ export function drawChartMarker(
 export type VideoMarks = {
   dot: { x: number; y: number; unit: number } | null;
   charts: (ChartMarker & { unit: number; color: string })[];
+  /** Флажки километров и финиша — «выпрыгивают», когда до них доходит точка. */
+  flags: (RouteFlagPoint & { unit: number })[];
 };
 
 /**

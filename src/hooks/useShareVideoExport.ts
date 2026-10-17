@@ -6,10 +6,20 @@ import {
   drawVideoDot,
   getRouteProgressAt,
   getStatProgress,
+  getTimeSinceReach,
   mapChartMarker,
   type VideoDotColors,
   type VideoMarks,
 } from '@/entities/activity/model/activity-share/activity-share-video';
+import {
+  drawFinishFlag,
+  drawKmFlag,
+  drawPoppedFlag,
+  getFinishFlagShape,
+  getFlagPopScale,
+  getKmFlagShape,
+  type FlagColors,
+} from '@/entities/activity/model/activity-share/route-flags';
 import { composeBackdropCanvas } from '@/shared/lib/image/compose-backdrop';
 import { waitForImagesIn } from '@/shared/lib/image/wait-for-images';
 import { sanitizeFileName } from '@/shared/lib/file/sanitize-file-name';
@@ -40,6 +50,8 @@ type RenderVideoOptions = {
   getMarks: (progress: number) => VideoMarks;
   /** Цвета точки; кольцо (цвет текста) — и у маркеров графиков, их цвет — свой. */
   dotColors: VideoDotColors;
+  /** Цвета флажков (текст и фон карточки). */
+  flagColors: FlagColors;
   backgroundColor: string;
 };
 
@@ -111,6 +123,7 @@ export function useShareVideoExport() {
     showStatsAt,
     getMarks,
     dotColors,
+    flagColors,
     backgroundColor,
   }: RenderVideoOptions): Promise<VideoResult | null> {
     await document.fonts?.ready;
@@ -146,7 +159,29 @@ export function useShareVideoExport() {
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Canvas 2D недоступен');
 
-    const drawFrame = (background: CanvasImageSource, { dot, charts }: VideoMarks) => {
+    // Подписи флажков — тем же шрифтом, что и на карточке.
+    const fontFamily = getComputedStyle(element).fontFamily;
+    const drawFlags = (flags: VideoMarks['flags'], time: number) => {
+      for (const flag of flags) {
+        const scale = getFlagPopScale(getTimeSinceReach(time, flag.reach, duration));
+        const point = { x: flag.x * pixelRatio, y: flag.y * pixelRatio };
+        const unit = flag.unit * pixelRatio;
+        drawPoppedFlag(context, point, scale, () => {
+          if (flag.flag === 'finish') {
+            drawFinishFlag(context, getFinishFlagShape(point, unit), unit, flagColors);
+          } else {
+            const shape = getKmFlagShape(point, String(flag.flag), unit);
+            drawKmFlag(context, shape, unit, flagColors, fontFamily);
+          }
+        });
+      }
+    };
+
+    const drawFrame = (
+      background: CanvasImageSource,
+      { dot, charts, flags }: VideoMarks,
+      time: number,
+    ) => {
       // Под скруглёнными углами карточки — цвет фона: в видео нет прозрачности.
       context.fillStyle = backgroundColor;
       context.fillRect(0, 0, size.width, size.height);
@@ -159,6 +194,7 @@ export function useShareVideoExport() {
           { route: chart.color, ring: dotColors.ring },
         );
       }
+      drawFlags(flags, time);
       if (dot) {
         drawVideoDot(
           context,
@@ -189,7 +225,7 @@ export function useShareVideoExport() {
           return null;
         }
         const frame = frames[index]!;
-        drawFrame(await backgroundFor(frame.statProgress), frame.marks);
+        drawFrame(await backgroundFor(frame.statProgress), frame.marks, index / VIDEO_FPS);
         await writer.addFrame(canvas);
         progress.value = (index + 1) / frameCount;
       }
@@ -209,7 +245,7 @@ export function useShareVideoExport() {
       frameCount,
       drawFrame: (index) => {
         const frame = frames[index]!;
-        drawFrame(backgrounds.get(frame.statProgress)!, frame.marks);
+        drawFrame(backgrounds.get(frame.statProgress)!, frame.marks, index / VIDEO_FPS);
       },
       onProgress: (fraction) => {
         progress.value = 0.5 + fraction * 0.5;
