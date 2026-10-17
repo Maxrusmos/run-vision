@@ -20,7 +20,7 @@ const props = defineProps<{ id: string }>();
 const router = useRouter();
 const activityStore = useActivityStore();
 const savedTemplates = useSavedTemplatesStore();
-const { openInEditor } = useApplySavedTemplate();
+const { editTemplate, applyToActivity } = useApplySavedTemplate();
 const { activity: previewActivity, isDemo } = usePreviewActivity();
 
 const template = ref<SavedTemplate | null>(null);
@@ -69,29 +69,35 @@ const meta = computed(() => {
   return `Основа — «${getPhotoTemplateTitle(template.value.baseTemplate)}» · изменён ${date}`;
 });
 
-const hasOwnActivity = computed(() => Boolean(activityStore.activity) && !activityStore.isDemo);
+const hasOwnActivity = computed(() => Boolean(activityStore.activity));
 
 function goBack() {
   if (typeof window.history.state?.back === 'string') router.back();
   else void router.replace({ name: ROUTE_NAMES.account });
 }
 
-const isOpening = ref(false);
+const pendingAction = ref<'edit' | 'apply' | null>(null);
+
+/** Редактор в режиме шаблона: правим сам шаблон (картинку там не сохранить). */
 async function edit() {
-  if (!template.value || isOpening.value) return;
-  isOpening.value = true;
+  if (!template.value || pendingAction.value) return;
+  pendingAction.value = 'edit';
   try {
-    await openInEditor(template.value);
+    await editTemplate(template.value);
   } finally {
-    isOpening.value = false;
+    pendingAction.value = null;
   }
 }
 
-/** Своей тренировки нет: загрузить GPX — и шаблон сразу откроется на ней. */
-function applyToOwnActivity() {
-  if (!template.value) return;
-  savedTemplates.pendingTemplateId = template.value.id;
-  void router.push({ name: ROUTE_NAMES.import });
+/** Карточка своей тренировки по шаблону (без тренировки — сначала загрузка GPX). */
+async function apply() {
+  if (!template.value || pendingAction.value) return;
+  pendingAction.value = 'apply';
+  try {
+    await applyToActivity(template.value);
+  } finally {
+    pendingAction.value = null;
+  }
 }
 
 // Переименование
@@ -203,24 +209,34 @@ async function remove() {
       <p class="saved-template__hint">
         {{
           isDemo
-            ? 'Показан на демо-пробежке.'
+            ? 'Показан на демо-пробежке. Картинку для публикации можно сделать на своей тренировке.'
             : `Показан на вашей тренировке «${previewActivity?.name}».`
         }}
       </p>
 
       <div class="saved-template__actions">
-        <v-btn color="primary" variant="flat" size="large" block :loading="isOpening" @click="edit">
-          {{ hasOwnActivity ? 'Открыть на своей тренировке' : 'Открыть в редакторе' }}
+        <v-btn
+          color="primary"
+          variant="flat"
+          size="large"
+          block
+          prepend-icon="mdi-image-plus-outline"
+          :loading="pendingAction === 'apply'"
+          :disabled="pendingAction === 'edit'"
+          @click="apply"
+        >
+          {{ hasOwnActivity ? 'Создать карточку по шаблону' : 'Загрузить GPX и создать карточку' }}
         </v-btn>
         <v-btn
-          v-if="!hasOwnActivity"
           variant="tonal"
           size="large"
           block
-          prepend-icon="mdi-upload"
-          @click="applyToOwnActivity"
+          prepend-icon="mdi-palette-outline"
+          :loading="pendingAction === 'edit'"
+          :disabled="pendingAction === 'apply'"
+          @click="edit"
         >
-          Применить к своей тренировке
+          Редактировать шаблон
         </v-btn>
         <v-btn
           variant="text"

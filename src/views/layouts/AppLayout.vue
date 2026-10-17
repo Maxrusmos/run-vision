@@ -16,7 +16,10 @@ const hasAppHeader = computed(() => !route.meta.hideAppHeader);
     <v-main class="app-main">
       <div class="app-content">
         <GpxImportErrorAlert class="app-alert" />
-        <router-view />
+        <!-- Ключ по адресу: редактор с другим `?template=` (или без него) — новый экземпляр. -->
+        <router-view v-slot="{ Component, route: viewRoute }">
+          <component :is="Component" :key="viewRoute.fullPath" />
+        </router-view>
       </div>
     </v-main>
   </v-app>

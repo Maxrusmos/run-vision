@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 import { storeToRefs } from 'pinia';
-import { useRouter } from 'vue-router';
+import { onBeforeRouteLeave, useRoute, useRouter, type RouteLocationRaw } from 'vue-router';
 import type { ShareCardElement } from '@/entities/activity/model/activity-share/activity-share.types';
 import type { BandState } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
 import {
@@ -12,6 +12,12 @@ import { getPhotoTemplatePresetId } from '@/entities/activity/model/activity-sha
 import { useActivityStore } from '@/stores/activity.store';
 import { useShareStore } from '@/stores/share.store';
 import { useShareDraftsStore } from '@/stores/share-drafts.store';
+import { useSavedTemplatesStore } from '@/stores/saved-templates.store';
+import { getLoadedDemoActivity } from '@/entities/activity/lib/demo-activity';
+import { isSameTemplateSettings } from '@/entities/saved-template';
+import { isApiError, UNKNOWN_ERROR_MESSAGE } from '@/shared/api';
+import TemplateEditBar from '@/views/photo-editor-view/components/TemplateEditBar.vue';
+import TemplateLeaveDialog from '@/views/photo-editor-view/components/TemplateLeaveDialog.vue';
 import { useShareCardSettings } from '@/hooks/useShareCardSettings';
 import { useShareCardExport } from '@/hooks/useShareCardExport';
 import { ROUTE_NAMES } from '@/router/routes';
@@ -44,12 +50,31 @@ import StatsAppearancePanel from '@/views/photo-editor-view/components/panels/St
 const DESELECT_ANIMATION_MS = 160;
 
 const router = useRouter();
-const { activity } = storeToRefs(useActivityStore());
+const route = useRoute();
+const activityStore = useActivityStore();
 const { photoTemplateId } = storeToRefs(useShareStore());
 const draftsStore = useShareDraftsStore();
 const authStore = useAuthStore();
-// Шаблон фиксируем на входе: черновик пишется туда же, откуда взят.
-const templateId = photoTemplateId.value;
+const savedTemplates = useSavedTemplatesStore();
+
+// Режим шаблона (`?template=<id>`, из кабинета): правим сам сохранённый шаблон.
+// «Сохранить» обновляет шаблон, картинку не делает; черновики карточек не трогаем.
+// Шаблон и тренировку (свою или демо) заранее готовит роутер.
+const editedTemplateId = typeof route.query.template === 'string' ? route.query.template : null;
+const editedTemplateOnEnter = editedTemplateId ? savedTemplates.byId.get(editedTemplateId) : null;
+const isTemplateMode = Boolean(editedTemplateOnEnter);
+const editedTemplate = computed(
+  () => (editedTemplateId && savedTemplates.byId.get(editedTemplateId)) || editedTemplateOnEnter,
+);
+
+/** Своя тренировка, а в режиме шаблона без неё — демо-пробежка. */
+const activity = computed(
+  () => activityStore.activity ?? (isTemplateMode ? getLoadedDemoActivity() : null),
+);
+const isDemoActivity = computed(() => isTemplateMode && !activityStore.activity);
+
+// Основу фиксируем на входе: черновик пишется туда же, откуда взят.
+const templateId = editedTemplateOnEnter?.baseTemplate ?? photoTemplateId.value;
 
 const initialStatValues = activity.value ? getActivityShareStats(activity.value) : null;
 
@@ -103,8 +128,10 @@ const {
   canRedo,
 } = useShareCardSettings(getPhotoTemplatePresetId(templateId), {
   template: templateId,
-  // Возвращаемся к карточке, на которой остановились (в рамках сессии).
-  initialSettings: draftsStore.getDraft(templateId),
+  // Шаблон из кабинета — или карточка, на которой остановились (в рамках сессии).
+  initialSettings: editedTemplateOnEnter
+    ? JSON.parse(JSON.stringify(editedTemplateOnEnter.settings))
+    : draftsStore.getDraft(templateId),
   hasHeartRate: activity.value?.track.some((point) => (point.heartRate ?? 0) > 0) ?? false,
   hasElevation: activity.value?.hasElevation ?? false,
   // Показатели без данных («—») на новую карточку не ставим.
@@ -114,10 +141,69 @@ const {
 // Черновик — на каждое изменение (настройки небольшие): уйдёшь в выбор стиля или
 // перезагрузишь страницу — продолжишь с того же места. Как по шаблону — черновик не нужен.
 function saveDraft() {
+  if (isTemplateMode) return;
   draftsStore.saveDraft(templateId, isDefault() ? null : settings.value);
 }
 watch(settings, saveDraft, { deep: true });
 onBeforeUnmount(saveDraft);
+
+/** В режиме шаблона: карточка отличается от сохранённого шаблона. */
+const isTemplateDirty = computed(
+  () =>
+    isTemplateMode &&
+    editedTemplate.value !== null &&
+    editedTemplate.value !== undefined &&
+    !isSameTemplateSettings(editedTemplate.value.settings, settings.value),
+);
+const isSavingTemplate = ref(false);
+const templateMessage = ref('');
+const isTemplateMessageOpen = ref(false);
+
+function showTemplateMessage(message: string) {
+  templateMessage.value = message;
+  isTemplateMessageOpen.value = true;
+}
+
+/** Сохранить изменения шаблона. true — сохранено. */
+async function saveTemplate(): Promise<boolean> {
+  if (!editedTemplateId || isSavingTemplate.value) return false;
+  isSavingTemplate.value = true;
+  try {
+    await savedTemplates.update(editedTemplateId, { settings: settings.value });
+    return true;
+  } catch (error) {
+    showTemplateMessage(isApiError(error) ? error.message : UNKNOWN_ERROR_MESSAGE);
+    return false;
+  } finally {
+    isSavingTemplate.value = false;
+  }
+}
+
+async function handleSaveTemplate() {
+  if (await saveTemplate()) showTemplateMessage('Шаблон сохранён');
+}
+
+// Уход из режима шаблона с несохранёнными изменениями — спрашиваем, что сделать
+// (и по кнопке «назад», и по жесту «назад» в браузере).
+const leaveTarget = ref<RouteLocationRaw | null>(null);
+let isLeaveConfirmed = false;
+
+onBeforeRouteLeave((to) => {
+  if (!isTemplateDirty.value || isLeaveConfirmed) return true;
+  leaveTarget.value = to.fullPath;
+  return false;
+});
+
+function leave() {
+  const target = leaveTarget.value;
+  leaveTarget.value = null;
+  isLeaveConfirmed = true;
+  if (target) void router.push(target);
+}
+
+async function saveAndLeave() {
+  if (await saveTemplate()) leave();
+}
 
 const tools = computed(() => {
   if (settings.value.map) return MAP_EDITOR_TOOLS;
@@ -227,7 +313,17 @@ function handleReset() {
 }
 
 function goBack() {
-  router.push({ name: ROUTE_NAMES.share });
+  if (!isTemplateMode || !editedTemplateId) {
+    router.push({ name: ROUTE_NAMES.share });
+    return;
+  }
+  // Режим шаблона — назад к странице шаблона (откуда и пришли).
+  const templatePage = router.resolve({
+    name: ROUTE_NAMES.savedTemplate,
+    params: { id: editedTemplateId },
+  });
+  if (window.history.state?.back === templatePage.fullPath) router.back();
+  else void router.replace(templatePage);
 }
 </script>
 
@@ -236,22 +332,33 @@ function goBack() {
     <EditorTopBar
       :can-undo="canUndo"
       :can-redo="canRedo"
-      :saving="isBusy"
+      :saving="isTemplateMode ? isSavingTemplate : isBusy"
+      :save-disabled="isTemplateMode && !isTemplateDirty"
+      :save-label="isTemplateMode && !isTemplateDirty ? 'Сохранено' : 'Сохранить'"
       @back="goBack"
       @undo="handleUndo"
       @redo="handleRedo"
       @reset="handleReset"
-      @save="createImage"
+      @save="isTemplateMode ? handleSaveTemplate() : createImage()"
     >
       <template #history-extra>
-        <!-- «Избранное» — только для вошедших: шаблоны хранятся в аккаунте. -->
+        <!-- «Избранное» — только для вошедших: шаблоны хранятся в аккаунте.
+             В режиме шаблона не нужно: «Сохранить» и так сохраняет шаблон. -->
         <FavoriteTemplateButton
-          v-if="authStore.isAuthenticated"
+          v-if="authStore.isAuthenticated && !isTemplateMode"
           :template-id="templateId"
           :settings="settings"
         />
       </template>
     </EditorTopBar>
+
+    <!-- Всегда видно, что правится шаблон, а не картинка тренировки. -->
+    <TemplateEditBar
+      v-if="isTemplateMode && editedTemplate"
+      :name="editedTemplate.name"
+      :dirty="isTemplateDirty"
+      :demo="isDemoActivity"
+    />
 
     <!-- Карточка всегда видна целиком: уменьшается под свободное место. -->
     <FitToBox class="photo-editor__canvas" @click="handleCanvasClick">
@@ -372,6 +479,23 @@ function goBack() {
     <EditorToolbar v-model="activeTool" :tools="tools" :disabled-tools="disabledTools" />
   </div>
 
+  <TemplateLeaveDialog
+    :model-value="leaveTarget !== null"
+    :saving="isSavingTemplate"
+    @update:model-value="leaveTarget = $event ? leaveTarget : null"
+    @save="saveAndLeave"
+    @discard="leave"
+  />
+
+  <v-snackbar
+    v-model="isTemplateMessageOpen"
+    timeout="2500"
+    location="top"
+    content-class="template-message"
+  >
+    {{ templateMessage }}
+  </v-snackbar>
+
   <ShareCardResultDialog
     v-model="isResultOpen"
     :image="image"
@@ -424,5 +548,12 @@ function goBack() {
 .photo-editor__canvas {
   flex: 1 1 0;
   background: color-mix(in srgb, var(--app-on-surface) 3%, var(--app-background));
+}
+</style>
+
+<style>
+/* Уведомление — под шапкой и полосой шаблона, а не поверх кнопок. */
+.template-message {
+  margin-top: calc(env(safe-area-inset-top) + 104px) !important;
 }
 </style>
