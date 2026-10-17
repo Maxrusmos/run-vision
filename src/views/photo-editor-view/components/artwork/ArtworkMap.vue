@@ -40,6 +40,8 @@ const FIT_ITERATIONS = 4;
 const MAX_FIT_ZOOM = 16;
 /** Точек трека для подгонки камеры: хватает для рамки, а считается быстро (и при вращении пальцами). */
 const FIT_SAMPLE_POINTS = 400;
+/** Под трек остаётся не меньше этой доли карты, сколько бы ни было показателей. */
+const MIN_FIT_AREA = 0.05;
 
 const props = defineProps<{
   map: ShareMapSettings;
@@ -101,24 +103,42 @@ function project(map: maplibregl.Map, points = lngLats.value): RoutePoint[] {
 }
 
 /**
- * Вписывает трек в карту целиком при любом наклоне и повороте. `cameraForBounds`
- * вписывает рамку широт и долгот (при повороте — с запасом) и не знает о перспективе,
- * поэтому дальше камера подгоняется по реальной проекции трека: зум — по размеру,
- * центр — по смещению проекции от центра свободной области. Поворот — всегда вокруг
- * трека: он остаётся по центру и целиком в кадре.
+ * Поля вокруг свободной области в пикселях карты. Если полей больше, чем места (очень
+ * много показателей), они ужимаются: под трек остаётся хотя бы `MIN_FIT_AREA` карты —
+ * иначе `cameraForBounds` возвращает undefined и камера не обновлялась вовсе.
+ */
+function getFitPadding(width: number, height: number) {
+  const fit = (start: number, end: number, size: number) => {
+    const total = (start + end) * size;
+    const limit = size * (1 - MIN_FIT_AREA);
+    const ratio = total > limit ? limit / total : 1;
+    return [start * size * ratio, end * size * ratio] as const;
+  };
+  const [top, bottom] = fit(props.fitPadding.top, props.fitPadding.bottom, height);
+  const [left, right] = fit(props.fitPadding.left, props.fitPadding.right, width);
+  return { top, bottom, left, right };
+}
+
+/**
+ * Вписывает трек в карту целиком при любом наклоне и повороте. Камера смотрит в центр
+ * свободной области: `padding` камеры смещает туда и центр карты, и точку схода
+ * перспективы. Без этого при высокой карточке (много показателей) область оказывалась
+ * у верхнего края, далеко к горизонту наклонённой карты, подгонка не сходилась и трек
+ * при повороте улетал за карточку (было).
+ * `cameraForBounds` вписывает рамку широт и долгот (при повороте — с запасом) и не знает
+ * о перспективе, поэтому дальше камера подгоняется по реальной проекции трека: зум — по
+ * размеру, центр — по смещению середины проекции от центра области. Поворот — всегда
+ * вокруг трека: он остаётся по центру и целиком в кадре.
  */
 function fitRoute(map: maplibregl.Map) {
   const { width, height } = size.value;
   if (!bounds.value || !width || !height) return;
 
-  const padding = {
-    top: props.fitPadding.top * height,
-    bottom: props.fitPadding.bottom * height,
-    left: props.fitPadding.left * width,
-    right: props.fitPadding.right * width,
-  };
+  const padding = getFitPadding(width, height);
   const bearing = props.bearing;
-  const camera = map.cameraForBounds(bounds.value, { padding, maxZoom: MAX_FIT_ZOOM, bearing });
+  // Сначала поля камеры: `cameraForBounds` учитывает их сам (свои поля ему уже не нужны).
+  map.jumpTo({ padding });
+  const camera = map.cameraForBounds(bounds.value, { maxZoom: MAX_FIT_ZOOM, bearing });
   if (!camera) return;
   map.jumpTo({ ...camera, bearing, pitch: pitch.value });
 
@@ -132,13 +152,16 @@ function fitRoute(map: maplibregl.Map) {
     const ratio = Math.max((box.maxX - box.minX) / areaWidth, (box.maxY - box.minY) / areaHeight);
     if (!Number.isFinite(ratio) || ratio <= 0) break;
 
-    // Сдвигаем центр так, чтобы середина проекции трека встала в середину области.
-    const shift = map.unproject([
-      width / 2 + (box.minX + box.maxX) / 2 - areaX,
-      height / 2 + (box.minY + box.maxY) / 2 - areaY,
-    ]);
+    // Центр карты стоит в центре области: новый центр — точка под серединой проекции трека.
+    const middleX = (box.minX + box.maxX) / 2;
+    const middleY = (box.minY + box.maxY) / 2;
+    const isFitted =
+      Math.abs(middleX - areaX) < 0.5 &&
+      Math.abs(middleY - areaY) < 0.5 &&
+      Math.abs(ratio - 1) < 0.01;
+    if (isFitted) break;
     map.jumpTo({
-      center: shift,
+      center: map.unproject([middleX, middleY]),
       zoom: Math.min(MAX_FIT_ZOOM, map.getZoom() - Math.log2(ratio)),
     });
   }
