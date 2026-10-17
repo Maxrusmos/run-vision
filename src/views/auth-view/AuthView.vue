@@ -104,6 +104,23 @@ function applyServerError(error: unknown) {
   if (!hasFieldError) formError.value = error.message;
 }
 
+// Автозаполнение (связка ключей iOS, Google) вставляет значение, иногда не сообщая о нём
+// событием input: подпись оставалась внутри поля поверх текста. Ловим его по анимации
+// из CSS (`rv-autofill`), забираем значение в форму — подпись уходит наверх.
+const AUTOFILL_FIELDS: Record<string, FieldName> = {
+  email: 'email',
+  password: 'password',
+  'password-confirm': 'passwordConfirm',
+};
+
+function handleAutofill(event: AnimationEvent) {
+  if (!event.animationName.startsWith('rv-autofill')) return;
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement)) return;
+  const field = AUTOFILL_FIELDS[input.name];
+  if (field && input.value && form[field] !== input.value) form[field] = input.value;
+}
+
 function goBack(fallback: string) {
   // В истории роутера есть предыдущая страница приложения — туда и возвращаемся.
   if (typeof window.history.state?.back === 'string') router.back();
@@ -152,7 +169,12 @@ watch(
       <h1 class="auth-view__title">{{ texts.title }}</h1>
       <p class="auth-view__subtitle">{{ texts.subtitle }}</p>
 
-      <form class="auth-view__form" novalidate @submit.prevent="submit">
+      <form
+        class="auth-view__form"
+        novalidate
+        @submit.prevent="submit"
+        @animationstart="handleAutofill"
+      >
         <v-text-field
           v-model="form.email"
           label="Email"
@@ -291,6 +313,43 @@ watch(
 /* iOS приближает страницу, если шрифт поля меньше 16px. */
 .auth-view__form :deep(input) {
   font-size: 16px;
+}
+
+/* Автозаполнение красит поле жёлтым (iOS Safari, Chrome), и заливка закрывала подпись
+   на рамке. Заливку перекрываем цветом фона (тень внутрь — её Safari не игнорирует)
+   и откладываем переходом «на вечность», текст — цвета темы; анимация rv-autofill
+   сообщает скрипту, что поле заполнено (см. handleAutofill). */
+.auth-view__form :deep(input:-webkit-autofill) {
+  -webkit-text-fill-color: var(--app-on-surface);
+  caret-color: var(--app-on-surface);
+  -webkit-box-shadow: 0 0 0 1000px var(--app-background) inset;
+  box-shadow: 0 0 0 1000px var(--app-background) inset;
+  transition:
+    background-color 600000s 0s,
+    color 600000s 0s;
+  animation: rv-autofill 1ms;
+}
+
+.auth-view__form :deep(input:autofill) {
+  box-shadow: 0 0 0 1000px var(--app-background) inset;
+  transition:
+    background-color 600000s 0s,
+    color 600000s 0s;
+  animation: rv-autofill 1ms;
+}
+
+@keyframes rv-autofill {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Подпись на рамке — всегда поверх поля ввода. */
+.auth-view__form :deep(.v-field__outline) {
+  z-index: 1;
 }
 
 .auth-view__eye {

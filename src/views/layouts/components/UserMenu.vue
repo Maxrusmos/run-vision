@@ -28,14 +28,13 @@ async function logout() {
       <v-btn
         v-bind="activatorProps"
         icon
-        size="small"
         variant="text"
         class="user-menu__button"
         :aria-label="user ? `Аккаунт ${user.email}` : 'Аккаунт'"
       >
         <v-progress-circular v-if="isChecking" indeterminate size="20" width="2" />
         <v-icon v-else-if="isOffline" icon="mdi-account-alert-outline" />
-        <v-avatar v-else color="primary" size="32" class="user-menu__avatar">
+        <v-avatar v-else color="primary" size="38" class="user-menu__avatar">
           {{ initial }}
         </v-avatar>
       </v-btn>
@@ -69,7 +68,7 @@ async function logout() {
 
 <style scoped>
 .user-menu__avatar {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
 }
 

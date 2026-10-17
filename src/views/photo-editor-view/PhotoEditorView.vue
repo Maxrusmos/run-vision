@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import type { ShareCardElement } from '@/entities/activity/model/activity-share/activity-share.types';
@@ -11,6 +11,7 @@ import {
 import { getPhotoTemplatePresetId } from '@/entities/activity/model/activity-share/photo-templates';
 import { useActivityStore } from '@/stores/activity.store';
 import { useShareStore } from '@/stores/share.store';
+import { useShareDraftsStore } from '@/stores/share-drafts.store';
 import { useShareCardSettings } from '@/hooks/useShareCardSettings';
 import { useShareCardExport } from '@/hooks/useShareCardExport';
 import { ROUTE_NAMES } from '@/router/routes';
@@ -43,11 +44,15 @@ const DESELECT_ANIMATION_MS = 160;
 const router = useRouter();
 const { activity } = storeToRefs(useActivityStore());
 const { photoTemplateId } = storeToRefs(useShareStore());
+const draftsStore = useShareDraftsStore();
+// Шаблон фиксируем на входе: черновик пишется туда же, откуда взят.
+const templateId = photoTemplateId.value;
 
 const initialStatValues = activity.value ? getActivityShareStats(activity.value) : null;
 
 const {
   settings,
+  isDefault,
   applyPresetById,
   setColor,
   setBackgroundColor,
@@ -93,13 +98,23 @@ const {
   redo,
   canUndo,
   canRedo,
-} = useShareCardSettings(getPhotoTemplatePresetId(photoTemplateId.value), {
-  template: photoTemplateId.value,
+} = useShareCardSettings(getPhotoTemplatePresetId(templateId), {
+  template: templateId,
+  // Возвращаемся к карточке, на которой остановились (в рамках сессии).
+  initialSettings: draftsStore.getDraft(templateId),
   hasHeartRate: activity.value?.track.some((point) => (point.heartRate ?? 0) > 0) ?? false,
   hasElevation: activity.value?.hasElevation ?? false,
   // Показатели без данных («—») на новую карточку не ставим.
   isStatAvailable: (key) => initialStatValues?.[key] !== SHARE_STAT_EMPTY_VALUE,
 });
+
+// Черновик — на каждое изменение (настройки небольшие): уйдёшь в выбор стиля или
+// перезагрузишь страницу — продолжишь с того же места. Как по шаблону — черновик не нужен.
+function saveDraft() {
+  draftsStore.saveDraft(templateId, isDefault() ? null : settings.value);
+}
+watch(settings, saveDraft, { deep: true });
+onBeforeUnmount(saveDraft);
 
 const tools = computed(() => {
   if (settings.value.map) return MAP_EDITOR_TOOLS;

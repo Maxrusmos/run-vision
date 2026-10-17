@@ -57,6 +57,8 @@ type ShareCardSettingsOptions = {
   hasElevation?: boolean;
   /** Есть ли данные для показателя: пустые не ставятся на новую карточку. */
   isStatAvailable?: (key: ShareStatKey) => boolean;
+  /** Сохранённая карточка (черновик): редактор продолжает с неё, а не с шаблона. */
+  initialSettings?: ShareCardSettings | null;
 };
 
 /** Стили трека и показателей по умолчанию у каждого шаблона. */
@@ -119,6 +121,7 @@ function createSettings(
 /**
  * Состояние редактора карточки. Object URL фонового фото освобождается
  * только при уничтожении области видимости: старое фото может понадобиться при отмене.
+ * Текущее остаётся жить — оно в черновике карточки.
  */
 export function useShareCardSettings(
   initialPresetId: string = DEFAULT_SHARE_PRESET_ID,
@@ -127,18 +130,31 @@ export function useShareCardSettings(
   const initialPreset =
     findSharePreset(initialPresetId) ?? findSharePreset(DEFAULT_SHARE_PRESET_ID)!;
 
-  const settings = ref<ShareCardSettings>(createSettings(initialPreset, options));
+  const settings = ref<ShareCardSettings>(
+    options.initialSettings ?? createSettings(initialPreset, options),
+  );
   const history = useUndoRedo(settings, { limit: 10 });
+
+  /** Карточка не отличается от шаблона по умолчанию (черновик хранить незачем). */
+  function isDefault() {
+    return (
+      JSON.stringify(settings.value) === JSON.stringify(createSettings(initialPreset, options))
+    );
+  }
 
   // Object URL всех загруженных фото: отмена может вернуть любое из них.
   const backgroundImageUrls = new Set<string>();
+  if (settings.value.backgroundImage) backgroundImageUrls.add(settings.value.backgroundImage);
 
   function removeBackgroundImage() {
     settings.value.backgroundImage = null;
   }
 
+  // Текущее фото не освобождаем — его забирает черновик карточки.
   onScopeDispose(() => {
-    backgroundImageUrls.forEach((url) => URL.revokeObjectURL(url));
+    backgroundImageUrls.forEach((url) => {
+      if (url !== settings.value.backgroundImage) URL.revokeObjectURL(url);
+    });
     backgroundImageUrls.clear();
   });
 
@@ -456,6 +472,7 @@ export function useShareCardSettings(
 
   return {
     settings,
+    isDefault,
     setRouteVisible,
     setRouteScale,
     setRouteBearing,

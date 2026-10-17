@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import { useActivityStore } from '@/stores/activity.store';
+import { restoreWorkSession } from '@/stores/work-session';
 import { useAuthStore } from '@/stores/auth.store';
 import { ROUTE_NAMES } from './routes';
 
@@ -59,10 +60,11 @@ const router = createRouter({
   ],
 });
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   // Без загруженной тренировки делать нечего — возвращаем к загрузке GPX.
+  // После перезагрузки страницы сначала пробуем вернуть работу этой сессии.
   if (to.meta.requiresActivity && !useActivityStore().activity) {
-    return { name: ROUTE_NAMES.import };
+    if (!(await restoreWorkSession())) return { name: ROUTE_NAMES.import };
   }
 
   if (to.meta.guestOnly && useAuthStore().isAuthenticated) {

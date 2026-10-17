@@ -3,11 +3,14 @@ import { markRaw, ref, shallowRef } from 'vue';
 
 import type { IActivity } from '@/entities/activity/model/activity.types';
 import { parseGpx } from '@/entities/activity/parser/gpx.parser';
+import { useShareDraftsStore } from '@/stores/share-drafts.store';
 
 export const useActivityStore = defineStore('activity', () => {
   // Тренировка не меняется после импорта: без глубокой реактивности — иначе каждое
   // чтение десятков тысяч точек трека идёт через прокси Vue и редактор тормозит.
   const activity = shallowRef<IActivity | null>(null);
+  /** Исходный GPX — по нему тренировка восстанавливается после перезагрузки страницы. */
+  const sourceFile = shallowRef<File | null>(null);
   const isImporting = ref(false);
   const importError = ref<string | null>(null);
 
@@ -17,6 +20,18 @@ export const useActivityStore = defineStore('activity', () => {
 
   function clearActivity() {
     activity.value = null;
+    sourceFile.value = null;
+  }
+
+  /** Вернуть тренировку из сохранённого GPX (без сброса черновиков). */
+  async function restoreFromFile(file: File): Promise<boolean> {
+    try {
+      setActivity(await parseGpx(file));
+      sourceFile.value = file;
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   function clearImportError() {
@@ -31,6 +46,9 @@ export const useActivityStore = defineStore('activity', () => {
 
     try {
       setActivity(await parseGpx(file));
+      sourceFile.value = file;
+      // Новая тренировка — карточки начинаются заново.
+      useShareDraftsStore().clear();
       return true;
     } catch (error) {
       importError.value =
@@ -43,11 +61,13 @@ export const useActivityStore = defineStore('activity', () => {
 
   return {
     activity,
+    sourceFile,
     isImporting,
     importError,
     setActivity,
     clearActivity,
     clearImportError,
     importGpx,
+    restoreFromFile,
   };
 });

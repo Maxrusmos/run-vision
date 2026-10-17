@@ -49,7 +49,7 @@ const hasAppHeader = computed(() => !route.meta.hideAppHeader);
 
 @media (max-width: 600px) {
   .app--with-header :deep(.v-main) {
-    padding-top: 48px !important;
+    padding-top: 56px !important;
   }
 
   .app-alert {

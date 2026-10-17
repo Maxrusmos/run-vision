@@ -5,6 +5,7 @@ import App from './App.vue';
 import router from './router';
 import vuetify from './plugins/vuetify';
 import { useAuthStore } from './stores/auth.store';
+import { setupWorkSession } from './stores/work-session';
 import { wakeApi } from './shared/api';
 import '@/styles/theme.css';
 import '@/styles/utilities.css';
@@ -13,6 +14,8 @@ const app = createApp(App);
 
 const pinia = createPinia();
 app.use(pinia);
+// До роутера: первая навигация может восстановить работу после перезагрузки.
+setupWorkSession(pinia);
 app.use(router);
 app.use(vuetify);
 

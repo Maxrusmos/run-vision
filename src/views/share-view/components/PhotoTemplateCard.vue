@@ -3,6 +3,8 @@ defineProps<{
   title: string;
   description: string;
   selected: boolean;
+  /** Шаблон уже настраивали в редакторе — продолжим с того места. */
+  edited?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -30,7 +32,10 @@ const emit = defineEmits<{
       />
     </div>
 
-    <span class="template-card__title">{{ title }}</span>
+    <span class="template-card__title">
+      {{ title }}
+      <span v-if="edited" class="template-card__badge">Ваш вариант</span>
+    </span>
     <span class="template-card__description">{{ description }}</span>
   </button>
 </template>
@@ -85,6 +90,19 @@ const emit = defineEmits<{
   font-size: 13px;
   font-weight: 600;
   line-height: 1.4;
+}
+
+.template-card__badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-primary) 20%, transparent);
+  color: var(--app-primary);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+  vertical-align: 1px;
 }
 
 .template-card__description {
