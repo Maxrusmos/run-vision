@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import type { ShareCardSettings } from '@/entities/activity/model/activity-share/activity-share.types';
+import type {
+  ShareBackgroundPattern,
+  ShareCardSettings,
+} from '@/entities/activity/model/activity-share/activity-share.types';
+import { SHARE_BACKGROUND_PATTERNS } from '@/entities/activity/model/activity-share/activity-share-widgets';
+import BackgroundPattern from '@/views/photo-editor-view/components/artwork/BackgroundPattern.vue';
 import OptionTile from '@/views/photo-editor-view/components/settings/OptionTile.vue';
 import OptionTileRow from '@/views/photo-editor-view/components/settings/OptionTileRow.vue';
 import ColorOptionTile from '@/views/photo-editor-view/components/settings/ColorOptionTile.vue';
@@ -13,6 +18,7 @@ const emit = defineEmits<{
   setTransparentBackground: [value: boolean];
   setBackgroundImage: [file: File];
   removeBackgroundImage: [];
+  setPattern: [pattern: ShareBackgroundPattern];
 }>();
 
 function handleFileChange(event: Event) {
@@ -79,6 +85,30 @@ function handleFileChange(event: Event) {
         </span>
       </template>
     </OptionTile>
+
+    <!-- «Телеметрия»: узоры-разметка, как на приборной панели (поверх цвета и фото). -->
+    <template v-if="settings.telemetry">
+      <OptionTile
+        v-for="pattern in SHARE_BACKGROUND_PATTERNS"
+        :key="pattern.id"
+        :label="pattern.name"
+        :active="settings.telemetry.pattern === pattern.id"
+        @click="emit('setPattern', pattern.id)"
+      >
+        <template #preview>
+          <span class="background-panel__pattern" :style="{ background: settings.backgroundColor }">
+            <BackgroundPattern :pattern="pattern.id" :color="settings.textColor" :unit="14" />
+            <v-icon
+              v-if="pattern.id === 'none'"
+              icon="mdi-cancel"
+              size="18"
+              :color="settings.textColor"
+              class="background-panel__none"
+            />
+          </span>
+        </template>
+      </OptionTile>
+    </template>
   </OptionTileRow>
 </template>
 
@@ -91,6 +121,18 @@ function handleFileChange(event: Event) {
   height: 100%;
   place-items: center;
   color: #fff;
+}
+
+.background-panel__pattern {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+}
+
+.background-panel__none {
+  opacity: 0.5;
 }
 
 .background-panel__photo {

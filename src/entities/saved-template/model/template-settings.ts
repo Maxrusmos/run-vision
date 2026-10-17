@@ -1,12 +1,14 @@
 import type { ShareCardSettings } from '@/entities/activity/model/activity-share/activity-share.types';
+import { normalizeShareCardSettings } from '@/entities/activity/model/activity-share/activity-share-settings';
 
 /**
  * Настройки карточки в том виде, в каком их хранит шаблон: без фото фона (его не храним)
- * и без своего текста названия (у каждой тренировки своё — берётся из GPX).
+ * и без своего текста названия (у каждой тренировки своё — берётся из GPX); старые поля
+ * переведены в текущие (`normalizeShareCardSettings`) — иначе сравнение видело бы разницу.
  */
 export function toTemplateSettings(settings: ShareCardSettings): ShareCardSettings {
   return JSON.parse(
-    JSON.stringify({ ...settings, backgroundImage: null, title: null }),
+    JSON.stringify({ ...normalizeShareCardSettings(settings), backgroundImage: null, title: null }),
   ) as ShareCardSettings;
 }
 

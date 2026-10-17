@@ -25,6 +25,7 @@ import {
   findSharePreset,
   findSharePresetByColors,
 } from '@/entities/activity/model/activity-share/activity-share-presets';
+import { normalizeShareCardSettings } from '@/entities/activity/model/activity-share/activity-share-settings';
 import { DEFAULT_ROUTE_SCALE } from '@/entities/activity/model/activity-share/activity-share-route';
 import { DEFAULT_ROUTE_STYLE } from '@/entities/activity/model/activity-share/activity-share-route-styles';
 import { DEFAULT_STAT_STYLE } from '@/entities/activity/model/activity-share/activity-share-stat-styles';
@@ -134,7 +135,10 @@ export function useShareCardSettings(
   // (а в старом черновике или шаблоне из аккаунта их нет), берутся по умолчанию.
   const settings = ref<ShareCardSettings>(
     options.initialSettings
-      ? { ...createSettings(initialPreset, options), ...options.initialSettings }
+      ? normalizeShareCardSettings({
+          ...createSettings(initialPreset, options),
+          ...options.initialSettings,
+        })
       : createSettings(initialPreset, options),
   );
   const history = useUndoRedo(settings, { limit: 10 });
@@ -465,8 +469,8 @@ export function useShareCardSettings(
     updateTelemetry({ labels });
   }
 
-  function setTelemetryGrid(grid: boolean) {
-    updateTelemetry({ grid });
+  function setBackgroundPattern(pattern: ShareTelemetrySettings['pattern']) {
+    updateTelemetry({ pattern });
   }
 
   /** Возвращает карточку к исходному виду выбранного шаблона. */
@@ -504,7 +508,7 @@ export function useShareCardSettings(
     setTelemetryChartStyle,
     setTelemetryColor,
     setTelemetryLabels,
-    setTelemetryGrid,
+    setBackgroundPattern,
     applyPresetById,
     setColor,
     setBackgroundColor,

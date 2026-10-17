@@ -100,9 +100,13 @@ export type ShareTelemetrySettings = {
   color: string | null;
   /** Сводка в заголовке виджета (средний, лучший и т.п.). */
   labels: boolean;
-  /** Тонкая сетка-разметка на фоне, как у приборной панели. */
-  grid: boolean;
+  /** Узор на фоне карточки, как разметка приборной панели (меню «Фон»). */
+  pattern: ShareBackgroundPattern;
 };
+
+/** Узор фона «Телеметрии»: сетка, миллиметровка, точки, развёртка, радар и т.п. */
+export type ShareBackgroundPattern =
+  'none' | 'grid' | 'graph' | 'dots' | 'crosses' | 'scanlines' | 'radar' | 'hatch';
 
 /** Элемент карточки, который можно выделить: показатель, трек, название, график, виджет. */
 export type ShareCardElement =

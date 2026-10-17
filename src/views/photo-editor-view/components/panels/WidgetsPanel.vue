@@ -18,7 +18,6 @@ import OptionTile from '@/views/photo-editor-view/components/settings/OptionTile
 import OptionTileRow from '@/views/photo-editor-view/components/settings/OptionTileRow.vue';
 import ColorOptionTile from '@/views/photo-editor-view/components/settings/ColorOptionTile.vue';
 import SegmentedGroup from '@/views/photo-editor-view/components/settings/SegmentedGroup.vue';
-import ToggleGroup from '@/views/photo-editor-view/components/settings/ToggleGroup.vue';
 import ProfileChart from '@/views/photo-editor-view/components/artwork/ProfileChart.vue';
 
 /** Превью графика в плитке: размер и масштаб линий (крупнее пропорции карточки). */
@@ -38,7 +37,6 @@ const emit = defineEmits<{
   /** null — цвет трека. */
   setColor: [color: string | null];
   setLabels: [value: boolean];
-  setGrid: [value: boolean];
 }>();
 
 const color = computed(() => props.telemetry.color ?? props.routeColor);
@@ -68,20 +66,15 @@ const colorSourceOptions = [
   { value: 'route' as const, label: 'Цвет трека', title: 'Цвет виджетов как у трека' },
 ];
 
-const toggles = computed(() => [
-  {
-    key: 'labels',
-    label: 'Сводка',
-    title: 'Сводка в заголовке виджета',
-    active: props.telemetry.labels,
-  },
-  { key: 'grid', icon: 'mdi-grid', title: 'Сетка на фоне', active: props.telemetry.grid },
-]);
-
-function toggle(key: string) {
-  if (key === 'labels') emit('setLabels', !props.telemetry.labels);
-  else emit('setGrid', !props.telemetry.grid);
-}
+// Как у графика высоты: подписи (сводка в заголовке виджета) или без них.
+const labels = computed({
+  get: () => (props.telemetry.labels ? 'on' : 'off'),
+  set: (value: 'on' | 'off') => emit('setLabels', value === 'on'),
+});
+const labelOptions = [
+  { value: 'on' as const, label: 'Подписи', title: 'Сводка в заголовке виджета' },
+  { value: 'off' as const, label: 'Без', title: 'Без сводки' },
+];
 </script>
 
 <template>
@@ -93,7 +86,7 @@ function toggle(key: string) {
         :options="colorSourceOptions"
         group-label="Цвет виджетов"
       />
-      <ToggleGroup :options="toggles" group-label="Оформление виджетов" @toggle="toggle" />
+      <SegmentedGroup v-model="labels" :options="labelOptions" group-label="Подписи" grow />
     </div>
 
     <OptionTileRow>

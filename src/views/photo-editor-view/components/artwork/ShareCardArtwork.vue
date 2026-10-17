@@ -22,6 +22,7 @@ import ArtworkRoute from '@/views/photo-editor-view/components/artwork/ArtworkRo
 import ArtworkStatsGrid from '@/views/photo-editor-view/components/artwork/ArtworkStatsGrid.vue';
 import ArtworkMap from '@/views/photo-editor-view/components/artwork/ArtworkMap.vue';
 import ArtworkElevation from '@/views/photo-editor-view/components/artwork/ArtworkElevation.vue';
+import BackgroundPattern from '@/views/photo-editor-view/components/artwork/BackgroundPattern.vue';
 import ArtworkWidget from '@/views/photo-editor-view/components/artwork/ArtworkWidget.vue';
 import {
   getWidgetKey,
@@ -155,6 +156,13 @@ function selectBand(key: ShareCardElement) {
 function removeWidget(kind: ShareWidgetKind) {
   selected.value = null;
   emit('removeWidget', kind);
+}
+
+/** Полосу (график высоты или виджет) бросили в корзину. */
+function removeBand(key: ShareCardElement) {
+  const kind = widgetKind(key);
+  if (kind) removeWidget(kind);
+  else if (key === 'elevation') removeElevation();
 }
 
 // Карта во весь фон: трек вписывается в свободную область — между названием и показателями.
@@ -328,7 +336,11 @@ function removeRoute() {
     />
 
     <!-- «Телеметрия»: тонкая сетка-разметка, как на приборной панели. -->
-    <div v-if="settings.telemetry?.grid" class="share-artwork__hud-grid" aria-hidden="true" />
+    <BackgroundPattern
+      v-if="settings.telemetry"
+      :pattern="settings.telemetry.pattern"
+      :color="settings.textColor"
+    />
 
     <div v-if="settings.titleVisible" class="share-artwork__header">
       <ArtworkTitle
@@ -391,6 +403,7 @@ function removeRoute() {
         :bands="bands"
         :allow-sides="Boolean(settings.telemetry)"
         @drop-bands="emit('dropBands', $event)"
+        @remove-band="removeBand"
       >
         <template #band="{ bandKey, side }">
           <ArtworkWidget
@@ -441,6 +454,7 @@ function removeRoute() {
         @set-scale="emit('setRouteScale', $event)"
         @set-position="emit('setRoutePosition', $event)"
         @remove="removeRoute"
+        @trash="removeRoute"
       />
     </div>
   </div>
@@ -477,23 +491,6 @@ function removeRoute() {
 
 .share-artwork--transparent {
   background: transparent;
-}
-
-.share-artwork__hud-grid {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  /* Обычные градиенты — html-to-image переносит их в PNG. */
-  background:
-    linear-gradient(color-mix(in srgb, var(--share-text) 7%, transparent) 1px, transparent 1px) 0
-      0 / 100% 24px,
-    linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--share-text) 7%, transparent) 1px,
-        transparent 1px
-      )
-      0 0 / 24px 100%;
-  pointer-events: none;
 }
 
 .share-artwork__header {

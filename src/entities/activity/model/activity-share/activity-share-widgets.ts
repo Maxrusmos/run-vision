@@ -1,4 +1,5 @@
 import type {
+  ShareBackgroundPattern,
   ShareElevationSize,
   ShareTelemetrySettings,
   ShareWidget,
@@ -95,8 +96,32 @@ export function createShareTelemetrySettings(hasHeartRate: boolean): ShareTeleme
     chartStyle: 'contour',
     color: null,
     labels: true,
-    grid: true,
+    pattern: 'grid',
   };
+}
+
+/** Узоры фона «Телеметрии» — в меню «Фон», по порядку. */
+export const SHARE_BACKGROUND_PATTERNS: readonly { id: ShareBackgroundPattern; name: string }[] = [
+  { id: 'none', name: 'Без узора' },
+  { id: 'grid', name: 'Сетка' },
+  { id: 'graph', name: 'Миллиметровка' },
+  { id: 'dots', name: 'Точки' },
+  { id: 'crosses', name: 'Метки' },
+  { id: 'scanlines', name: 'Развёртка' },
+  { id: 'radar', name: 'Радар' },
+  { id: 'hatch', name: 'Штриховка' },
+];
+
+/**
+ * Настройки «Телеметрии», сохранённые до узоров, хранили флажок `grid`:
+ * переводим его в узор (черновики, шаблоны в аккаунте).
+ */
+export function normalizeTelemetrySettings(
+  telemetry: ShareTelemetrySettings & { grid?: boolean },
+): ShareTelemetrySettings {
+  if (telemetry.pattern) return telemetry;
+  const { grid, ...rest } = telemetry;
+  return { ...rest, pattern: grid === false ? 'none' : 'grid' };
 }
 
 /** Ключ полосы виджета в сетке и элемента выделения. */
