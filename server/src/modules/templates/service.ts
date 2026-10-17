@@ -4,6 +4,7 @@ import {
   MAX_TEMPLATES_PER_USER,
   type CreateTemplateInput,
   type PhotoTemplateId,
+  type ShareType,
   type UpdateTemplateInput,
 } from './schemas.js'
 
@@ -15,6 +16,7 @@ export interface PublicTemplate {
   id: string
   name: string
   baseTemplate: PhotoTemplateId
+  shareType: ShareType
   settings: Record<string, unknown>
   createdAt: string
   updatedAt: string
@@ -24,12 +26,13 @@ interface TemplateRow {
   id: string
   name: string
   base_template: PhotoTemplateId
+  share_type: ShareType
   settings: Record<string, unknown>
   created_at: Date
   updated_at: Date
 }
 
-const COLUMNS = 'id, name, base_template, settings, created_at, updated_at'
+const COLUMNS = 'id, name, base_template, share_type, settings, created_at, updated_at'
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function toPublic(row: TemplateRow): PublicTemplate {
@@ -37,6 +40,7 @@ function toPublic(row: TemplateRow): PublicTemplate {
     id: row.id,
     name: row.name,
     baseTemplate: row.base_template,
+    shareType: row.share_type,
     settings: row.settings,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
@@ -80,9 +84,9 @@ export class TemplatesService {
       if (Number(count[0]?.count ?? 0) >= MAX_TEMPLATES_PER_USER) throw errors.limitReached()
 
       const { rows } = await client.query<TemplateRow>(
-        `INSERT INTO templates (user_id, name, base_template, settings)
-         VALUES ($1, $2, $3, $4) RETURNING ${COLUMNS}`,
-        [userId, input.name, input.baseTemplate, JSON.stringify(input.settings)],
+        `INSERT INTO templates (user_id, name, base_template, share_type, settings)
+         VALUES ($1, $2, $3, $4, $5) RETURNING ${COLUMNS}`,
+        [userId, input.name, input.baseTemplate, input.shareType, JSON.stringify(input.settings)],
       )
       return toPublic(rows[0]!)
     })

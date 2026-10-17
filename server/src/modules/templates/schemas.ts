@@ -10,6 +10,9 @@ export const MAX_TEMPLATES_PER_USER = 100
 export const PHOTO_TEMPLATE_IDS = ['minimal', 'topographic', 'telemetry'] as const
 export type PhotoTemplateId = (typeof PHOTO_TEMPLATE_IDS)[number]
 
+export const SHARE_TYPES = ['photo', 'video'] as const
+export type ShareType = (typeof SHARE_TYPES)[number]
+
 const name = z
   .string({ error: 'Укажите название' })
   .trim()
@@ -27,7 +30,10 @@ const settings = z
 
 const baseTemplate = z.enum(PHOTO_TEMPLATE_IDS, { error: 'Неизвестный шаблон' })
 
-export const createTemplateSchema = z.object({ name, baseTemplate, settings })
+// Необязателен: так создавали шаблоны до видео — это фото.
+const shareType = z.enum(SHARE_TYPES, { error: 'Неизвестный тип шаблона' }).default('photo')
+
+export const createTemplateSchema = z.object({ name, baseTemplate, shareType, settings })
 
 export const updateTemplateSchema = z
   .object({ name: name.optional(), settings: settings.optional() })

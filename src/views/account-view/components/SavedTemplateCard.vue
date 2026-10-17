@@ -51,6 +51,19 @@ const meta = computed(() => {
       <span class="saved-template-card__name">{{ template.name }}</span>
       <span class="saved-template-card__meta">{{ meta }}</span>
     </router-link>
+    <!-- Тип шаблона — слева сверху: фото или видео. -->
+    <span
+      class="saved-template-card__type"
+      :title="template.shareType === 'video' ? 'Шаблон видео' : 'Шаблон фото'"
+    >
+      <v-icon
+        :icon="template.shareType === 'video' ? 'mdi-movie-open-outline' : 'mdi-image-outline'"
+        size="18"
+      />
+      <span class="visually-hidden">
+        {{ template.shareType === 'video' ? 'Видео' : 'Фото' }}
+      </span>
+    </span>
     <button
       type="button"
       class="saved-template-card__delete"
@@ -66,6 +79,22 @@ const meta = computed(() => {
 .saved-template-card-wrap {
   position: relative;
   min-width: 0;
+}
+
+/* Тип — в левом верхнем углу превью, тем же кружком, что и удаление справа. */
+.saved-template-card__type {
+  position: absolute;
+  z-index: 3;
+  top: 6px;
+  left: 6px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: #fff;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 45%);
+  pointer-events: none;
 }
 
 /* Удаление — в правом верхнем углу превью: кружок с подложкой, читается на любом фоне. */

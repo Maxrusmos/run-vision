@@ -2,6 +2,8 @@
 /** Полоса под шапкой редактора в режиме шаблона: что правится и сохранено ли. */
 defineProps<{
   name: string;
+  /** Шаблон видео (правится в видео-редакторе). */
+  video?: boolean;
   dirty: boolean;
   /** Шаблон показан на демо-пробежке. */
   demo: boolean;
@@ -12,7 +14,9 @@ defineProps<{
   <div class="template-edit-bar" role="status">
     <v-icon icon="mdi-palette-outline" size="18" class="template-edit-bar__icon" />
     <div class="template-edit-bar__text">
-      <span class="template-edit-bar__title">Шаблон «{{ name }}»</span>
+      <span class="template-edit-bar__title">
+        {{ video ? 'Шаблон видео' : 'Шаблон' }} «{{ name }}»
+      </span>
       <span class="template-edit-bar__note">
         {{ dirty ? 'Есть несохранённые изменения' : 'Изменения сохранены' }}
         <template v-if="demo"> · на демо-пробежке</template>

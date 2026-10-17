@@ -25,6 +25,33 @@ describe('/api/templates', () => {
     })
   }
 
+  it('тип шаблона: по умолчанию фото, видео — по запросу, не меняется', async () => {
+    const token = await register()
+    const photo = (await call(token, 'POST', '/api/templates', { name: 'Фото', baseTemplate: 'minimal', settings: {} })).json()
+    expect(photo.template.shareType).toBe('photo')
+
+    const created = await call(token, 'POST', '/api/templates', {
+      name: 'Ролик',
+      baseTemplate: 'topographic',
+      shareType: 'video',
+      settings: {},
+    })
+    expect(created.statusCode).toBe(201)
+    const video = created.json().template
+    expect(video).toMatchObject({ name: 'Ролик', baseTemplate: 'topographic', shareType: 'video' })
+    expect((await call(token, 'GET', `/api/templates/${video.id}`)).json().template.shareType).toBe('video')
+    const types = (await call(token, 'GET', '/api/templates')).json().templates.map((item: { shareType: string }) => item.shareType)
+    expect(types).toEqual(expect.arrayContaining(['photo', 'video']))
+
+    // PATCH тип не меняет: лишнее поле молча отбрасывается, как и baseTemplate.
+    const patched = await call(token, 'PATCH', `/api/templates/${video.id}`, { name: 'Ролик 2', shareType: 'photo' })
+    expect(patched.json().template).toMatchObject({ name: 'Ролик 2', shareType: 'video' })
+
+    const bad = await call(token, 'POST', '/api/templates', { name: 'Х', baseTemplate: 'minimal', shareType: 'gif', settings: {} })
+    expect(bad.statusCode).toBe(400)
+    expect(Object.keys(bad.json().error.fields)).toContain('shareType')
+  })
+
   it('без входа — 401', async () => {
     expect((await call(null, 'GET', '/api/templates')).statusCode).toBe(401)
     expect((await call(null, 'POST', '/api/templates', {})).statusCode).toBe(401)

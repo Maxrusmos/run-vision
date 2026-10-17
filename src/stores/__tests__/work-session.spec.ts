@@ -65,7 +65,7 @@ describe('work-session', () => {
     expect(await useActivityStore().importGpx(gpxFile())).toBe(true);
     useShareStore().setPhotoTemplate('topographic');
     useShareDraftsStore().saveDraft('topographic', draft('blob:old/photo'));
-    useShareDraftsStore().setLink('topographic', 'saved-1');
+    useShareDraftsStore().setLink('photo', 'topographic', 'saved-1');
     await persistWorkSession();
 
     await reloadPage();
@@ -79,7 +79,7 @@ describe('work-session', () => {
     // Старый object URL после перезагрузки мёртв — фото получает новый.
     expect(restored?.backgroundImage).toMatch(/^blob:test\//);
     // Связь с сохранённым шаблоном тоже переживает перезагрузку.
-    expect(useShareDraftsStore().links.topographic).toBe('saved-1');
+    expect(useShareDraftsStore().getLink('photo', 'topographic')).toBe('saved-1');
   });
 
   it('новая сессия (другая вкладка) не восстанавливает чужую работу', async () => {

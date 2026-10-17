@@ -21,6 +21,7 @@ function template(id: string, updatedAt: string, name = id): SavedTemplate {
     id,
     name,
     baseTemplate: 'minimal',
+    shareType: 'photo',
     settings: { routeColor: '#fff' } as unknown as ShareCardSettings,
     createdAt: updatedAt,
     updatedAt,
@@ -48,11 +49,12 @@ describe('saved-templates.store', () => {
 
     api.create.mockResolvedValue(template('new', '2026-10-10'));
     const settings = { title: 'Бег', backgroundImage: 'blob:x' } as unknown as ShareCardSettings;
-    await store.create('Новый', 'minimal', settings);
+    await store.create('Новый', 'minimal', 'video', settings);
     expect(api.create.mock.lastCall?.[0].settings).toMatchObject({
       title: null,
       backgroundImage: null,
     });
+    expect(api.create.mock.lastCall?.[0].shareType).toBe('video');
     expect(store.templates.map((item) => item.id)).toEqual(['new', 'a']);
 
     api.update.mockResolvedValue(template('a', '2026-10-11', 'A2'));
