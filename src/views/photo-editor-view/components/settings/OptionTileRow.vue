@@ -41,12 +41,26 @@ onMounted(() => {
 }
 
 .option-tile-row__fixed {
+  position: relative;
   display: flex;
   flex: 0 0 auto;
   gap: 8px;
   /* Сверху место под кнопку удаления на плитке. */
   padding: 8px 8px 2px 16px;
-  border-right: 1px solid var(--app-border);
+}
+
+/*
+ * Разделитель — ровно по высоте плитки: рамка блока тянулась и на отступ сверху (под
+ * кнопку удаления) и уходила выше плиток (было).
+ */
+.option-tile-row__fixed::after {
+  position: absolute;
+  top: 8px;
+  right: 0;
+  bottom: 2px;
+  width: 1px;
+  background: var(--app-border);
+  content: '';
 }
 
 .option-tile-row__scroll {
