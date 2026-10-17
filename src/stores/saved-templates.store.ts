@@ -1,7 +1,10 @@
 import { defineStore } from 'pinia';
 import { computed, ref, shallowRef, watch } from 'vue';
 
-import type { PhotoTemplateId } from '@/entities/activity/model/activity-share/activity-share.types';
+import type {
+  PhotoTemplateId,
+  ShareType,
+} from '@/entities/activity/model/activity-share/activity-share.types';
 import type { ShareCardSettings } from '@/entities/activity/model/activity-share/activity-share.types';
 import {
   savedTemplatesApi,
@@ -71,10 +74,16 @@ export const useSavedTemplatesStore = defineStore('saved-templates', () => {
     return template;
   }
 
-  async function create(name: string, baseTemplate: PhotoTemplateId, settings: ShareCardSettings) {
+  async function create(
+    name: string,
+    baseTemplate: PhotoTemplateId,
+    shareType: ShareType,
+    settings: ShareCardSettings,
+  ) {
     const template = await savedTemplatesApi.create({
       name,
       baseTemplate,
+      shareType,
       settings: toTemplateSettings(settings),
     });
     upsert(template);

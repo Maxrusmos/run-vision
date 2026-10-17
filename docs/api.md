@@ -92,11 +92,13 @@ type ApiErrorCode =
 
 ```ts
 type PhotoTemplateId = 'minimal' | 'topographic' | 'telemetry';
+type ShareType = 'photo' | 'video';
 
 interface SavedTemplate {
   id: string; // uuid
   name: string; // 1–60 символов, пробелы по краям обрезаются
   baseTemplate: PhotoTemplateId; // шаблон приложения, от которого он сделан
+  shareType: ShareType; // для чего шаблон: фото-карточка или видео (не меняется)
   settings: object; // ShareCardSettings фронта как есть (JSON-объект, до 32 КБ);
   //                   сервер его не разбирает, `backgroundImage` всегда null
   createdAt: string;
@@ -105,6 +107,8 @@ interface SavedTemplate {
 ```
 
 - `name`: обязательно, 1–60 символов после обрезки пробелов.
+- `shareType`: `photo` или `video`; при создании необязателен (по умолчанию `photo` — так
+  создавали шаблоны до видео), изменить нельзя. Шаблоны, созданные до появления поля, — `photo`.
 - `settings`: JSON-объект (не массив), сериализованный — не больше 32 КБ.
 - Не больше 100 шаблонов на пользователя → `409 LIMIT_REACHED`.
 
@@ -113,14 +117,15 @@ interface SavedTemplate {
 → `200 { "templates": SavedTemplate[] }` · `401`
 
 ### `POST /api/templates`
-Тело: `{ "name": string, "baseTemplate": PhotoTemplateId, "settings": object }`
+Тело: `{ "name": string, "baseTemplate": PhotoTemplateId, "shareType"?: ShareType, "settings": object }`
 → `201 { "template": SavedTemplate }` · `400 VALIDATION_ERROR` · `401` · `409 LIMIT_REACHED`
 
 ### `GET /api/templates/:id`
 → `200 { "template": SavedTemplate }` · `401` · `404`
 
 ### `PATCH /api/templates/:id`
-Тело: любые из `{ "name": string, "settings": object }` (хотя бы одно поле).
+Тело: любые из `{ "name": string, "settings": object }` (хотя бы одно поле). `baseTemplate` и
+`shareType` не меняются.
 → `200 { "template": SavedTemplate }` · `400` · `401` · `404`
 
 ### `DELETE /api/templates/:id`

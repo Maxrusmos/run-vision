@@ -1,11 +1,16 @@
 import { apiRequest } from '@/shared/api';
 import type { SavedTemplate, SavedTemplateInput } from '../model/saved-template.types';
 
+/** Сервер до видео-шаблонов не отдавал `shareType` — такие шаблоны фото. */
+function withShareType(template: SavedTemplate): SavedTemplate {
+  return template.shareType ? template : { ...template, shareType: 'photo' };
+}
+
 export async function list(): Promise<SavedTemplate[]> {
   const { templates } = await apiRequest<{ templates: SavedTemplate[] }>('/api/templates', {
     auth: true,
   });
-  return templates;
+  return templates.map(withShareType);
 }
 
 export async function get(id: string): Promise<SavedTemplate> {
@@ -13,7 +18,7 @@ export async function get(id: string): Promise<SavedTemplate> {
     `/api/templates/${encodeURIComponent(id)}`,
     { auth: true },
   );
-  return template;
+  return withShareType(template);
 }
 
 export async function create(input: SavedTemplateInput): Promise<SavedTemplate> {
@@ -22,7 +27,7 @@ export async function create(input: SavedTemplateInput): Promise<SavedTemplate> 
     auth: true,
     body: input,
   });
-  return template;
+  return withShareType(template);
 }
 
 export async function update(
@@ -33,7 +38,7 @@ export async function update(
     `/api/templates/${encodeURIComponent(id)}`,
     { method: 'PATCH', auth: true, body: patch },
   );
-  return template;
+  return withShareType(template);
 }
 
 export async function remove(id: string): Promise<void> {

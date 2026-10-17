@@ -78,11 +78,11 @@ const draftsStore = useShareDraftsStore();
 const authStore = useAuthStore();
 const savedTemplates = useSavedTemplatesStore();
 
-// Режим шаблона (`?template=<id>`, из кабинета): правим сам сохранённый шаблон.
-// «Сохранить» обновляет шаблон, картинку не делает; черновики карточек не трогаем.
+// Режим шаблона (`?template=<id>`, из кабинета): правим сам сохранённый шаблон — фото-шаблон
+// в фото-редакторе, видео — в видео (своего типа шаблон открывает роутер). «Сохранить»
+// обновляет шаблон, картинку и видео не делает; черновики карточек не трогаем.
 // Шаблон и тренировку (свою или демо) заранее готовит роутер.
-const editedTemplateId =
-  !isVideoMode && typeof route.query.template === 'string' ? route.query.template : null;
+const editedTemplateId = typeof route.query.template === 'string' ? route.query.template : null;
 const editedTemplateOnEnter = editedTemplateId ? savedTemplates.byId.get(editedTemplateId) : null;
 const isTemplateMode = Boolean(editedTemplateOnEnter);
 const editedTemplate = computed(
@@ -527,6 +527,7 @@ function goBack() {
         <FavoriteTemplateButton
           v-if="authStore.isAuthenticated && !isTemplateMode"
           :template-id="templateId"
+          :share-type="props.mode"
           :settings="settings"
         />
       </template>
@@ -536,6 +537,7 @@ function goBack() {
     <TemplateEditBar
       v-if="isTemplateMode && editedTemplate"
       :name="editedTemplate.name"
+      :video="isVideoMode"
       :dirty="isTemplateDirty"
       :demo="isDemoActivity"
     />

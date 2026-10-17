@@ -68,12 +68,15 @@ const meta = computed(() => {
     month: 'short',
     year: 'numeric',
   });
-  return `Основа — «${getPhotoTemplateTitle(template.value.baseTemplate)}» · изменён ${date}`;
+  const kind = template.value.shareType === 'video' ? 'Видео' : 'Фото';
+  return `${kind} · основа «${getPhotoTemplateTitle(template.value.baseTemplate)}» · изменён ${date}`;
 });
 
 // Не реактивно: после выбора GPX тренировка появляется до события `imported`, и кнопка
 // загрузки, пропав по `v-if`, не успела бы его отправить (размонтированный компонент
 // события не шлёт) — перехода в редактор не было бы.
+const isVideo = computed(() => template.value?.shareType === 'video');
+
 const hasOwnActivity = Boolean(activityStore.activity);
 
 function goBack() {
@@ -225,7 +228,7 @@ function handleDeleted() {
           :disabled="pendingAction === 'edit'"
           @click="apply"
         >
-          Создать карточку по шаблону
+          {{ isVideo ? 'Создать видео по шаблону' : 'Создать карточку по шаблону' }}
         </v-btn>
         <template v-else>
           <GpxImportButton
@@ -233,7 +236,7 @@ function handleDeleted() {
             size="large"
             block
             icon="mdi-image-plus-outline"
-            label="Загрузить GPX и создать карточку"
+            :label="isVideo ? 'Загрузить GPX и создать видео' : 'Загрузить GPX и создать карточку'"
             :disabled="pendingAction === 'edit'"
             @imported="apply"
           />

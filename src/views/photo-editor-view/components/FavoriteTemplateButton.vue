@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import type {
   PhotoTemplateId,
   ShareCardSettings,
+  ShareType,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import { getPhotoTemplateTitle } from '@/entities/activity/model/activity-share/photo-templates';
 import { isSameTemplateSettings, SAVED_TEMPLATE_NAME_MAX } from '@/entities/saved-template';
@@ -19,6 +20,8 @@ import { useShareDraftsStore } from '@/stores/share-drafts.store';
  */
 const props = defineProps<{
   templateId: PhotoTemplateId;
+  /** Фото или видео: шаблон сохраняется своего типа, связь — тоже своя. */
+  shareType: ShareType;
   settings: ShareCardSettings;
 }>();
 
@@ -38,7 +41,7 @@ onMounted(() => void savedTemplates.ensureLoaded());
 
 /** Сохранённый шаблон, из которого открыта карточка (если он ещё существует). */
 const linked = computed(() => {
-  const id = draftsStore.links[props.templateId];
+  const id = draftsStore.getLink(props.shareType, props.templateId);
   return id ? (savedTemplates.byId.get(id) ?? null) : null;
 });
 
@@ -48,7 +51,8 @@ const isSaved = computed(
 
 function defaultName() {
   const date = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-  return `${getPhotoTemplateTitle(props.templateId)} · ${date}`;
+  const kind = props.shareType === 'video' ? ' · видео' : '';
+  return `${getPhotoTemplateTitle(props.templateId)}${kind} · ${date}`;
 }
 
 function open() {
@@ -86,9 +90,9 @@ async function submit(action: 'create' | 'update') {
     const template =
       action === 'update' && linked.value
         ? await savedTemplates.update(linked.value.id, { name: value, settings: props.settings })
-        : await savedTemplates.create(value, props.templateId, props.settings);
+        : await savedTemplates.create(value, props.templateId, props.shareType, props.settings);
     // Дальше эта карточка — копия сохранённого шаблона: звезда следит за ним.
-    draftsStore.setLink(props.templateId, template.id);
+    draftsStore.setLink(props.shareType, props.templateId, template.id);
     isDialogOpen.value = false;
     savedMessage.value =
       action === 'update' ? `Шаблон «${template.name}» обновлён` : `Сохранено в «Мои шаблоны»`;
@@ -128,8 +132,8 @@ function openAccount() {
         </div>
         <div class="favorite-dialog__text">
           <template v-if="!linked">
-            Оформление карточки сохранится в аккаунте — его можно применить к любой тренировке. Фото
-            фона и текст названия не сохраняются.
+            Оформление {{ shareType === 'video' ? 'видео' : 'карточки' }} сохранится в аккаунте —
+            его можно применить к любой тренировке. Фото фона и текст названия не сохраняются.
           </template>
           <template v-else-if="isSaved">Изменений нет — шаблон совпадает с карточкой.</template>
           <template v-else>Обновить шаблон этой карточкой или сохранить её как новый?</template>
