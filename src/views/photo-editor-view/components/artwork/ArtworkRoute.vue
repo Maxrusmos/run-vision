@@ -28,7 +28,6 @@ import { usePinchDrag } from '@/hooks/usePinchDrag';
 import { dragTrash } from '@/hooks/useDragTrash';
 import { usePointerDrag } from '@/hooks/usePointerDrag';
 import { useResizeObserver } from '@/hooks/useResizeObserver';
-import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
 import SelectionFrame from '@/views/photo-editor-view/components/artwork/SelectionFrame.vue';
 import RouteStyleLayers from '@/views/photo-editor-view/components/artwork/RouteStyleLayers.vue';
 import RouteMarkers from '@/views/photo-editor-view/components/artwork/RouteMarkers.vue';
@@ -69,7 +68,6 @@ const emit = defineEmits<{
   select: [];
   setScale: [scale: number];
   setPosition: [position: ShareRoutePosition];
-  remove: [];
   /** Трек бросили в корзину. */
   trash: [];
 }>();
@@ -134,8 +132,13 @@ const defaultPosition = computed<ShareRoutePosition>(() =>
 );
 
 // Ограничиваем при рендере: после увеличения размера трек не выйдет за слой.
+/** Трек сейчас тащат (подсветка над корзиной, выход за край карточки). */
+const isDragging = ref(false);
+
 const center = computed(() => {
   const position = props.position ?? defaultPosition.value;
+  // Трек тащат к корзине — не держим его в пределах слоя, он едет за пальцем.
+  if (isDragging.value && dragTrash.state.active) return position;
   return bounds.value
     ? clampRoutePosition(position, bounds.value, scale.value, layer.value)
     : position;
@@ -211,20 +214,23 @@ const toolbarPlacement = computed<'top' | 'bottom' | 'inside'>(() => {
 const unitsPerPixel = () =>
   ROUTE_LAYER_WIDTH / (layerElement.value?.getBoundingClientRect().width || 1);
 
-/** Ставит трек с новым масштабом и центром, не выпуская его за пределы слоя. */
-function applyTransform(nextScale: number, nextCenter: ShareRoutePosition) {
+/**
+ * Ставит трек с новым масштабом и центром, не выпуская его за пределы слоя.
+ * clamp = false — пока трек тащат к корзине: он едет за пальцем и за край карточки.
+ */
+function applyTransform(nextScale: number, nextCenter: ShareRoutePosition, clamp = true) {
   if (!bounds.value) return;
 
   const fitted = getRouteScale(nextScale, bounds.value, layer.value);
   emit('setScale', fitted);
-  emit('setPosition', clampRoutePosition(nextCenter, bounds.value, fitted, layer.value));
+  emit(
+    'setPosition',
+    clamp ? clampRoutePosition(nextCenter, bounds.value, fitted, layer.value) : nextCenter,
+  );
 }
 
 // Один палец (или мышь) двигает трек, два пальца — масштабируют щипком и двигают.
 let gestureStart = { scale: 1, center: { x: 0, y: 0 } };
-
-/** Трек сейчас тащат (для подсветки над корзиной). */
-const isDragging = ref(false);
 
 const { handlePointerDown } = usePinchDrag({
   onStart: () => {
@@ -233,13 +239,19 @@ const { handlePointerDown } = usePinchDrag({
   },
   onEnd: () => {
     isDragging.value = false;
+    // Тащили к корзине, но отпустили мимо — трек возвращается в пределы слоя.
+    applyTransform(scale.value, center.value);
   },
   onChange: ({ dx, dy, scale: pinch }) => {
     const units = unitsPerPixel();
-    applyTransform(gestureStart.scale * pinch, {
-      x: gestureStart.center.x + dx * units,
-      y: gestureStart.center.y + dy * units,
-    });
+    applyTransform(
+      gestureStart.scale * pinch,
+      {
+        x: gestureStart.center.x + dx * units,
+        y: gestureStart.center.y + dy * units,
+      },
+      !dragTrash.state.active,
+    );
   },
   // Отпустили над корзиной — трек убирается с карточки (вернуть — «Добавить» или отмена).
   onTrash: () => emit('trash'),
@@ -355,13 +367,6 @@ function handleWheel(event: WheelEvent) {
         aria-hidden="true"
         @pointerdown.stop="handleResizePointerDown"
       />
-
-      <ArtworkElementToolbar
-        class="route-layer__toolbar export-hidden"
-        :class="`route-layer__toolbar--${toolbarPlacement}`"
-        remove-label="Удалить трек"
-        @remove="emit('remove')"
-      />
     </div>
   </div>
 </template>
@@ -440,25 +445,6 @@ function handleWheel(event: WheelEvent) {
   .route-layer__resize {
     display: block;
   }
-}
-
-.route-layer__toolbar {
-  position: absolute;
-  z-index: 3;
-  right: -6px;
-}
-
-.route-layer__toolbar--top {
-  top: -14px;
-}
-
-.route-layer__toolbar--bottom {
-  bottom: -14px;
-}
-
-.route-layer__toolbar--inside {
-  top: 8px;
-  right: 8px;
 }
 
 /* Над корзиной трек бледнеет — «сейчас удалится». */

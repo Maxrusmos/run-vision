@@ -648,7 +648,6 @@ function remove(key: ShareStatKey) {
       :style="itemStyle(stat.key)"
       @pointerdown="handlePointerDown($event, stat.key)"
       @select="toggleSelected(stat.key)"
-      @remove="remove(stat.key)"
       :stat-style="statStyle"
       @set-width="setWidth(stat.key, $event)"
     />

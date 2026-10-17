@@ -30,6 +30,7 @@ import FavoriteTemplateButton from '@/views/photo-editor-view/components/Favorit
 import { useAuthStore } from '@/stores/auth.store';
 import ShareCardResultDialog from '@/views/photo-editor-view/components/ShareCardResultDialog.vue';
 import EditorToolbar from '@/views/photo-editor-view/components/tools/EditorToolbar.vue';
+import { dragTrash } from '@/hooks/useDragTrash';
 import EditorTrashZone from '@/views/photo-editor-view/components/EditorTrashZone.vue';
 import EditorToolPanel from '@/views/photo-editor-view/components/tools/EditorToolPanel.vue';
 import {
@@ -244,8 +245,11 @@ watch(disabledTools, (tools) => {
   if (activeTool.value && tools.includes(activeTool.value)) activeTool.value = null;
 });
 
-/** Панель «Добавить» на строку ниже остальных — карточке остаётся больше места. */
-const ADD_PANEL_MAX_HEIGHT = 'calc(42dvh - 56px)';
+/**
+ * Панель «Добавить» на две строки (~56px каждая) ниже остальных — карточке остаётся
+ * больше места; список внутри прокручивается.
+ */
+const ADD_PANEL_MAX_HEIGHT = 'calc(42dvh - 112px)';
 
 // Тап по пустому месту вокруг карточки снимает выделение.
 function handleCanvasClick(event: MouseEvent) {
@@ -310,7 +314,8 @@ function handleRedo() {
 
 function handleReset() {
   selected.value = null;
-  resetSettings();
+  // Режим шаблона: к последнему сохранённому виду шаблона, а не к стилю по умолчанию.
+  resetSettings(isTemplateMode ? editedTemplate.value?.settings : undefined);
 }
 
 function goBack() {
@@ -329,13 +334,23 @@ function goBack() {
 </script>
 
 <template>
-  <div v-if="activity && statValues" class="photo-editor">
+  <div
+    v-if="activity && statValues"
+    class="photo-editor"
+    :class="{ 'photo-editor--dragging': dragTrash.state.active }"
+  >
     <EditorTopBar
       :can-undo="canUndo"
       :can-redo="canRedo"
       :saving="isTemplateMode ? isSavingTemplate : isBusy"
       :save-disabled="isTemplateMode && !isTemplateDirty"
       :save-label="isTemplateMode && !isTemplateDirty ? 'Сохранено' : 'Сохранить'"
+      :reset-disabled="isTemplateMode && !isTemplateDirty"
+      :reset-description="
+        isTemplateMode
+          ? 'Шаблон вернётся к последнему сохранённому виду. Сброс можно отменить стрелкой «назад».'
+          : undefined
+      "
       @back="goBack"
       @undo="handleUndo"
       @redo="handleRedo"
@@ -548,6 +563,12 @@ function goBack() {
   .tool-panel-leave-active {
     transition: none;
   }
+}
+
+/* Элемент тащат к корзине: он виден за краем карточки и над корзиной. */
+.photo-editor--dragging .photo-editor__canvas {
+  z-index: 30;
+  overflow: visible;
 }
 
 .photo-editor__bottom {

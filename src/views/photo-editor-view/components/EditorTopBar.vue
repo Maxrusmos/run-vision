@@ -8,6 +8,8 @@ defineProps<{
   /** Сохранять нечего (режим шаблона без изменений). */
   saveDisabled?: boolean;
   saveLabel?: string;
+  resetDisabled?: boolean;
+  resetDescription?: string;
 }>();
 
 const emit = defineEmits<{
@@ -36,6 +38,8 @@ const emit = defineEmits<{
     <EditorHistoryActions
       :can-undo="canUndo"
       :can-redo="canRedo"
+      :reset-disabled="resetDisabled"
+      :reset-description="resetDescription"
       @undo="emit('undo')"
       @redo="emit('redo')"
       @reset="emit('reset')"

@@ -31,6 +31,8 @@ defineProps<{
 .artwork-background__layer {
   position: absolute;
   inset: 0;
+  /* Скругление своё, а не от обрезки карточки: при переносе к корзине она не обрезает. */
+  border-radius: inherit;
   z-index: 0;
   pointer-events: none;
 }

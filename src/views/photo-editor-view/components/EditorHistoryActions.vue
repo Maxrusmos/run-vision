@@ -5,6 +5,8 @@ import ResetCardButton from '@/views/photo-editor-view/components/ResetCardButto
 const props = defineProps<{
   canUndo: boolean;
   canRedo: boolean;
+  resetDisabled?: boolean;
+  resetDescription?: string;
 }>();
 
 const emit = defineEmits<{
@@ -60,7 +62,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
       <v-icon icon="mdi-redo" size="20" />
     </button>
     <span class="history-actions__separator" aria-hidden="true" />
-    <ResetCardButton @confirm="emit('reset')" />
+    <ResetCardButton
+      :disabled="resetDisabled"
+      :description="resetDescription"
+      @confirm="emit('reset')"
+    />
     <slot />
   </div>
 </template>

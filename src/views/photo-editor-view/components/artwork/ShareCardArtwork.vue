@@ -22,6 +22,7 @@ import ArtworkRoute from '@/views/photo-editor-view/components/artwork/ArtworkRo
 import ArtworkStatsGrid from '@/views/photo-editor-view/components/artwork/ArtworkStatsGrid.vue';
 import ArtworkMap from '@/views/photo-editor-view/components/artwork/ArtworkMap.vue';
 import ArtworkElevation from '@/views/photo-editor-view/components/artwork/ArtworkElevation.vue';
+import { dragTrash } from '@/hooks/useDragTrash';
 import BackgroundPattern from '@/views/photo-editor-view/components/artwork/BackgroundPattern.vue';
 import ArtworkWidget from '@/views/photo-editor-view/components/artwork/ArtworkWidget.vue';
 import {
@@ -298,6 +299,8 @@ function removeRoute() {
       'share-artwork--map-full': mapLayout === 'full',
       'share-artwork--twist': canTwist,
       'share-artwork--exporting': exporting,
+      // Элемент тащат к корзине: он виден и за краем карточки.
+      'share-artwork--dragging': dragTrash.state.active,
     }"
     :style="cssVariables"
     @click="handleClick"
@@ -417,7 +420,6 @@ function removeRoute() {
             :text-color="settings.textColor"
             :selected="selected === bandKey"
             @select="selectBand(bandKey)"
-            @remove="removeWidget(widgetKind(bandKey)!)"
             @set-side="emit('setWidgetSide', widgetKind(bandKey)!, $event)"
           />
           <ArtworkElevation
@@ -428,7 +430,6 @@ function removeRoute() {
             :text-color="settings.textColor"
             :selected="selected === 'elevation'"
             @select="selectBand('elevation')"
-            @remove="removeElevation"
           />
         </template>
       </ArtworkStatsGrid>
@@ -453,7 +454,6 @@ function removeRoute() {
         @select="selected = 'route'"
         @set-scale="emit('setRouteScale', $event)"
         @set-position="emit('setRoutePosition', $event)"
-        @remove="removeRoute"
         @trash="removeRoute"
       />
     </div>
@@ -503,6 +503,12 @@ function removeRoute() {
   position: absolute;
   inset: 0;
   z-index: 0;
+  /* Скругление своё: при переносе к корзине карточка не обрезает содержимое. */
+  border-radius: inherit;
+}
+
+.share-artwork--dragging {
+  overflow: visible;
 }
 
 /* Плавный переход в цвет фона снизу: показатели читаются на любой карте.
@@ -514,6 +520,7 @@ function removeRoute() {
   left: 0;
   z-index: 0;
   height: 48%;
+  border-radius: inherit;
   background: linear-gradient(
     to bottom,
     transparent,

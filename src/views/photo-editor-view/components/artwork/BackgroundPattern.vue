@@ -59,6 +59,7 @@ const style = computed<CSSProperties>(() => ({
   position: absolute;
   inset: 0;
   z-index: 0;
+  border-radius: inherit;
   pointer-events: none;
 }
 

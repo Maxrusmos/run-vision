@@ -7,7 +7,6 @@ import {
   getElevationProfile,
 } from '@/entities/activity/model/activity-share/activity-share-elevation';
 import { ROUTE_LAYER_WIDTH } from '@/entities/activity/model/activity-share/activity-share-route';
-import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
 import SelectionFrame from '@/views/photo-editor-view/components/artwork/SelectionFrame.vue';
 import ProfileChart from '@/views/photo-editor-view/components/artwork/ProfileChart.vue';
 
@@ -21,7 +20,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [];
-  remove: [];
 }>();
 
 const profile = computed(() => getElevationProfile(props.track, ELEVATION_SERIES_SAMPLES));
@@ -92,12 +90,6 @@ const unit = computed(() => (box.value.width + 32) / ROUTE_LAYER_WIDTH);
     </div>
 
     <!-- Размер — только в меню «График»; здесь — удаление. -->
-    <ArtworkElementToolbar
-      v-if="selected"
-      class="artwork-elevation__toolbar export-hidden"
-      remove-label="Удалить график высоты"
-      @remove="emit('remove')"
-    />
   </div>
 </template>
 
@@ -131,12 +123,5 @@ const unit = computed(() => (box.value.width + 32) / ROUTE_LAYER_WIDTH);
 
 .artwork-elevation__chart svg {
   display: block;
-}
-
-.artwork-elevation__toolbar {
-  position: absolute;
-  z-index: 3;
-  top: -12px;
-  right: -6px;
 }
 </style>
