@@ -12,7 +12,7 @@ Vue 3.5 (`<script setup>`, TypeScript), Vuetify 4, Pinia, vue-router (hash), Vit
 html-to-image (экспорт PNG). Деплой — GitHub Pages (`base: /run-vision/`, workflow на `main`).
 
 ```sh
-npm run dev          # dev-сервер
+npm run dev          # фронт + сервер API (dev:front — только фронт)
 npx vue-tsc --build  # типы
 npx eslint .         # линтер (oxlint ругается только на старый код карты — это известно)
 npx prettier --write src
@@ -225,8 +225,8 @@ sudo -u postgres createdb -O runvision runvision
 sudo -u postgres createdb -O runvision runvision_test
 cd ~/WebstormProjects/run-vision/server && npm install && cp .env.example .env && npm run migrate
 ```
-Каждый раз — из корня: `npm run dev:all` (фронт http://localhost:5173/run-vision/ +
-сервер http://localhost:3000, Ctrl+C останавливает оба). После `git pull` с новыми
+Каждый раз — из корня: `npm run dev` (= `dev:all`; фронт http://localhost:5173/run-vision/ +
+сервер http://localhost:3000, Ctrl+C останавливает оба; зависимости сервера и `server/.env` ставятся сами — `scripts/prepare-server.mjs`). Раньше `npm run dev` поднимал только Vite → вход падал с `ERR_CONNECTION_REFUSED` (было). После `git pull` с новыми
 миграциями — `cd server && npm run migrate`. Проверка сервера — `/api/health` → `{"ok":true}`.
 Vite не на 5173 → добавить его адрес в `CORS_ORIGINS` в `server/.env`.
 Вариант с Docker — `cd server && docker compose up -d` (до установки Docker не дошли).

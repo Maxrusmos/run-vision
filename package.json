@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "run-p --continue-on-error dev:front dev:server",
+    "dev:front": "vite",
+    "predev:server": "node scripts/prepare-server.mjs",
     "dev:server": "npm --prefix server run dev",
-    "dev:all": "run-p dev dev:server",
+    "dev:all": "npm run dev",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "test:unit": "vitest",
