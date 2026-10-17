@@ -1,6 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import { useActivityStore } from '@/stores/activity.store';
 import { restoreWorkSession } from '@/stores/work-session';
+import { useSavedTemplatesStore } from '@/stores/saved-templates.store';
+import { loadDemoActivity } from '@/entities/activity/lib/demo-activity';
 import { useAuthStore } from '@/stores/auth.store';
 import { ROUTE_NAMES } from './routes';
 
@@ -75,7 +77,36 @@ const router = createRouter({
   ],
 });
 
+/** Вошёл ли пользователь (токен есть, но не проверен — дождаться проверки). */
+async function ensureAuthenticated(): Promise<boolean> {
+  const authStore = useAuthStore();
+  if (!authStore.isAuthenticated && authStore.token) await authStore.init();
+  return authStore.isAuthenticated;
+}
+
 router.beforeEach(async (to) => {
+  // Редактор в режиме шаблона (`?template=<id>`): нужен сам шаблон, а тренировка —
+  // своя (в т.ч. после перезагрузки) или демо-пробежка.
+  const templateId = to.name === ROUTE_NAMES.photoEditor ? to.query.template : undefined;
+  if (typeof templateId === 'string') {
+    if (!(await ensureAuthenticated())) {
+      return { name: ROUTE_NAMES.login, query: { redirect: to.fullPath } };
+    }
+    try {
+      await useSavedTemplatesStore().fetchOne(templateId);
+    } catch {
+      return { name: ROUTE_NAMES.account };
+    }
+    if (!useActivityStore().activity && !(await restoreWorkSession())) {
+      try {
+        await loadDemoActivity();
+      } catch {
+        return { name: ROUTE_NAMES.savedTemplate, params: { id: templateId } };
+      }
+    }
+    return;
+  }
+
   // Без загруженной тренировки делать нечего — возвращаем к загрузке GPX.
   // После перезагрузки страницы сначала пробуем вернуть работу этой сессии.
   if (to.meta.requiresActivity && !useActivityStore().activity) {
@@ -83,11 +114,8 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.requiresAuth) {
-    const authStore = useAuthStore();
-    // Токен есть, но пользователь ещё не проверен (старт приложения) — дождаться проверки.
-    if (!authStore.isAuthenticated && authStore.token) await authStore.init();
     // Без связи с сервером токен не стираем — страница сама покажет, что нет связи.
-    if (!authStore.isAuthenticated && authStore.status !== 'offline') {
+    if (!(await ensureAuthenticated()) && useAuthStore().status !== 'offline') {
       return { name: ROUTE_NAMES.login, query: { redirect: to.fullPath } };
     }
   }

@@ -3,7 +3,6 @@ import { markRaw, ref, shallowRef } from 'vue';
 
 import type { IActivity } from '@/entities/activity/model/activity.types';
 import { parseGpx } from '@/entities/activity/parser/gpx.parser';
-import { loadDemoActivity } from '@/entities/activity/lib/demo-activity';
 import { useShareDraftsStore } from '@/stores/share-drafts.store';
 
 export const useActivityStore = defineStore('activity', () => {
@@ -12,8 +11,6 @@ export const useActivityStore = defineStore('activity', () => {
   const activity = shallowRef<IActivity | null>(null);
   /** Исходный GPX — по нему тренировка восстанавливается после перезагрузки страницы. */
   const sourceFile = shallowRef<File | null>(null);
-  /** Вместо своей тренировки — демо-пробежка (открыли сохранённый шаблон без GPX). */
-  const isDemo = ref(false);
   const isImporting = ref(false);
   const importError = ref<string | null>(null);
 
@@ -24,16 +21,6 @@ export const useActivityStore = defineStore('activity', () => {
   function clearActivity() {
     activity.value = null;
     sourceFile.value = null;
-    isDemo.value = false;
-  }
-
-  /** Открыть демо-пробежку (своя тренировка не загружена). */
-  async function useDemoActivity() {
-    const demo = await loadDemoActivity();
-    useShareDraftsStore().clear();
-    setActivity(demo);
-    sourceFile.value = null;
-    isDemo.value = true;
   }
 
   /** Вернуть тренировку из сохранённого GPX (без сброса черновиков). */
@@ -41,7 +28,6 @@ export const useActivityStore = defineStore('activity', () => {
     try {
       setActivity(await parseGpx(file));
       sourceFile.value = file;
-      isDemo.value = false;
       return true;
     } catch {
       return false;
@@ -61,7 +47,6 @@ export const useActivityStore = defineStore('activity', () => {
     try {
       setActivity(await parseGpx(file));
       sourceFile.value = file;
-      isDemo.value = false;
       // Новая тренировка — карточки начинаются заново.
       useShareDraftsStore().clear();
       return true;
@@ -77,7 +62,6 @@ export const useActivityStore = defineStore('activity', () => {
   return {
     activity,
     sourceFile,
-    isDemo,
     isImporting,
     importError,
     setActivity,
@@ -85,6 +69,5 @@ export const useActivityStore = defineStore('activity', () => {
     clearImportError,
     importGpx,
     restoreFromFile,
-    useDemoActivity,
   };
 });

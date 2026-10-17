@@ -1,3 +1,4 @@
+import { markRaw } from 'vue';
 import type { IActivity } from '@/entities/activity/model/activity.types';
 import { parseGpx } from '@/entities/activity/parser/gpx.parser';
 
@@ -45,14 +46,20 @@ function buildDemoGpx(): string {
 }
 
 let demoPromise: Promise<IActivity> | null = null;
+let demoActivity: IActivity | null = null;
+
+/** Демо-тренировка, если уже собрана (`loadDemoActivity`), иначе null. */
+export function getLoadedDemoActivity(): IActivity | null {
+  return demoActivity;
+}
 
 /** Демо-тренировка (собирается один раз). */
 export function loadDemoActivity(): Promise<IActivity> {
-  demoPromise ??= parseGpx(
-    new File([buildDemoGpx()], 'demo.gpx', { type: 'application/gpx+xml' }),
-  ).catch((error: unknown) => {
-    demoPromise = null;
-    throw error;
-  });
+  demoPromise ??= parseGpx(new File([buildDemoGpx()], 'demo.gpx', { type: 'application/gpx+xml' }))
+    .then((activity) => (demoActivity = markRaw(activity)))
+    .catch((error: unknown) => {
+      demoPromise = null;
+      throw error;
+    });
   return demoPromise;
 }

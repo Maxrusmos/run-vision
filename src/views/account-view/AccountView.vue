@@ -41,7 +41,7 @@ const isFirstLoad = computed(
 
 function goCreate() {
   void router.push({
-    name: activityStore.activity && !activityStore.isDemo ? ROUTE_NAMES.share : ROUTE_NAMES.import,
+    name: activityStore.activity ? ROUTE_NAMES.share : ROUTE_NAMES.import,
   });
 }
 </script>

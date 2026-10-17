@@ -21,8 +21,8 @@ export function usePreviewActivity() {
   });
 
   const activity = computed(() => activityStore.activity ?? demo.value);
-  /** Показано на демо-пробежке (своей тренировки нет или открыта демо). */
-  const isDemo = computed(() => !activityStore.activity || activityStore.isDemo);
+  /** Показано на демо-пробежке (своей тренировки нет). */
+  const isDemo = computed(() => !activityStore.activity);
 
   return { activity, isDemo };
 }

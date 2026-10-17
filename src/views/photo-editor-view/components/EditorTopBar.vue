@@ -5,6 +5,9 @@ defineProps<{
   canUndo: boolean;
   canRedo: boolean;
   saving: boolean;
+  /** Сохранять нечего (режим шаблона без изменений). */
+  saveDisabled?: boolean;
+  saveLabel?: string;
 }>();
 
 const emit = defineEmits<{
@@ -47,9 +50,10 @@ const emit = defineEmits<{
       rounded="pill"
       height="38"
       :loading="saving"
+      :disabled="saveDisabled"
       @click="emit('save')"
     >
-      Сохранить
+      {{ saveLabel ?? 'Сохранить' }}
     </v-btn>
   </header>
 </template>

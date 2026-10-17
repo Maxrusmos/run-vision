@@ -7,8 +7,11 @@ import { useShareDraftsStore } from '@/stores/share-drafts.store';
 import { useShareStore } from '@/stores/share.store';
 
 /**
- * Открыть сохранённый шаблон в редакторе: он становится черновиком своего шаблона
- * приложения (и связан с сохранённым — звезда в редакторе обновит его).
+ * Сохранённый шаблон из кабинета:
+ * - `editTemplate` — редактор в режиме шаблона (`?template=<id>`): правится сам шаблон,
+ *   на своей тренировке или демо-пробежке, картинку не сохранить;
+ * - `applyToActivity` — карточка своей тренировки по шаблону: шаблон становится черновиком
+ *   своей основы (звезда в редакторе обновит шаблон). Тренировки нет — сначала загрузка GPX.
  */
 export function useApplySavedTemplate() {
   const router = useRouter();
@@ -17,15 +20,23 @@ export function useApplySavedTemplate() {
   const shareStore = useShareStore();
   const savedTemplates = useSavedTemplatesStore();
 
-  /** Своя тренировка не загружена — открываем на демо-пробежке. */
-  async function openInEditor(template: SavedTemplate) {
-    if (!activityStore.activity) await activityStore.useDemoActivity();
+  function editTemplate(template: SavedTemplate) {
+    return router.push({ name: ROUTE_NAMES.photoEditor, query: { template: template.id } });
+  }
 
+  async function openForActivity(template: SavedTemplate) {
     draftsStore.saveDraft(template.baseTemplate, template.settings);
     draftsStore.setLink(template.baseTemplate, template.id);
     shareStore.setShareType('photo');
     shareStore.setPhotoTemplate(template.baseTemplate);
     await router.push({ name: ROUTE_NAMES.photoEditor });
+  }
+
+  async function applyToActivity(template: SavedTemplate) {
+    if (activityStore.activity) return openForActivity(template);
+    // Своей тренировки нет: после загрузки GPX шаблон откроется сразу (openPendingAfterImport).
+    savedTemplates.pendingTemplateId = template.id;
+    await router.push({ name: ROUTE_NAMES.import });
   }
 
   /** Сразу после загрузки GPX: если из кабинета просили применить шаблон — применить. */
@@ -35,10 +46,10 @@ export function useApplySavedTemplate() {
     savedTemplates.pendingTemplateId = null;
 
     const template = savedTemplates.byId.get(id);
-    if (!template) return false;
-    await openInEditor(template);
+    if (!template || !activityStore.activity) return false;
+    await openForActivity(template);
     return true;
   }
 
-  return { openInEditor, openPendingAfterImport };
+  return { editTemplate, applyToActivity, openPendingAfterImport };
 }
