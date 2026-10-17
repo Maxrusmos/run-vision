@@ -127,10 +127,14 @@ const labelOptions = [
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* Сверху кнопки, а не плитки: тот же отступ от «ручки», что у ряда плиток (8px). */
+  padding-top: 8px;
 }
 
 .elevation-panel__controls {
   display: flex;
+  /* Узкий экран (iPhone SE): «Подписи / Без» уходит на вторую строку во всю ширину. */
+  flex-wrap: wrap;
   gap: 8px;
 }
 

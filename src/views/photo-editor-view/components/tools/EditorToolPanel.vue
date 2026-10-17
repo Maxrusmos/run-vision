@@ -65,7 +65,13 @@ const emit = defineEmits<{
 
 .tool-panel__content {
   min-height: 0;
-  padding: 0 16px 8px;
+  /*
+   * Ритм панелей: от «ручки» до первого ряда и от последнего ряда до низа — по 14px,
+   * между рядами — 12px. Ряд плиток (`OptionTileRow`) сам даёт 8px сверху (место под
+   * кнопку удаления на плитке) и 2px снизу; панель, где сверху кнопки, добавляет себе
+   * те же 8px сверху, а между кнопками и плитками — gap 4px + 8px ряда.
+   */
+  padding: 0 16px 12px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }

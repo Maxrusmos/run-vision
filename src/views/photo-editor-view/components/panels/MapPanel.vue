@@ -105,6 +105,8 @@ function hideBrokenImage(event: Event) {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* Сверху кнопки, а не плитки: тот же отступ от «ручки», что у ряда плиток (8px). */
+  padding-top: 8px;
 }
 
 .map-panel__preview {

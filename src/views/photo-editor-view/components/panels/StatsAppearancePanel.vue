@@ -82,6 +82,36 @@ const widths = computed(() =>
   gap: 8px;
 }
 
+/*
+ * Узкий экран (iPhone SE): в одну строку не помещается — сверху сетка и «Удалить все»,
+ * снизу плотность во всю ширину (иначе «Свободно» залезало под кнопку).
+ */
+@container stats-panel (max-width: 344px) {
+  .stats-panel__controls {
+    display: grid;
+    grid-template-areas:
+      'columns . remove'
+      'density density density';
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .stats-panel__layout {
+    display: contents;
+  }
+
+  .stats-panel__layout :deep(.stat-layout__group:first-child) {
+    grid-area: columns;
+  }
+
+  .stats-panel__layout :deep(.stat-layout__group:last-child) {
+    grid-area: density;
+  }
+
+  .stats-panel__remove-all {
+    grid-area: remove;
+  }
+}
+
 .stats-panel__layout {
   flex: 1 1 auto;
   min-width: 0;
@@ -104,5 +134,8 @@ const widths = computed(() =>
   display: flex;
   flex-direction: column;
   gap: 4px;
+  container: stats-panel / inline-size;
+  /* Сверху кнопки, а не плитки: тот же отступ от «ручки», что у ряда плиток (8px). */
+  padding-top: 8px;
 }
 </style>

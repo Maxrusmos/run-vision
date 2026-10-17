@@ -63,10 +63,6 @@ const pitchOptions = SHARE_ROUTE_PITCHES.map((value) => ({
   title: value ? `Наклон ${value}°` : 'Без наклона',
 }));
 
-function handleBearingInput(event: Event) {
-  emit('setRouteBearing', Number((event.target as HTMLInputElement).value));
-}
-
 // Точки относительно центра превью — так же, как у трека на карточке (с поворотом и наклоном).
 const flatPoints = computed(() => {
   const stride = Math.max(1, Math.floor(props.track.length / PREVIEW_POINTS));
@@ -103,17 +99,28 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
       />
     </div>
 
+    <!-- Поворот — такой же ползунок, как перемотка видео; края — по линии рядов выше и ниже. -->
     <div class="track-panel__rotation">
-      <v-icon icon="mdi-rotate-3d-variant" size="18" aria-hidden="true" />
-      <input
+      <v-icon
+        class="track-panel__rotation-icon"
+        icon="mdi-rotate-3d-variant"
+        size="20"
+        aria-hidden="true"
+      />
+      <v-slider
         class="track-panel__range"
-        type="range"
-        min="0"
-        max="355"
-        step="5"
-        :value="settings.routeBearing"
+        :model-value="settings.routeBearing"
+        :min="0"
+        :max="355"
+        :step="5"
+        color="primary"
+        track-color="rgb(var(--v-theme-on-surface))"
+        thumb-size="14"
+        track-size="4"
+        hide-details
+        density="compact"
         aria-label="Поворот трека"
-        @input="handleBearingInput"
+        @update:model-value="emit('setRouteBearing', Number($event))"
       />
       <span class="track-panel__bearing">{{ settings.routeBearing }}°</span>
       <button
@@ -126,7 +133,7 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
       >
         <v-icon
           icon="mdi-navigation-variant"
-          size="18"
+          size="20"
           :style="{ transform: `rotate(${-settings.routeBearing}deg)` }"
         />
       </button>
@@ -177,6 +184,8 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* Сверху кнопки, а не плитки: тот же отступ от «ручки», что у ряда плиток (8px). */
+  padding-top: 8px;
 }
 
 .track-panel__controls {
@@ -187,35 +196,42 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
 .track-panel__rotation {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 28px;
-  padding-inline: 4px;
+  gap: 10px;
+  /* Высота — как у кнопок выше; между рядами — те же 12px (gap 4px + 8px). */
+  height: 36px;
+  margin-top: 8px;
   color: color-mix(in srgb, var(--app-on-surface) 75%, transparent);
+}
+
+/* Иконка — по центру той же ширины, что и кнопка «Север сверху» справа: ряд симметричен. */
+.track-panel__rotation-icon {
+  flex: 0 0 40px;
 }
 
 .track-panel__range {
   flex: 1 1 auto;
   min-width: 0;
-  accent-color: var(--app-primary);
+  margin: 0;
 }
 
+/* Значение — по центру ячейки той же ширины, что у иконки слева: отступы от дорожки равны. */
 .track-panel__bearing {
-  min-width: 34px;
-  font-size: 12px;
+  flex: 0 0 40px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  text-align: center;
 }
 
+/* Как кнопка флажков над ней: та же ширина и скругление, правые края на одной линии. */
 .track-panel__reset {
   display: grid;
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
+  flex: 0 0 40px;
+  height: 36px;
   place-items: center;
   padding: 0;
   color: var(--app-primary);
   border: 1px solid var(--app-border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   cursor: pointer;
 }

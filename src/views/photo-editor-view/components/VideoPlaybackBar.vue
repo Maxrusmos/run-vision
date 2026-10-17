@@ -82,14 +82,15 @@ function nextDuration() {
   flex: 0 0 auto;
   align-items: center;
   gap: 10px;
-  padding: 6px 12px;
+  /* Края — по линии меню и карточки (16px). */
+  padding: 6px 16px;
   border-top: 1px solid var(--app-border);
 }
 
 .video-bar__slider {
   flex: 1 1 auto;
   min-width: 0;
-  margin: 0 4px;
+  margin: 0;
 }
 
 .video-bar__time {
