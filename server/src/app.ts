@@ -7,6 +7,8 @@ import { ApiError, errors } from './lib/errors.js'
 import { registerAuthenticate } from './modules/auth/authenticate.js'
 import { authRoutes } from './modules/auth/routes.js'
 import { AuthService } from './modules/auth/service.js'
+import { templateRoutes } from './modules/templates/routes.js'
+import { TemplatesService } from './modules/templates/service.js'
 
 // Сборка приложения без запуска на порту: так его удобно поднимать в тестах (app.inject).
 
@@ -60,7 +62,7 @@ export async function buildApp({ config, db, logger = true }: BuildAppOptions): 
 
   await app.register(cors, {
     origin: config.corsOrigins,
-    methods: ['GET', 'POST', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     maxAge: 600,
   })
@@ -80,6 +82,7 @@ export async function buildApp({ config, db, logger = true }: BuildAppOptions): 
     service: authService,
     rateLimitPerMinute: config.authRateLimitPerMinute,
   })
+  await app.register(templateRoutes, { service: new TemplatesService(db) })
 
   return app
 }

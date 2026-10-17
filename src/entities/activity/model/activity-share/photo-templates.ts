@@ -27,3 +27,7 @@ export function getPhotoTemplatePresetId(id: PhotoTemplateId): string {
     PHOTO_TEMPLATES.find((template) => template.id === id)?.presetId ?? DEFAULT_SHARE_PRESET_ID
   );
 }
+
+export function getPhotoTemplateTitle(id: PhotoTemplateId): string {
+  return PHOTO_TEMPLATES.find((template) => template.id === id)?.title ?? id;
+}

@@ -130,8 +130,12 @@ export function useShareCardSettings(
   const initialPreset =
     findSharePreset(initialPresetId) ?? findSharePreset(DEFAULT_SHARE_PRESET_ID)!;
 
+  // Сохранённая карточка поверх значений шаблона: поля, появившиеся в приложении позже
+  // (а в старом черновике или шаблоне из аккаунта их нет), берутся по умолчанию.
   const settings = ref<ShareCardSettings>(
-    options.initialSettings ?? createSettings(initialPreset, options),
+    options.initialSettings
+      ? { ...createSettings(initialPreset, options), ...options.initialSettings }
+      : createSettings(initialPreset, options),
   );
   const history = useUndoRedo(settings, { limit: 10 });
 

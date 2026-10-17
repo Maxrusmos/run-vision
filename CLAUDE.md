@@ -31,7 +31,9 @@ npx vite build
 3. `/share/photo/editor` — `PhotoEditorView`: полноэкранный редактор (шапка приложения
    скрыта через `meta.hideAppHeader`).
 
-4. `/login`, `/register` — `AuthView` (один компонент на оба режима, `meta.guestOnly`:
+4. `/account` — `AccountView` («Мои шаблоны», `meta.requiresAuth`), `/account/templates/:id` —
+   `SavedTemplateView`. Гостя — на вход с `?redirect=`; без связи с сервером — пускаем.
+5. `/login`, `/register` — `AuthView` (один компонент на оба режима, `meta.guestOnly`:
    вошедшего уводит на `/`). После входа — назад по `?redirect=` (только внутренние пути,
    `router/redirect.ts`). В `AppHeader` справа «Войти» или `UserMenu` (email, тариф, «Выйти»).
 
@@ -223,7 +225,7 @@ Vite не на 5173 → добавить его адрес в `CORS_ORIGINS` в 
 ### Смотреть базу
 
 DBeaver (`sudo snap install dbeaver-ce`) → новое соединение PostgreSQL: `localhost:5432`,
-база/пользователь/пароль `runvision`. Таблицы: `users`, `sessions`, `schema_migrations`.
+база/пользователь/пароль `runvision`. Таблицы: `users`, `sessions`, `templates`, `schema_migrations`.
 Проверить Pro — поменять `plan` на `pro` у себя и обновить страницу. `runvision_test`
 не трогать — её чистят тесты. Прод-базу — так же, строкой подключения из Neon + SSL.
 
@@ -253,6 +255,30 @@ DBeaver (`sudo snap install dbeaver-ce`) → новое соединение Pos
   проверка здоровья; нет `OPTIONS`/`POST /api/auth/*` при входе → сайт стучится не туда
   (`VITE_API_URL`/пересборка); есть `OPTIONS` без `POST` → `CORS_ORIGINS`.
 - Из песочницы Claude onrender.com и github.io недоступны (403 прокси) — проверяет пользователь.
+
+## Мои шаблоны (сохранённое оформление)
+
+- Только для вошедших. Шаблон = настройки карточки (`ShareCardSettings`) + шаблон-основа +
+  название; **без GPX, без фото фона и без текста названия** (`toTemplateSettings`) —
+  применяется к любой тренировке. API — `/api/templates` (`docs/api.md`), сервер —
+  `server/src/modules/templates`, таблица `templates` (миграция 002).
+- **Звезда в редакторе** (`FavoriteTemplateButton`, в капсуле после «Сбросить», слот
+  `history-extra` у `EditorTopBar`): без связи — «Сохранить» с названием; карточка, открытая
+  из сохранённого шаблона (`links` в `share-drafts.store`, переживают перезагрузку), —
+  «Обновить» / «Как новый». Звезда закрашена, пока карточка совпадает с шаблоном
+  (`isSameTemplateSettings`: ключи сортируются — jsonb переставляет их).
+- Стор — `saved-templates.store.ts` (список, `fetchOne`, создание/изменение/удаление;
+  при смене пользователя очищается). Открыть в редакторе — `useApplySavedTemplate`:
+  шаблон становится черновиком своей основы + связь. Своей тренировки нет — демо-пробежка
+  (`entities/activity/lib/demo-activity.ts`, собирается из GPX-строки тем же парсером;
+  `activity.isDemo`, в сессию не пишется) или «Применить к своей тренировке» →
+  `pendingTemplateId` → после загрузки GPX сразу редактор.
+- Кабинет: плитки — простое превью (`TemplateRoutePreview` в цветах шаблона), страница
+  шаблона — настоящая карточка (`ShareCardArtwork` в `FitToBox`, `inert`) на своей
+  тренировке или демо; переименование, удаление с подтверждением. Пункт «Мои шаблоны» —
+  в меню аккаунта.
+- `useShareCardSettings` кладёт `initialSettings` поверх значений шаблона: новые поля
+  настроек у старых черновиков и шаблонов берутся по умолчанию.
 
 ## Черновики и сессия
 
@@ -343,7 +369,8 @@ vue-devtools (`#__vue-devtools-container__{display:none}`); после перв�
 
 `feature/stats-grid-layout`, `feature/topo-style` и `backend/init` (бэкенд, регистрация и
 вход), `feature/session-drafts` (черновики, сессия в IndexedDB, автозаполнение, шапка) и
-`feature/draft-preview-colors` (превью черновика в карусели) слиты в `main`.
+`feature/draft-preview-colors` (превью черновика в карусели) слиты в `main`. Текущая —
+`feature/saved-templates`: «Избранное» в редакторе и «Мои шаблоны» (кабинет).
 
 ## Идеи на потом (обсуждали, не сделано)
 

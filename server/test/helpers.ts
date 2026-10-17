@@ -23,7 +23,7 @@ export function useTestApp(overrides: Partial<Config> = {}) {
   })
 
   beforeEach(async () => {
-    await ctx.db.query('TRUNCATE users, sessions CASCADE')
+    await ctx.db.query('TRUNCATE users, sessions, templates CASCADE')
     await ctx.app?.close()
     ctx.app = await buildApp({ config: testConfig(overrides), db: ctx.db, logger: false })
   })

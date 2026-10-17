@@ -37,7 +37,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
 </script>
 
 <template>
-  <!-- Капсула: отменить · повторить │ сбросить. -->
+  <!-- Капсула: отменить · повторить │ сбросить (· избранное — слот, для вошедших). -->
   <div class="history-actions">
     <button
       type="button"
@@ -61,6 +61,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
     </button>
     <span class="history-actions__separator" aria-hidden="true" />
     <ResetCardButton @confirm="emit('reset')" />
+    <slot />
   </div>
 </template>
 
@@ -112,5 +113,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
 .history-actions :deep(.history-actions__button:focus-visible) {
   outline: 2px solid var(--app-primary);
   outline-offset: 1px;
+}
+
+@media (max-width: 360px) {
+  .history-actions :deep(.history-actions__button) {
+    width: 34px;
+    height: 34px;
+  }
 }
 </style>
