@@ -35,7 +35,10 @@ import {
 import type { MapFitPadding } from '@/entities/activity/model/activity-share/activity-share-map';
 import { getElevationSizeRatio } from '@/entities/activity/model/activity-share/activity-share-elevation';
 import type { BandState } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
-import type { VideoMarks } from '@/entities/activity/model/activity-share/activity-share-video';
+import {
+  mapChartMarker,
+  type VideoMarks,
+} from '@/entities/activity/model/activity-share/activity-share-video';
 
 const BLOCK_MAP_FIT_PADDING: MapFitPadding = { top: 0.1, right: 0.1, bottom: 0.1, left: 0.1 };
 /** Карта во весь фон: поля вокруг свободной области (между названием и графиком/показателями). */
@@ -54,6 +57,8 @@ const props = defineProps<{
   exporting?: boolean;
   /** Видео: точка на треке прошла эту долю дистанции; null — фото, точки нет. */
   progress?: number | null;
+  /** Видео: та же доля ступеньками, как у показателей (сплиты и зоны виджетов). */
+  statProgress?: number | null;
 }>();
 
 const emit = defineEmits<{
@@ -81,6 +86,15 @@ const routeSlot = useTemplateRef<HTMLElement>('routeSlot');
 const mapRef = useTemplateRef<InstanceType<typeof ArtworkMap>>('map');
 const routeRef = useTemplateRef<InstanceType<typeof ArtworkRoute>>('route');
 const elevationRef = useTemplateRef<InstanceType<typeof ArtworkElevation>>('elevationChart');
+/**
+ * Виджеты — по ключу полосы. Ссылка-функция: виджеты рендерятся слотом сетки по одному,
+ * и строковая ссылка хранила бы только последний.
+ */
+const widgetRefs = new Map<string, InstanceType<typeof ArtworkWidget>>();
+function setWidgetRef(key: string, instance: unknown) {
+  if (instance) widgetRefs.set(key, instance as InstanceType<typeof ArtworkWidget>);
+  else widgetRefs.delete(key);
+}
 
 /** Видео: точку и маркер графика на время записи не рисуем — их рисует холст. */
 const liveProgress = computed(() => (props.exporting ? null : (props.progress ?? null)));
@@ -271,7 +285,7 @@ defineExpose({
    */
   getVideoMarks: (progress: number): VideoMarks => {
     const root = rootElement.value;
-    if (!root?.offsetWidth) return { dot: null, elevation: null };
+    if (!root?.offsetWidth) return { dot: null, charts: [] };
     // Экранные пиксели ≠ пиксели раскладки: карточка уменьшена под экран.
     const rootRect = root.getBoundingClientRect();
     const screenScale = rootRect.width / root.offsetWidth;
@@ -308,21 +322,24 @@ defineExpose({
       }
     }
 
-    let elevationMark: VideoMarks['elevation'] = null;
-    const chart = elevationRef.value;
-    const chartPlace = placeOf(chart?.getChartElement());
-    if (chart && chartPlace) {
-      const marker = chart.getMarker(progress);
-      const toCard = (value: number) => value * chartPlace.scale;
-      elevationMark = {
-        x: chartPlace.left + toCard(marker.x),
-        y: chartPlace.top + toCard(marker.y),
-        top: chartPlace.top + toCard(marker.top),
-        bottom: chartPlace.top + toCard(marker.bottom),
-        unit: chart.getUnit() * chartPlace.scale,
-      };
+    // Графики: высоты (полоса) и графики-виджеты — у каждого свой маркер и цвет.
+    const charts: VideoMarks['charts'] = [];
+    const chartSources = [elevationRef.value, ...widgetRefs.values()];
+    for (const chart of chartSources) {
+      const place = placeOf(chart?.getChartElement());
+      const marker = chart?.getMarker(progress);
+      if (!chart || !place || !marker) continue;
+      const toCard = ({ x, y }: { x: number; y: number }) => ({
+        x: place.left + x * place.scale,
+        y: place.top + y * place.scale,
+      });
+      charts.push({
+        ...mapChartMarker(marker, toCard),
+        unit: chart.getUnit() * place.scale,
+        color: chart.getColor(),
+      });
     }
-    return { dot, elevation: elevationMark };
+    return { dot, charts };
   },
 });
 
@@ -488,6 +505,9 @@ function removeRoute() {
         <template #band="{ bandKey, side }">
           <ArtworkWidget
             v-if="settings.telemetry && widgetKind(bandKey)"
+            :ref="(instance) => setWidgetRef(bandKey, instance)"
+            :progress="liveProgress"
+            :stat-progress="statProgress"
             :kind="widgetKind(bandKey)!"
             :side="side"
             :track="activity.track"
@@ -577,6 +597,13 @@ function removeRoute() {
 .share-artwork__header {
   position: relative;
   z-index: 4;
+  /*
+   * Отступы названия (−8px) остаются внутри шапки, а не схлопываются с отступом тела.
+   * html-to-image проставляет клону вычисленную высоту, а при явной высоте нижний отступ
+   * не схлопывается — в PNG и кадрах видео тело (трек, показатели) съезжало на 8px вниз
+   * относительно экрана, и точка видео висела рядом с треком (было).
+   */
+  display: flow-root;
 }
 
 /* Карта во весь фон — от края до края карточки. */

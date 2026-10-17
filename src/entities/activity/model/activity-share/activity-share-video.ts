@@ -1,5 +1,12 @@
 import type { IActivity, ITrackPoint } from '@/entities/activity/model/activity.types';
 import { getDistanceMeters } from '@/entities/activity/model/elevation-profile';
+import type { ShareElevationStyle } from './activity-share.types';
+import {
+  ELEVATION_STYLE_SAMPLES,
+  getElevationChartTop,
+  getElevationMarker,
+} from './activity-share-elevation';
+import { resampleSeries } from './activity-share-telemetry';
 
 /** Длительность видео на выбор, секунды. */
 export const VIDEO_DURATIONS = [5, 10, 15, 20] as const;
@@ -193,10 +200,10 @@ export function drawVideoDot(
 }
 
 /**
- * Маркер на графике высоты: вертикальная черта на всю высоту графика и точка на профиле,
+ * Маркер на графике (высота, темп, пульс): черта поперёк графика и точка на линии,
  * поменьше точки трека. Единицы — слоя трека, как у линии графика.
  */
-export const VIDEO_ELEVATION_MARKER = {
+export const VIDEO_CHART_MARKER = {
   line: 3,
   lineOpacity: 0.55,
   radius: 9,
@@ -204,31 +211,35 @@ export const VIDEO_ELEVATION_MARKER = {
   halo: 22,
 } as const;
 
-export type ElevationMarkerPoint = {
-  x: number;
-  y: number;
-  /** Верх и низ черты (область графика). */
-  top: number;
-  bottom: number;
-};
+export type ChartPoint = { x: number; y: number };
+
+/** Маркер графика: точка на линии и концы черты (у вертикальной «ленты» черта поперёк). */
+export type ChartMarker = ChartPoint & { from: ChartPoint; to: ChartPoint };
+
+/** Переводит маркер через преобразование точки (поворот «ленты», сдвиг и масштаб). */
+export function mapChartMarker(
+  marker: ChartMarker,
+  map: (point: ChartPoint) => ChartPoint,
+): ChartMarker {
+  return { ...map(marker), from: map(marker.from), to: map(marker.to) };
+}
 
 /** Рисует маркер графика на холсте: `unit` — пикселей холста в единице слоя трека. */
-export function drawElevationMarker(
+export function drawChartMarker(
   context: CanvasRenderingContext2D,
-  marker: ElevationMarkerPoint,
+  marker: ChartMarker,
   unit: number,
   colors: VideoDotColors,
 ) {
-  const { line, lineOpacity, radius, ring, halo } = VIDEO_ELEVATION_MARKER;
+  const { line, lineOpacity, radius, ring, halo } = VIDEO_CHART_MARKER;
   context.save();
   context.globalAlpha = lineOpacity;
-  context.fillStyle = colors.ring;
-  context.fillRect(
-    marker.x - (line * unit) / 2,
-    marker.top,
-    line * unit,
-    marker.bottom - marker.top,
-  );
+  context.strokeStyle = colors.ring;
+  context.lineWidth = line * unit;
+  context.beginPath();
+  context.moveTo(marker.from.x, marker.from.y);
+  context.lineTo(marker.to.x, marker.to.y);
+  context.stroke();
   context.globalAlpha = VIDEO_DOT.haloOpacity;
   context.fillStyle = colors.route;
   context.beginPath();
@@ -248,9 +259,29 @@ export function drawElevationMarker(
 
 /**
  * Что рисует холст поверх кадра видео — в пикселях раскладки карточки; `unit` — таких
- * пикселей в единице слоя трека. null — элемента нет на карточке.
+ * пикселей в единице слоя трека. Точки нет — трека нет на карточке; маркеры — по одному
+ * на каждый график (график высоты, графики-виджеты), у каждого свой цвет.
  */
 export type VideoMarks = {
   dot: { x: number; y: number; unit: number } | null;
-  elevation: (ElevationMarkerPoint & { unit: number }) | null;
+  charts: (ChartMarker & { unit: number; color: string })[];
 };
+
+/**
+ * Маркер графика-профиля (`ProfileChart`) для доли `progress` дистанции — в пикселях
+ * графика: точка на линии (тот же ряд под стиль и тот же запас сверху, что у графика),
+ * черта — на всю высоту. `series` — подробный ряд 0…1, `unit` — пикселей в единице слоя.
+ */
+export function getProfileChartMarker(
+  series: number[],
+  style: ShareElevationStyle,
+  progress: number,
+  width: number,
+  height: number,
+  unit: number,
+): ChartMarker {
+  const values = resampleSeries(series, ELEVATION_STYLE_SAMPLES[style]);
+  const top = getElevationChartTop(style, unit);
+  const point = getElevationMarker(values, progress, width, height, top);
+  return { ...point, from: { x: point.x, y: 0 }, to: { x: point.x, y: height } };
+}
