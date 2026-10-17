@@ -1,11 +1,19 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { RoutePoint } from '@/entities/activity/lib/route-projection';
+import {
+  ROUTE_FLAG,
+  getFinishFlagShape,
+  getFlagPopTransform,
+  getKmFlagShape,
+} from '@/entities/activity/model/activity-share/route-flags';
 
 /**
  * Флажки на треке (SVG-фрагмент): отметки километров, кольцо старта и клетчатый
  * флажок финиша. Размеры — в единицах слоя трека (ширина карточки = 1000),
  * `unit` — пикселей в единице. Флажки «стоят» в экранных координатах —
- * при наклоне карты они остаются вертикальными.
+ * при наклоне карты они остаются вертикальными. Геометрия — общая с кадрами видео
+ * (`route-flags.ts`).
  */
 const props = defineProps<{
   kmPoints: (RoutePoint & { km: number })[];
@@ -15,77 +23,76 @@ const props = defineProps<{
   textColor: string;
   backgroundColor: string;
   unit: number;
+  /**
+   * Видео: масштаб флажка (километр или финиш) — 0, пока точка не дошла, потом
+   * «выпрыгивает». Без него (фото) флажки видны все.
+   */
+  flagScale?: ((flag: number | 'finish') => number) | null;
 }>();
 
-const POLE = 44;
-const FLAG_HEIGHT = 30;
-const FONT_SIZE = 21;
-const DIGIT_WIDTH = 12;
-const FLAG_PADDING = 9;
-const START_RING = 17;
-
-/** Флажок: древко вверх от точки трека, полотнище справа. */
-function flag(point: RoutePoint, label: string) {
-  const u = props.unit;
-  const width = (FLAG_PADDING * 2 + DIGIT_WIDTH * label.length) * u;
-  const top = point.y - POLE * u;
-  return {
-    pole: `M${point.x} ${point.y} L${point.x} ${top}`,
-    x: point.x,
-    y: top,
-    width,
-    height: FLAG_HEIGHT * u,
-    textX: point.x + width / 2,
-    // Базовая линия по центру полотнища (без dominant-baseline — его не везде переносит экспорт).
-    textY: top + (FLAG_HEIGHT * u) / 2 + FONT_SIZE * u * 0.36,
-  };
+function scaleOf(flag: number | 'finish'): number {
+  return props.flagScale ? props.flagScale(flag) : 1;
 }
 
-/** Клетки флажка финиша: 3 × 2. */
-function checkers(point: RoutePoint) {
-  const u = props.unit;
-  const cell = (FLAG_HEIGHT / 2) * u;
-  const top = point.y - POLE * u;
-  const cells: { x: number; y: number; size: number; dark: boolean }[] = [];
-  for (let row = 0; row < 2; row++) {
-    for (let col = 0; col < 3; col++) {
-      cells.push({
-        x: point.x + col * cell,
-        y: top + row * cell,
-        size: cell,
-        dark: (row + col) % 2 === 0,
-      });
-    }
-  }
-  return { pole: `M${point.x} ${point.y} L${point.x} ${top}`, cells, x: point.x, y: top, cell };
+/** Флажок с масштабом от основания древка (1 — без преобразования). */
+function popTransform(point: RoutePoint, scale: number): string | undefined {
+  return scale === 1 ? undefined : getFlagPopTransform(point, scale);
 }
+
+// Видео: флажок, до которого точка ещё не дошла (масштаб 0), не рисуется.
+const kmFlags = computed(() =>
+  props.kmPoints.flatMap((point) => {
+    const scale = scaleOf(point.km);
+    if (scale <= 0) return [];
+    return [
+      {
+        km: point.km,
+        shape: getKmFlagShape(point, String(point.km), props.unit),
+        transform: popTransform(point, scale),
+      },
+    ];
+  }),
+);
+
+const finishFlag = computed(() => {
+  const finish = props.finish;
+  const scale = scaleOf('finish');
+  if (!finish || scale <= 0) return null;
+  return { shape: getFinishFlagShape(finish, props.unit), transform: popTransform(finish, scale) };
+});
 </script>
 
 <template>
   <g>
-    <g v-for="point in kmPoints" :key="point.km">
-      <template v-for="item in [flag(point, String(point.km))]" :key="item.pole">
-        <path :d="item.pole" :stroke="textColor" :stroke-width="3 * unit" opacity="0.75" />
-        <rect
-          :x="item.x"
-          :y="item.y"
-          :width="item.width"
-          :height="item.height"
-          :rx="4 * unit"
-          :fill="textColor"
-          opacity="0.88"
-        />
-        <text
-          :x="item.textX"
-          :y="item.textY"
-          :font-size="FONT_SIZE * unit"
-          font-weight="700"
-          text-anchor="middle"
-          :fill="backgroundColor"
-        >
-          {{ point.km }}
-        </text>
-      </template>
+    <g v-for="{ km, shape, transform } in kmFlags" :key="km" :transform="transform">
+      <line
+        :x1="shape.pole.x1"
+        :y1="shape.pole.y1"
+        :x2="shape.pole.x2"
+        :y2="shape.pole.y2"
+        :stroke="textColor"
+        :stroke-width="ROUTE_FLAG.poleWidth * unit"
+        opacity="0.75"
+      />
+      <rect
+        :x="shape.banner.x"
+        :y="shape.banner.y"
+        :width="shape.banner.width"
+        :height="shape.banner.height"
+        :rx="shape.banner.radius"
+        :fill="textColor"
+        opacity="0.88"
+      />
+      <text
+        :x="shape.text.x"
+        :y="shape.text.y"
+        :font-size="shape.text.size"
+        font-weight="700"
+        text-anchor="middle"
+        :fill="backgroundColor"
+      >
+        {{ shape.text.label }}
+      </text>
     </g>
 
     <template v-if="startFinish">
@@ -93,33 +100,38 @@ function checkers(point: RoutePoint) {
         v-if="start"
         :cx="start.x"
         :cy="start.y"
-        :r="START_RING * unit"
+        :r="ROUTE_FLAG.startRing * unit"
         fill="none"
         :stroke="textColor"
-        :stroke-width="4 * unit"
+        :stroke-width="ROUTE_FLAG.startRingWidth * unit"
       />
-      <g v-if="finish">
-        <template v-for="item in [checkers(finish)]" :key="item.pole">
-          <path :d="item.pole" :stroke="textColor" :stroke-width="3 * unit" />
-          <rect
-            :x="item.x"
-            :y="item.y"
-            :width="item.cell * 3"
-            :height="item.cell * 2"
-            fill="none"
-            :stroke="textColor"
-            :stroke-width="2 * unit"
-          />
-          <rect
-            v-for="(cell, index) in item.cells"
-            :key="index"
-            :x="cell.x"
-            :y="cell.y"
-            :width="cell.size"
-            :height="cell.size"
-            :fill="cell.dark ? textColor : backgroundColor"
-          />
-        </template>
+      <g v-if="finishFlag" :transform="finishFlag.transform">
+        <line
+          :x1="finishFlag.shape.pole.x1"
+          :y1="finishFlag.shape.pole.y1"
+          :x2="finishFlag.shape.pole.x2"
+          :y2="finishFlag.shape.pole.y2"
+          :stroke="textColor"
+          :stroke-width="ROUTE_FLAG.poleWidth * unit"
+        />
+        <rect
+          :x="finishFlag.shape.frame.x"
+          :y="finishFlag.shape.frame.y"
+          :width="finishFlag.shape.frame.width"
+          :height="finishFlag.shape.frame.height"
+          fill="none"
+          :stroke="textColor"
+          :stroke-width="ROUTE_FLAG.frameWidth * unit"
+        />
+        <rect
+          v-for="(cell, index) in finishFlag.shape.cells"
+          :key="index"
+          :x="cell.x"
+          :y="cell.y"
+          :width="cell.width"
+          :height="cell.height"
+          :fill="cell.dark ? textColor : backgroundColor"
+        />
       </g>
     </template>
   </g>

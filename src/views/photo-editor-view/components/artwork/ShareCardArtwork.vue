@@ -36,9 +36,11 @@ import type { MapFitPadding } from '@/entities/activity/model/activity-share/act
 import { getElevationSizeRatio } from '@/entities/activity/model/activity-share/activity-share-elevation';
 import type { BandState } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
 import {
+  getTimeSinceReach,
   mapChartMarker,
   type VideoMarks,
 } from '@/entities/activity/model/activity-share/activity-share-video';
+import { getFlagPopScale } from '@/entities/activity/model/activity-share/route-flags';
 
 const BLOCK_MAP_FIT_PADDING: MapFitPadding = { top: 0.1, right: 0.1, bottom: 0.1, left: 0.1 };
 /** Карта во весь фон: поля вокруг свободной области (между названием и графиком/показателями). */
@@ -59,6 +61,9 @@ const props = defineProps<{
   progress?: number | null;
   /** Видео: та же доля ступеньками, как у показателей (сплиты и зоны виджетов). */
   statProgress?: number | null;
+  /** Видео: время ролика и его длительность — флажки «выпрыгивают», когда до них доходит точка. */
+  videoTime?: number | null;
+  videoDuration?: number | null;
 }>();
 
 const emit = defineEmits<{
@@ -98,6 +103,17 @@ function setWidgetRef(key: string, instance: unknown) {
 
 /** Видео: точку и маркер графика на время записи не рисуем — их рисует холст. */
 const liveProgress = computed(() => (props.exporting ? null : (props.progress ?? null)));
+/**
+ * Видео: масштаб флажка по его доле дистанции. Пока пишется видео, флажки рисует холст
+ * (с «выпрыгиванием» на каждом кадре), поэтому в самой карточке их нет.
+ */
+const flagPop = computed(() => {
+  const time = props.videoTime;
+  const duration = props.videoDuration;
+  if (time === null || time === undefined || !duration) return null;
+  if (props.exporting) return () => 0;
+  return (reach: number) => getFlagPopScale(getTimeSinceReach(time, reach, duration));
+});
 /** Точка на карте — только если трек показан. */
 const routeVisibleProgress = computed(() =>
   props.settings.routeVisible ? liveProgress.value : null,
@@ -285,7 +301,7 @@ defineExpose({
    */
   getVideoMarks: (progress: number): VideoMarks => {
     const root = rootElement.value;
-    if (!root?.offsetWidth) return { dot: null, charts: [] };
+    if (!root?.offsetWidth) return { dot: null, charts: [], flags: [] };
     // Экранные пиксели ≠ пиксели раскладки: карточка уменьшена под экран.
     const rootRect = root.getBoundingClientRect();
     const screenScale = rootRect.width / root.offsetWidth;
@@ -301,25 +317,33 @@ defineExpose({
     };
 
     let dot: VideoMarks['dot'] = null;
-    if (props.settings.map) {
-      const place = placeOf(mapRef.value?.getElement());
-      const point = mapRef.value?.getDotPoint(progress);
-      if (place && point) {
-        dot = {
-          x: place.left + point.x * place.scale,
-          y: place.top + point.y * place.scale,
-          unit: (mapRef.value?.getUnit() ?? 0) * place.scale,
-        };
-      }
-    } else {
-      const layer = routeRef.value?.getLayerElement();
-      const place = placeOf(layer);
-      const point = routeRef.value?.getDotPoint(progress);
-      if (layer && place && point) {
-        // Трек — в единицах слоя (ширина слоя = ROUTE_LAYER_WIDTH).
-        const unit = (layer.offsetWidth * place.scale) / ROUTE_LAYER_WIDTH;
-        dot = { x: place.left + point.x * unit, y: place.top + point.y * unit, unit };
-      }
+    let flags: VideoMarks['flags'] = [];
+    // Точка и флажки — в координатах трека: пиксели карты или единицы слоя трека.
+    const source = props.settings.map
+      ? (() => {
+          const place = placeOf(mapRef.value?.getElement());
+          if (!place || !mapRef.value) return null;
+          const unit = mapRef.value.getUnit() * place.scale;
+          return { place, scale: place.scale, unit, api: mapRef.value };
+        })()
+      : (() => {
+          const layer = routeRef.value?.getLayerElement();
+          const place = placeOf(layer);
+          if (!layer || !place || !routeRef.value) return null;
+          // Трек — в единицах слоя (ширина слоя = ROUTE_LAYER_WIDTH).
+          const unit = (layer.offsetWidth * place.scale) / ROUTE_LAYER_WIDTH;
+          return { place, scale: unit, unit, api: routeRef.value };
+        })();
+    if (source) {
+      const toCard = ({ x, y }: { x: number; y: number }) => ({
+        x: source.place.left + x * source.scale,
+        y: source.place.top + y * source.scale,
+      });
+      const point = source.api.getDotPoint(progress);
+      if (point) dot = { ...toCard(point), unit: source.unit };
+      flags = source.api
+        .getFlags()
+        .map((flag) => ({ ...flag, ...toCard(flag), unit: source.unit }));
     }
 
     // Графики: высоты (полоса) и графики-виджеты — у каждого свой маркер и цвет.
@@ -339,7 +363,7 @@ defineExpose({
         color: chart.getColor(),
       });
     }
-    return { dot, charts };
+    return { dot, charts, flags };
   },
 });
 
@@ -419,6 +443,7 @@ function removeRoute() {
         :background-color="settings.backgroundColor"
         :fit-padding="fullFitPadding"
         :progress="routeVisibleProgress"
+        :flag-pop="flagPop"
       />
       <div class="share-artwork__map-scrim" aria-hidden="true" />
     </template>
@@ -481,6 +506,7 @@ function removeRoute() {
           :background-color="settings.backgroundColor"
           :fit-padding="BLOCK_MAP_FIT_PADDING"
           :progress="routeVisibleProgress"
+          :flag-pop="flagPop"
         />
         <div v-else ref="mapArea" class="share-artwork__map-area" />
       </div>
@@ -552,6 +578,7 @@ function removeRoute() {
         :selected="selected === 'route'"
         :slot-element="routeSlot"
         :progress="liveProgress"
+        :flag-pop="flagPop"
         @select="selected = 'route'"
         @set-scale="emit('setRouteScale', $event)"
         @set-position="emit('setRoutePosition', $event)"

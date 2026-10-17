@@ -28,6 +28,11 @@ import {
   buildTrackTimeline,
   getTrackLocation,
 } from '@/entities/activity/model/activity-share/activity-share-video';
+import {
+  getFlagReach,
+  type RouteFlagKey,
+  type RouteFlagPoint,
+} from '@/entities/activity/model/activity-share/route-flags';
 import { usePinchDrag } from '@/hooks/usePinchDrag';
 import { useLongPressDrag } from '@/hooks/useLongPressDrag';
 import { dragTrash } from '@/hooks/useDragTrash';
@@ -70,6 +75,11 @@ const props = defineProps<{
   slotElement: HTMLElement | null;
   /** Видео: точка прошла эту долю дистанции; null — точки нет (фото). */
   progress?: number | null;
+  /**
+   * Видео: масштаб флажка по его доле дистанции (0 — точка не дошла, потом «выпрыгивает»);
+   * null — фото, флажки видны все.
+   */
+  flagPop?: ((reach: number) => number) | null;
 }>();
 
 const emit = defineEmits<{
@@ -197,6 +207,29 @@ function getDotPoint(progress: number): RoutePoint | null {
   const b = points[index + 1] ?? a;
   if (!a || !b) return null;
   return toLayer({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+}
+
+/** Видео: масштаб флажка — по его месту на треке. */
+const flagScale = computed(() => {
+  const pop = props.flagPop;
+  if (!pop) return null;
+  const total = timeline.value.totalDistance;
+  return (flag: RouteFlagKey) => pop(getFlagReach(flag, total));
+});
+
+/** Флажки для кадров видео — в единицах слоя (как и точка). */
+function getFlags(): RouteFlagPoint[] {
+  const total = timeline.value.totalDistance;
+  const flags: RouteFlagPoint[] = kmPoints.value.map((point) => ({
+    x: point.x,
+    y: point.y,
+    flag: point.km,
+    reach: getFlagReach(point.km, total),
+  }));
+  if (props.startFinish && finishPoint.value) {
+    flags.push({ ...finishPoint.value, flag: 'finish', reach: 1 });
+  }
+  return flags;
 }
 
 const dotPoint = computed(() =>
@@ -350,6 +383,7 @@ defineExpose({
   /** Слой трека: его размер на экране переводит единицы слоя в пиксели. */
   getLayerElement: () => layerElement.value,
   getDotPoint,
+  getFlags,
 });
 
 // Десктоп: колёсико мыши над выделенным треком.
@@ -394,6 +428,7 @@ function handleWheel(event: WheelEvent) {
         :text-color="textColor"
         :background-color="backgroundColor"
         :unit="1"
+        :flag-scale="flagScale"
       />
       <!-- Видео: точка на треке. В кадры видео её рисует холст: на время записи карточка
            не передаёт сюда progress (export-hidden внутри SVG html-to-image не учитывает). -->

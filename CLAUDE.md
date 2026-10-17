@@ -127,6 +127,15 @@ npx vite build
   с тестами). В ключ ступеньки экспорта входит доля, если есть сплиты/зоны (иначе кадр не
   перерендерится при тех же цифрах). Виджеты — ссылки-функции по ключу полосы (`widgetRefs`):
   они рендерятся слотом сетки, строковая ссылка хранила бы последний.
+- **Флажки «выпрыгивают»** (все стили, если включены в «Треке»): флажок километра и финиш
+  появляются, когда до них доходит точка, — рост от основания древка с перелётом
+  (`getFlagPopScale`, `FLAG_POP_SECONDS` 0,45 с; финиш — в начале паузы на финише,
+  `getTimeSinceReach`). Кольцо старта видно всегда, в покое и на фото — все флажки.
+  Геометрия флажков — общая у SVG (`RouteMarkers`, проп `flagScale`) и холста
+  (`route-flags.ts`: `getKmFlagShape`/`getFinishFlagShape`, `drawKmFlag`/`drawFinishFlag`,
+  с тестами). Масштаб считает карточка (`flagPop` по `videoTime`/`videoDuration`), трек и
+  карта переводят флажок в долю дистанции (`getFlagReach`). На время записи флажков в
+  карточке нет (`flagPop` → 0) — их на каждом кадре рисует холст по `VideoMarks.flags`.
 - Экспорт — `useShareVideoExport`: карточка рендерится html-to-image только при смене цифр
   (`showStatsAt` ставит ступеньку, одинаковые значения не рендерятся), точку и маркер графика
   на каждом кадре рисует холст (`drawVideoDot`, `drawChartMarker`; позиции — `getVideoMarks`
@@ -475,8 +484,8 @@ vue-devtools (`#__vue-devtools-container__{display:none}`); после перв�
 («Избранное», «Мои шаблоны»), `feature/template-edit-mode` (режим шаблона) и
 `feature/account-ux` (кабинет) и `feature/telemetry-bg-trash` (узоры, корзина) слиты.
 `feature/trash-polish` слита. `feature/route-longpress` слита. `feature/video-minimal` и `feature/video-topographic` слиты.
-`bugfix/video-dot-on-track` (точка рядом с треком — шапка `flow-root`) запушена, не слита;
-`feature/video-telemetry` сделана поверх неё.
+`bugfix/video-dot-on-track` и `feature/video-telemetry` слиты. Текущая —
+`feature/video-flag-pop`: флажки «выпрыгивают», когда до них доходит точка.
 
 ## Идеи на потом (обсуждали, не сделано)
 
