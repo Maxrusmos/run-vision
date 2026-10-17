@@ -4,7 +4,7 @@ import { restoreWorkSession } from '@/stores/work-session';
 import { useSavedTemplatesStore } from '@/stores/saved-templates.store';
 import { loadDemoActivity } from '@/entities/activity/lib/demo-activity';
 import { useAuthStore } from '@/stores/auth.store';
-import { ROUTE_NAMES } from './routes';
+import { ROUTE_NAMES, getTemplateEditorRoute } from './routes';
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -94,17 +94,22 @@ async function ensureAuthenticated(): Promise<boolean> {
 
 router.beforeEach(async (to) => {
   // Редактор в режиме шаблона (`?template=<id>`): нужен сам шаблон, а тренировка —
-  // своя (в т.ч. после перезагрузки) или демо-пробежка.
-  const templateId = to.name === ROUTE_NAMES.photoEditor ? to.query.template : undefined;
+  // своя (в т.ч. после перезагрузки) или демо-пробежка. Фото и видео — одинаково.
+  const isEditor = to.name === ROUTE_NAMES.photoEditor || to.name === ROUTE_NAMES.videoEditor;
+  const templateId = isEditor ? to.query.template : undefined;
   if (typeof templateId === 'string') {
     if (!(await ensureAuthenticated())) {
       return { name: ROUTE_NAMES.login, query: { redirect: to.fullPath } };
     }
+    let shareType;
     try {
-      await useSavedTemplatesStore().fetchOne(templateId);
+      ({ shareType } = await useSavedTemplatesStore().fetchOne(templateId));
     } catch {
       return { name: ROUTE_NAMES.account };
     }
+    // Шаблон своего типа правится в своём редакторе (ссылка могла вести не туда).
+    const editor = getTemplateEditorRoute(shareType);
+    if (to.name !== editor) return { name: editor, query: to.query };
     if (!useActivityStore().activity && !(await restoreWorkSession())) {
       try {
         await loadDemoActivity();

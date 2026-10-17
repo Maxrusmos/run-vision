@@ -14,6 +14,8 @@ import StepPage from '@/shared/ui/StepPage.vue';
 import SavedTemplateCard from '@/views/account-view/components/SavedTemplateCard.vue';
 import PageTopRow from '@/views/account-view/components/PageTopRow.vue';
 import DeleteTemplateDialog from '@/views/account-view/components/DeleteTemplateDialog.vue';
+import SegmentedGroup from '@/views/photo-editor-view/components/settings/SegmentedGroup.vue';
+import type { ShareType } from '@/entities/activity/model/activity-share/activity-share.types';
 
 /** Личный кабинет: аккаунт и «Мои шаблоны». */
 const router = useRouter();
@@ -49,6 +51,21 @@ function goBack() {
 }
 
 const templateToDelete = ref<SavedTemplate | null>(null);
+
+/** Фильтр по типу: все сразу (по умолчанию), только фото или только видео. */
+type TemplateFilter = 'all' | ShareType;
+const filter = ref<TemplateFilter>('all');
+const filterOptions = [
+  { value: 'all', label: 'Все', title: 'Все шаблоны' },
+  { value: 'photo', label: 'Фото', title: 'Шаблоны фото' },
+  { value: 'video', label: 'Видео', title: 'Шаблоны видео' },
+] as const satisfies readonly { value: TemplateFilter; label: string; title: string }[];
+
+const visibleTemplates = computed(() =>
+  filter.value === 'all'
+    ? savedTemplates.templates
+    : savedTemplates.templates.filter((template) => template.shareType === filter.value),
+);
 
 function goCreate() {
   void router.push({
@@ -97,9 +114,21 @@ function goCreate() {
     </div>
 
     <template v-else>
+      <SegmentedGroup
+        v-model="filter"
+        class="account-view__filter"
+        :options="filterOptions"
+        group-label="Тип шаблонов"
+        grow
+      />
+      <p v-if="!visibleTemplates.length" class="account-view__filter-empty">
+        {{ filter === 'video' ? 'Шаблонов видео пока нет.' : 'Шаблонов фото пока нет.' }}
+        Сохраните оформление звёздочкой в редакторе
+        {{ filter === 'video' ? 'видео' : 'фото' }}.
+      </p>
       <div class="account-view__grid">
         <SavedTemplateCard
-          v-for="template in savedTemplates.templates"
+          v-for="template in visibleTemplates"
           :key="template.id"
           :template="template"
           :route-points="routePoints"
@@ -135,6 +164,18 @@ function goCreate() {
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.account-view__filter {
+  align-self: stretch;
+}
+
+.account-view__filter-empty {
+  margin: 8px 0;
+  color: color-mix(in srgb, var(--app-on-surface) 65%, transparent);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
 }
 
 /* Две колонки на телефоне, больше — на широком экране. */

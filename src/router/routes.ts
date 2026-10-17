@@ -1,3 +1,5 @@
+import type { ShareType } from '@/entities/activity/model/activity-share/activity-share.types';
+
 export const ROUTE_NAMES = {
   import: 'import',
   share: 'share',
@@ -8,3 +10,8 @@ export const ROUTE_NAMES = {
   login: 'login',
   register: 'register',
 } as const;
+
+/** Редактор для шаблона «Моих шаблонов»: фото-шаблон — в фото-редакторе, видео — в видео. */
+export function getTemplateEditorRoute(shareType: ShareType) {
+  return shareType === 'video' ? ROUTE_NAMES.videoEditor : ROUTE_NAMES.photoEditor;
+}
