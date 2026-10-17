@@ -1,18 +1,31 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { PhotoTemplate } from '@/entities/activity/model/activity-share/activity-share.types';
 import TopographicPattern from '@/views/share-view/components/TopographicPattern.vue';
 
-defineProps<{
+const props = defineProps<{
   templateId: PhotoTemplate['id'];
   /** Точки маршрута для `<polyline>` в системе координат 0..100. */
   routePoints: string;
   primaryLabel: string;
   secondaryLabel: string;
+  /** Цвета из черновика (оформление и цвет трека); без них — цвета шаблона. */
+  colors?: { background: string; route: string; text: string } | null;
 }>();
+
+const colorVariables = computed(() =>
+  props.colors
+    ? {
+        '--preview-background': props.colors.background,
+        '--preview-route': props.colors.route,
+        '--preview-text': props.colors.text,
+      }
+    : undefined,
+);
 </script>
 
 <template>
-  <div class="route-preview" :class="`route-preview--${templateId}`">
+  <div class="route-preview" :class="`route-preview--${templateId}`" :style="colorVariables">
     <TopographicPattern v-if="templateId === 'topographic'" />
     <!-- «Телеметрия»: сетка-разметка, как на приборной панели (у «Топографии» — изолинии). -->
     <span v-if="templateId === 'telemetry'" class="route-preview__grid" aria-hidden="true" />
@@ -49,44 +62,50 @@ defineProps<{
 </template>
 
 <style scoped>
+/* Цвета превью — переменные: по умолчанию цвета шаблона, у черновика — его оформление. */
 .route-preview {
   position: absolute;
   inset: 0;
+  background: var(--preview-background);
+  color: var(--preview-route);
 }
 
 .route-preview--minimal {
-  background: #542b43;
-  color: #ffca91;
+  --preview-background: #542b43;
+  --preview-route: #ffca91;
+  --preview-text: #fff5ea;
 }
 
 .route-preview--topographic {
-  background: #19152e;
-  color: #c6ff00;
+  --preview-background: #19152e;
+  --preview-route: #c6ff00;
+  --preview-text: #fff;
 }
 
 .route-preview--telemetry {
-  background: #ffd60a;
-  color: #e63946;
+  --preview-background: #ffd60a;
+  --preview-route: #e63946;
+  --preview-text: #1d1d1d;
 }
 
 .route-preview__grid {
   position: absolute;
   inset: 0;
+  --grid-line: color-mix(in srgb, var(--preview-text) 10%, transparent);
   background:
-    linear-gradient(rgb(29 29 29 / 10%) 1px, transparent 1px) 0 0 / 100% 14px,
-    linear-gradient(90deg, rgb(29 29 29 / 10%) 1px, transparent 1px) 0 0 / 14px 100%;
+    linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0 / 100% 14px,
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 14px 100%;
 }
 
 .route-preview--telemetry .route-preview__route {
-  filter: drop-shadow(0 0 3px rgb(230 57 70 / 70%));
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--preview-route) 70%, transparent));
 }
 
 /* Плашка с цифрами — как у остальных шаблонов, но в тон приборной панели. */
 .route-preview--telemetry .route-preview__stats {
-  background: rgb(255 214 10 / 72%);
-  color: #1d1d1d;
+  background: color-mix(in srgb, var(--preview-background) 72%, transparent);
   font-variant-numeric: tabular-nums;
-  border-block: 1px solid rgb(230 57 70 / 35%);
+  border-block: 1px solid color-mix(in srgb, var(--preview-route) 35%, transparent);
 }
 
 .route-preview__route {
@@ -123,17 +142,12 @@ defineProps<{
   gap: 4px;
   padding: 7px 4px;
   background: rgb(0 0 0 / 32%);
-  color: #fff;
+  color: var(--preview-text);
   text-align: center;
 }
 
-.route-preview--minimal .route-preview__stats {
-  color: #fff5ea;
-}
-
 .route-preview--topographic .route-preview__stats {
-  background: rgb(25 21 46 / 78%);
-  color: #fff;
+  background: color-mix(in srgb, var(--preview-background) 78%, transparent);
 }
 
 .route-preview__primary {

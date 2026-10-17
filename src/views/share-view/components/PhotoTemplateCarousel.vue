@@ -11,8 +11,6 @@ import {
 } from '@/shared/lib/formatters/formatters';
 import PhotoTemplateCard from '@/views/share-view/components/PhotoTemplateCard.vue';
 import TemplateRoutePreview from '@/views/share-view/components/TemplateRoutePreview.vue';
-import DraftCardPreview from '@/views/share-view/components/DraftCardPreview.vue';
-import { getActivityShareStats } from '@/entities/activity/model/activity-share/activity-share-stats';
 import { useShareDraftsStore } from '@/stores/share-drafts.store';
 
 const PREVIEW_VIEWPORT = { width: 100, height: 100, padding: 12 };
@@ -24,8 +22,14 @@ const props = defineProps<{
 const selected = defineModel<PhotoTemplateId>({ required: true });
 
 const draftsStore = useShareDraftsStore();
-// Нужны только для превью черновиков.
-const statValues = computed(() => getActivityShareStats(props.activity));
+
+/** Шаблон уже настраивали — превью в цветах черновика (оформление и цвет трека). */
+function getDraftColors(templateId: PhotoTemplateId) {
+  const draft = draftsStore.drafts[templateId];
+  return draft
+    ? { background: draft.backgroundColor, route: draft.routeColor, text: draft.textColor }
+    : null;
+}
 
 const routePoints = computed(() =>
   toSvgPolylinePoints(projectRoute(props.activity.track, PREVIEW_VIEWPORT)),
@@ -58,16 +62,9 @@ const secondaryLabel = computed(() => {
         @select="selected = template.id"
       >
         <template #preview>
-          <!-- Шаблон уже настраивали — показываем карточку, на которой остановились. -->
-          <DraftCardPreview
-            v-if="draftsStore.drafts[template.id]"
-            :activity="activity"
-            :settings="draftsStore.drafts[template.id]!"
-            :stat-values="statValues"
-          />
           <TemplateRoutePreview
-            v-else
             :template-id="template.id"
+            :colors="getDraftColors(template.id)"
             :route-points="routePoints"
             :primary-label="distanceLabel"
             :secondary-label="secondaryLabel"
