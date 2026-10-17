@@ -4,6 +4,7 @@ import type { ShareElevationStyle } from '@/entities/activity/model/activity-sha
 import {
   ELEVATION_STYLE_SAMPLES,
   buildElevationShapes,
+  getElevationChartTop,
 } from '@/entities/activity/model/activity-share/activity-share-elevation';
 import { resampleSeries } from '@/entities/activity/model/activity-share/activity-share-telemetry';
 
@@ -51,7 +52,7 @@ const strokeGradientId = `elevation-stroke-${id}`;
 const values = computed(() => resampleSeries(props.series, ELEVATION_STYLE_SAMPLES[props.styleId]));
 
 /** Запас сверху, чтобы толстая линия (и ореол «Свечения») на пике не обрезались. */
-const top = computed(() => (props.styleId === 'glow' ? 16 : 9) * props.unit);
+const top = computed(() => getElevationChartTop(props.styleId, props.unit));
 
 const shapes = computed(() =>
   buildElevationShapes(values.value, props.styleId, props.width, props.height, top.value),

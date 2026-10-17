@@ -33,7 +33,7 @@ export function getPhotoTemplateTitle(id: PhotoTemplateId): string {
 }
 
 /** Стили, которые уже есть в видео (остальные — «скоро»). */
-export const VIDEO_TEMPLATE_IDS: readonly PhotoTemplateId[] = ['minimal'];
+export const VIDEO_TEMPLATE_IDS: readonly PhotoTemplateId[] = ['minimal', 'topographic'];
 
 export function isVideoTemplateAvailable(id: PhotoTemplateId): boolean {
   return VIDEO_TEMPLATE_IDS.includes(id);

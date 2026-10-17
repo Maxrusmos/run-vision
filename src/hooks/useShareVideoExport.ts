@@ -2,10 +2,12 @@ import { onBeforeUnmount, ref, shallowRef } from 'vue';
 import { toCanvas } from 'html-to-image';
 import {
   VIDEO_FPS,
+  drawElevationMarker,
   drawVideoDot,
   getRouteProgressAt,
   getStatProgress,
   type VideoDotColors,
+  type VideoMarks,
 } from '@/entities/activity/model/activity-share/activity-share-video';
 import { composeBackdropCanvas } from '@/shared/lib/image/compose-backdrop';
 import { waitForImagesIn } from '@/shared/lib/image/wait-for-images';
@@ -24,8 +26,6 @@ const VIDEO_WIDTH = 1080;
 const RECORDER_VIDEO_WIDTH = 720;
 const DEFAULT_FILE_NAME = 'runvision-activity';
 
-export type RouteDot = { x: number; y: number; unit: number };
-
 type RenderVideoOptions = {
   /** Карточка в документе (её рендерим в кадры). */
   element: HTMLElement;
@@ -35,15 +35,17 @@ type RenderVideoOptions = {
    * Возвращает ключ значений: одинаковые цифры подряд не рендерятся заново.
    */
   showStatsAt: (statProgress: number) => Promise<string>;
-  /** Точка на треке в пикселях раскладки карточки; null — трека нет. */
-  getRouteDot: (progress: number) => RouteDot | null;
+  /** Точка на треке и маркер графика высоты в пикселях раскладки карточки. */
+  getMarks: (progress: number) => VideoMarks;
   dotColors: VideoDotColors;
+  /** Цвета маркера на графике высоты (у графика может быть свой цвет). */
+  elevationColors: VideoDotColors;
   backgroundColor: string;
 };
 
 const even = (value: number) => Math.max(2, Math.round(value / 2) * 2);
 
-/** Карточка (без точки — она `export-hidden`) в холст размером кадра. */
+/** Карточка (без точки и маркера — на время записи их нет) в холст размером кадра. */
 async function renderCard(
   element: HTMLElement,
   pixelRatio: number,
@@ -107,8 +109,9 @@ export function useShareVideoExport() {
     element,
     duration,
     showStatsAt,
-    getRouteDot,
+    getMarks,
     dotColors,
+    elevationColors,
     backgroundColor,
   }: RenderVideoOptions): Promise<VideoResult | null> {
     await document.fonts?.ready;
@@ -118,7 +121,7 @@ export function useShareVideoExport() {
     const frames = Array.from({ length: frameCount }, (_, index) => {
       const routeProgress = getRouteProgressAt(index / VIDEO_FPS, duration);
       return {
-        dot: getRouteDot(routeProgress),
+        marks: getMarks(routeProgress),
         statProgress: getStatProgress(routeProgress, duration),
       };
     });
@@ -144,11 +147,24 @@ export function useShareVideoExport() {
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Canvas 2D недоступен');
 
-    const drawFrame = (background: CanvasImageSource, dot: RouteDot | null) => {
+    const drawFrame = (background: CanvasImageSource, { dot, elevation }: VideoMarks) => {
       // Под скруглёнными углами карточки — цвет фона: в видео нет прозрачности.
       context.fillStyle = backgroundColor;
       context.fillRect(0, 0, size.width, size.height);
       context.drawImage(background, 0, 0, size.width, size.height);
+      if (elevation) {
+        drawElevationMarker(
+          context,
+          {
+            x: elevation.x * pixelRatio,
+            y: elevation.y * pixelRatio,
+            top: elevation.top * pixelRatio,
+            bottom: elevation.bottom * pixelRatio,
+          },
+          elevation.unit * pixelRatio,
+          elevationColors,
+        );
+      }
       if (dot) {
         drawVideoDot(
           context,
@@ -179,7 +195,7 @@ export function useShareVideoExport() {
           return null;
         }
         const frame = frames[index]!;
-        drawFrame(await backgroundFor(frame.statProgress), frame.dot);
+        drawFrame(await backgroundFor(frame.statProgress), frame.marks);
         await writer.addFrame(canvas);
         progress.value = (index + 1) / frameCount;
       }
@@ -199,7 +215,7 @@ export function useShareVideoExport() {
       frameCount,
       drawFrame: (index) => {
         const frame = frames[index]!;
-        drawFrame(backgrounds.get(frame.statProgress)!, frame.dot);
+        drawFrame(backgrounds.get(frame.statProgress)!, frame.marks);
       },
       onProgress: (fraction) => {
         progress.value = 0.5 + fraction * 0.5;

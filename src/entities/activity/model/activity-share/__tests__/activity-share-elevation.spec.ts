@@ -4,6 +4,7 @@ import {
   ELEVATION_STYLE_SAMPLES,
   SHARE_ELEVATION_STYLES,
   buildElevationShapes,
+  getElevationMarker,
   getElevationProfile,
 } from '../activity-share-elevation';
 
@@ -71,5 +72,25 @@ describe('стили графика', () => {
     const values = Array.from({ length: ELEVATION_STYLE_SAMPLES[style] }, (_, i) => (i % 5) / 4);
     const shapes = buildElevationShapes(values, style, 300, 100, 8);
     expect(Boolean(shapes.line) || shapes.rects.length > 0 || shapes.dots.length > 0).toBe(true);
+  });
+});
+
+describe('getElevationMarker', () => {
+  it('стоит на линии графика: x — по дистанции, y — как у линии', () => {
+    const values = [0, 0.5, 1];
+    const shapes = buildElevationShapes(values, 'line', 200, 100, 10);
+    // Линия «M0 y0 L100 y1 L200 y2» — маркер на середине совпадает со второй точкой.
+    const middle = getElevationMarker(values, 0.5, 200, 100, 10);
+    expect(middle.x).toBe(100);
+    expect(shapes.line).toContain(`L100 ${Math.round(middle.y * 10) / 10}`);
+    const end = getElevationMarker(values, 1, 200, 100, 10);
+    expect(end).toEqual({ x: 200, y: 10 });
+  });
+
+  it('между точками ряда — по линии', () => {
+    const marker = getElevationMarker([0, 1], 0.25, 100, 100, 0);
+    const start = getElevationMarker([0, 1], 0, 100, 100, 0);
+    const end = getElevationMarker([0, 1], 1, 100, 100, 0);
+    expect(marker.y).toBeCloseTo(start.y + (end.y - start.y) * 0.25);
   });
 });

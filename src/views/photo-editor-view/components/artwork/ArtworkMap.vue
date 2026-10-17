@@ -22,6 +22,11 @@ import {
 import { ROUTE_LAYER_WIDTH } from '@/entities/activity/model/activity-share/activity-share-route';
 import RouteStyleLayers from '@/views/photo-editor-view/components/artwork/RouteStyleLayers.vue';
 import RouteMarkers from '@/views/photo-editor-view/components/artwork/RouteMarkers.vue';
+import VideoDotMark from '@/views/photo-editor-view/components/artwork/VideoDotMark.vue';
+import {
+  buildTrackTimeline,
+  getTrackLocation,
+} from '@/entities/activity/model/activity-share/activity-share-video';
 
 /** Время ожидания тайлов перед экспортом: дальше рендерим то, что успело загрузиться. */
 const READY_TIMEOUT_MS = 8000;
@@ -46,8 +51,11 @@ const props = defineProps<{
   backgroundColor: string;
   /** Поля, в которые трек не заходит, в долях ширины/высоты карты (место под название и показатели). */
   fitPadding: MapFitPadding;
+  /** Видео: точка на треке прошла эту долю дистанции; null — точки нет (фото). */
+  progress?: number | null;
 }>();
 
+const root = useTemplateRef<HTMLElement>('root');
 const container = useTemplateRef<HTMLElement>('container');
 const instance = shallowRef<maplibregl.Map | null>(null);
 /** Размер карты в пикселях раскладки (не экрана: карточка масштабируется transform). */
@@ -226,11 +234,35 @@ async function whenReady(): Promise<void> {
   });
 }
 
-defineExpose({ whenReady });
+// Видео: точка — между уже спроецированными точками трека (индексы как у `getRouteLngLats`).
+const timeline = computed(() => buildTrackTimeline(props.track));
+
+/** Где точка, прошедшая долю `progress` дистанции, — в пикселях карты. */
+function getDotPoint(progress: number): RoutePoint | null {
+  const list = projected.value;
+  const { index, t } = getTrackLocation(timeline.value, progress);
+  const a = list[index];
+  const b = list[index + 1] ?? a;
+  if (!a || !b) return null;
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+const dotPoint = computed(() =>
+  props.progress === null || props.progress === undefined ? null : getDotPoint(props.progress),
+);
+
+defineExpose({
+  whenReady,
+  /** Карта в документе: её размер на экране переводит пиксели карты в пиксели карточки. */
+  getElement: () => root.value,
+  getDotPoint,
+  /** Пикселей карты в единице слоя трека. */
+  getUnit: () => unit.value,
+});
 </script>
 
 <template>
-  <div class="artwork-map">
+  <div ref="root" class="artwork-map">
     <div ref="container" class="artwork-map__canvas" />
     <svg
       v-if="routeVisible && projected.length"
@@ -254,6 +286,15 @@ defineExpose({ whenReady });
         :start-finish="startFinish"
         :text-color="textColor"
         :background-color="backgroundColor"
+        :unit="unit"
+      />
+      <!-- Видео: точка на треке (в кадры видео её рисует холст). -->
+      <VideoDotMark
+        v-if="dotPoint"
+        :x="dotPoint.x"
+        :y="dotPoint.y"
+        :route-color="routeColor"
+        :ring-color="textColor"
         :unit="unit"
       />
     </svg>
