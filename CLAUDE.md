@@ -65,6 +65,8 @@ npx vite build
   высоту. Ползунки — `v-slider` (поворот трека и перемотка видео — одинаковые). Ряды
   кнопок на узком экране не обрезаются: «График»/«Виджеты» переносят «Подписи / Без»
   (`flex-wrap`), «Показатели» — сетка в две строки по `@container` (≤344px).
+- Разделитель после закреплённых плиток («Цвет») в `OptionTileRow` — по высоте плитки
+  (`::after`), а не рамкой блока: рамка тянулась на отступ сверху и уходила выше плиток (было).
 - Горизонтальные панели собраны из `OptionTile` / `OptionTileRow` / `ColorOptionTile`
   (одинаковая высота у Фона, Оформления и Трека). `OptionTileRow` при открытии меню сразу
   (без анимации) прокручивает ряд к выбранной плитке — по центру.
@@ -488,8 +490,10 @@ vue-devtools (`#__vue-devtools-container__{display:none}`); после перв�
 
 ## Ветки
 
-Баги правим в отдельных ветках `bugfix/<тема-бага>` (так попросил пользователь).
-Доработки — в ветках `feature/<тема-доработки>`.
+**`develop` — основная ветка разработки.** Баги — в ветках `bugfix/<тема-бага>`, доработки —
+`feature/<тема-доработки>`; обе ветвятся от `develop` и сливаются в `develop`. **`main` — только
+прод**: в него сливаем `develop`, когда пользователь просит выложить (пуш в `main` обновляет
+Render и Pages). Сливаем по просьбе пользователя.
 
 `feature/stats-grid-layout`, `feature/topo-style` и `backend/init` (бэкенд, регистрация и
 вход), `feature/session-drafts` (черновики, сессия в IndexedDB, автозаполнение, шапка) и
@@ -497,8 +501,9 @@ vue-devtools (`#__vue-devtools-container__{display:none}`); после перв�
 («Избранное», «Мои шаблоны»), `feature/template-edit-mode` (режим шаблона) и
 `feature/account-ux` (кабинет) и `feature/telemetry-bg-trash` (узоры, корзина) слиты.
 `feature/trash-polish` слита. `feature/route-longpress` слита. `feature/video-minimal` и `feature/video-topographic` слиты.
-`bugfix/video-dot-on-track` и `feature/video-telemetry` слиты. Текущая —
-`feature/video-flag-pop`: флажки «выпрыгивают», когда до них доходит точка.
+`bugfix/video-dot-on-track`, `feature/video-telemetry`, `feature/video-flag-pop`,
+`feature/route-flags-toggle`, `feature/menu-spacing`, `bugfix/topo-route-offscreen` слиты в `main`
+(до появления `develop`).
 
 ## Идеи на потом (обсуждали, не сделано)
 
