@@ -1,0 +1,17 @@
+# Локальная PostgreSQL для разработки: docker compose up -d
+# Создаёт базу runvision (для dev) и runvision_test (для тестов), пользователь runvision/runvision.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: runvision
+      POSTGRES_PASSWORD: runvision
+      POSTGRES_DB: runvision
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+
+volumes:
+  pgdata:
