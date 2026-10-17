@@ -1,0 +1,139 @@
+# RunVision — сервер
+
+Бэкенд для регистрации и входа пользователей (дальше — тарифы и подписка).
+Node.js 22 + TypeScript, [Fastify](https://fastify.dev), PostgreSQL.
+
+**Контракт API — [`docs/api.md`](../docs/api.md)**: все эндпоинты, форматы ответов и ошибок.
+Сервер делает ровно его; меняя API, сначала правим этот файл.
+
+## Быстрый старт
+
+```sh
+cd server
+npm install
+cp .env.example .env      # настройки; для локальной БД менять ничего не нужно
+docker compose up -d      # PostgreSQL 16 в Docker (или своя, см. ниже)
+npm run migrate           # создать таблицы
+npm run dev               # сервер на http://localhost:3000 с перезапуском при правках
+```
+
+Проверка: `curl http://localhost:3000/api/health` → `{"ok":true}`.
+
+Фронт ходит на `VITE_API_URL` (по умолчанию `http://localhost:3000`) — `npm run dev`
+в корне репозитория и `npm run dev` здесь, и всё работает вместе.
+
+### PostgreSQL без Docker
+
+Установите PostgreSQL 16 (macOS: `brew install postgresql@16`, Ubuntu: `apt install postgresql`)
+и создайте пользователя и две базы — для разработки и для тестов:
+
+```sh
+psql -U postgres -c "CREATE ROLE runvision LOGIN PASSWORD 'runvision'"
+createdb -U postgres -O runvision runvision
+createdb -U postgres -O runvision runvision_test
+```
+
+`docker-compose.yml` делает то же самое (тестовая база — `docker/init-test-db.sql`).
+
+## Команды
+
+| Команда             | Что делает                                                      |
+| ------------------- | --------------------------------------------------------------- |
+| `npm run dev`       | запуск из исходников с перезапуском при правках (tsx watch)     |
+| `npm run build`     | сборка TypeScript → `dist/`                                     |
+| `npm start`         | запуск собранного `dist/server.js` (так — на хостинге)          |
+| `npm run migrate`   | применить новые миграции из `migrations/`                       |
+| `npm run typecheck` | проверка типов                                                  |
+| `npm test`          | тесты (Vitest) на тестовой базе `runvision_test` — её чистят!   |
+
+На хостинге, где нет dev-зависимостей, миграции — `node dist/migrate.js` (после `build`).
+
+## Переменные окружения
+
+Читаются из `.env` (локально) или из настроек хостинга. Проверяются на старте —
+если чего-то не хватает, сервер сразу падает с понятным сообщением.
+
+| Переменная          | По умолчанию                                         | Зачем                                                         |
+| ------------------- | ---------------------------------------------------- | ------------------------------------------------------------- |
+| `DATABASE_URL`      | — (обязательна)                                      | строка подключения к PostgreSQL                               |
+| `PORT`              | `3000`                                               | порт HTTP                                                     |
+| `CORS_ORIGINS`      | `http://localhost:5173,https://maxrusmos.github.io`  | с каких сайтов можно звать API (через запятую)                |
+| `SESSION_TTL_DAYS`  | `30`                                                 | сколько живёт вход                                            |
+| `TRUST_PROXY`       | `false`                                              | `true` за прокси хостинга — иначе все запросы «с одного IP»   |
+| `LOG_LEVEL`         | `info`                                               | подробность логов                                             |
+| `TEST_DATABASE_URL` | `postgres://runvision:runvision@localhost:5432/runvision_test` | база для `npm test`                         |
+
+## Как устроено
+
+```
+migrations/001_users_sessions.sql  схема БД (users, sessions)
+src/
+  server.ts          запуск: конфиг → БД → слушаем порт
+  app.ts             buildApp(): плагины, обработчик ошибок, маршруты (в тестах — без порта)
+  config.ts          переменные окружения (zod)
+  db.ts              пул PostgreSQL, withTransaction
+  migrate.ts         применение миграций
+  lib/errors.ts      ApiError и готовые ошибки в формате контракта
+  modules/auth/
+    routes.ts        /api/auth/* — только HTTP
+    service.ts       логика: регистрация, вход, сессии, действующий тариф
+    schemas.ts       проверка email/пароля (zod)
+    password.ts      хэш паролей (scrypt)
+    tokens.ts        токены сессий
+    authenticate.ts  хук app.authenticate и requirePlan('pro') для закрытых эндпоинтов
+test/                тесты на настоящей БД
+```
+
+### Авторизация
+
+- Регистрация/вход возвращают `token` — случайные 32 байта. В БД (`sessions`) лежит только
+  его SHA-256: даже утёкшая база не даёт войти от чужого имени. Сессия живёт 30 дней;
+  выход удаляет её. Просроченные сессии не принимаются и удаляются при следующем входе.
+- Пароли — `scrypt` из Node с солью на пользователя; в БД только хэш.
+- **Почему токен в заголовке `Authorization`, а не кука.** Фронт на GitHub Pages, бэк —
+  на другом домене. Для браузера такая кука «сторонняя», а iOS Safari сторонние куки режет —
+  вход бы слетал на iPhone. Заголовок работает везде; фронт хранит токен в `localStorage`.
+- Защита от подбора: не больше 10 попыток регистрации/входа в минуту с IP (429), вход
+  с неизвестным email тратит то же время, что и с известным (по времени ответа не узнать,
+  есть ли такой пользователь), ошибка одна — «неверный email или пароль».
+
+Новый закрытый эндпоинт:
+
+```ts
+app.get('/api/что-то', { preHandler: app.authenticate }, async (request) => {
+  const user = currentUser(request) // { id, email, plan, ... }
+})
+// только для Pro (иначе 403 PLAN_REQUIRED):
+app.get('/api/pro-фича', { preHandler: [app.authenticate, requirePlan('pro')] }, ...)
+```
+
+### Тариф и будущая подписка
+
+Сейчас в `users` два поля: `plan` (`free`/`pro`) и `plan_expires_at` (до какого момента
+действует, `null` — бессрочно). Действующий тариф считает сервер: `pro`, только если
+`plan = 'pro'` и срок не прошёл. Выдать Pro вручную:
+
+```sql
+UPDATE users SET plan = 'pro', plan_expires_at = now() + interval '1 month' WHERE email = '...';
+```
+
+Когда появится оплата, схема вырастет так:
+
+- таблица `subscriptions` (user_id, провайдер — например ЮKassa/Stripe, id подписки у провайдера,
+  статус, текущий период, отмена в конце периода);
+- таблица `payments` (платёж, сумма, валюта, статус, сырой ответ провайдера) — история;
+- вебхук провайдера `POST /api/billing/webhook` обновляет подписку и копирует итог в
+  `users.plan` / `plan_expires_at`. Поля в `users` остаются «кэшем» действующего тарифа,
+  поэтому `me`, `authenticate` и `requirePlan` менять не придётся.
+
+## Деплой
+
+Подойдёт любой хостинг Node с управляемой PostgreSQL: **Render**, **Railway**, **Fly.io**.
+
+1. Создать PostgreSQL на хостинге, взять её `DATABASE_URL`.
+2. Создать веб-сервис из репозитория, корень — `server/`.
+   Сборка: `npm ci && npm run build`, запуск: `node dist/migrate.js && npm start`.
+3. Переменные: `DATABASE_URL`, `TRUST_PROXY=true`,
+   `CORS_ORIGINS=https://maxrusmos.github.io` (порт `PORT` хостинг задаёт сам).
+4. На фронте при сборке задать `VITE_API_URL=https://<адрес-сервиса>`
+   (для GitHub Pages — переменная в workflow сборки).
