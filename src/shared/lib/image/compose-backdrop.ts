@@ -101,12 +101,17 @@ type ComposeOptions = {
 };
 
 /** Фото фона + карточка поверх → PNG (data URL). */
-export function composeWithBackdrop({
+export function composeWithBackdrop(options: ComposeOptions): string {
+  return composeBackdropCanvas(options).toDataURL('image/png');
+}
+
+/** Фото фона + карточка поверх → холст (кадры видео). */
+export function composeBackdropCanvas({
   overlay,
   card,
   photo,
   backgroundColor,
-}: ComposeOptions): string {
+}: ComposeOptions): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = overlay.width;
   canvas.height = overlay.height;
@@ -139,5 +144,5 @@ export function composeWithBackdrop({
   context.restore();
 
   context.drawImage(overlay, 0, 0);
-  return canvas.toDataURL('image/png');
+  return canvas;
 }

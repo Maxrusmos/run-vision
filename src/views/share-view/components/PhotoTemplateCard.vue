@@ -5,6 +5,8 @@ defineProps<{
   selected: boolean;
   /** Шаблон уже настраивали в редакторе — продолжим с того места. */
   edited?: boolean;
+  /** Стиля пока нет (видео) — не выбрать. */
+  soon?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -16,8 +18,9 @@ const emit = defineEmits<{
   <button
     type="button"
     class="template-card"
-    :class="{ 'template-card--selected': selected }"
+    :class="{ 'template-card--selected': selected, 'template-card--soon': soon }"
     :aria-pressed="selected"
+    :aria-disabled="soon || undefined"
     @click="emit('select')"
   >
     <div class="template-card__preview">
@@ -34,7 +37,8 @@ const emit = defineEmits<{
 
     <span class="template-card__title">
       {{ title }}
-      <span v-if="edited" class="template-card__badge">Ваш вариант</span>
+      <span v-if="soon" class="template-card__badge template-card__badge--soon">Скоро</span>
+      <span v-else-if="edited" class="template-card__badge">Ваш вариант</span>
     </span>
     <span class="template-card__description">{{ description }}</span>
   </button>
@@ -103,6 +107,21 @@ const emit = defineEmits<{
   font-weight: 600;
   line-height: 1.5;
   vertical-align: 1px;
+}
+
+.template-card__badge--soon {
+  background: color-mix(in srgb, var(--app-on-surface) 12%, transparent);
+  color: color-mix(in srgb, var(--app-on-surface) 70%, transparent);
+}
+
+/* Стиля в видео пока нет: превью приглушено, выбрать нельзя. */
+.template-card--soon {
+  cursor: default;
+}
+
+.template-card--soon .template-card__preview {
+  opacity: 0.4;
+  filter: grayscale(0.6);
 }
 
 .template-card__description {

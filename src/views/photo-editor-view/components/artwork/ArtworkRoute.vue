@@ -24,6 +24,11 @@ import {
   getKmMarkers,
   spreadKmMarkers,
 } from '@/entities/activity/model/activity-share/activity-share-map';
+import {
+  VIDEO_DOT,
+  buildTrackTimeline,
+  getTrackLocation,
+} from '@/entities/activity/model/activity-share/activity-share-video';
 import { usePinchDrag } from '@/hooks/usePinchDrag';
 import { useLongPressDrag } from '@/hooks/useLongPressDrag';
 import { dragTrash } from '@/hooks/useDragTrash';
@@ -63,6 +68,8 @@ const props = defineProps<{
   selected: boolean;
   /** Место под трек в раскладке карточки — задаёт размер M и исходное положение. */
   slotElement: HTMLElement | null;
+  /** Видео: точка прошла эту долю дистанции; null — точки нет (фото). */
+  progress?: number | null;
 }>();
 
 const emit = defineEmits<{
@@ -178,6 +185,23 @@ const kmPoints = computed(() => {
       : [];
   return spreadKmMarkers(placed, occupied, MARKER_SPACING);
 });
+
+// Видео: точка на треке — по доле дистанции, между точками уже повёрнутого трека.
+const timeline = computed(() => buildTrackTimeline(props.track));
+
+/** Где точка, прошедшая долю `progress` дистанции, — в единицах слоя. */
+function getDotPoint(progress: number): RoutePoint | null {
+  const points = localPoints.value;
+  const { index, t } = getTrackLocation(timeline.value, progress);
+  const a = points[index];
+  const b = points[index + 1] ?? a;
+  if (!a || !b) return null;
+  return toLayer({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+}
+
+const dotPoint = computed(() =>
+  props.progress === null || props.progress === undefined ? null : getDotPoint(props.progress),
+);
 
 const frame = computed(() => {
   if (!bounds.value) return null;
@@ -322,6 +346,12 @@ const { handlePointerDown: handleResizePointerDown } = usePointerDrag({
   },
 });
 
+defineExpose({
+  /** Слой трека: его размер на экране переводит единицы слоя в пиксели. */
+  getLayerElement: () => layerElement.value,
+  getDotPoint,
+});
+
 // Десктоп: колёсико мыши над выделенным треком.
 function handleWheel(event: WheelEvent) {
   applyTransform(scale.value * Math.exp(-event.deltaY * WHEEL_ZOOM_SPEED), center.value);
@@ -365,6 +395,24 @@ function handleWheel(event: WheelEvent) {
         :background-color="backgroundColor"
         :unit="1"
       />
+      <!-- Видео: точка на треке. В кадры видео её рисует холст: на время записи карточка
+           не передаёт сюда progress (export-hidden внутри SVG html-to-image не учитывает). -->
+      <g v-if="dotPoint" aria-hidden="true">
+        <circle
+          :cx="dotPoint.x"
+          :cy="dotPoint.y"
+          :r="VIDEO_DOT.halo"
+          :fill="color"
+          :opacity="VIDEO_DOT.haloOpacity"
+        />
+        <circle
+          :cx="dotPoint.x"
+          :cy="dotPoint.y"
+          :r="VIDEO_DOT.radius + VIDEO_DOT.ring"
+          :fill="textColor"
+        />
+        <circle :cx="dotPoint.x" :cy="dotPoint.y" :r="VIDEO_DOT.radius" :fill="color" />
+      </g>
     </svg>
 
     <!-- Зона касания лежит под показателями: тап по показателю не выделяет трек. -->

@@ -9,6 +9,17 @@ import {
   getActivityShareStats,
 } from '@/entities/activity/model/activity-share/activity-share-stats';
 import { getPhotoTemplatePresetId } from '@/entities/activity/model/activity-share/photo-templates';
+import {
+  DEFAULT_VIDEO_DURATION,
+  buildTrackTimeline,
+  getActivityAtProgress,
+  getRouteProgressAt,
+  getStatProgress,
+  type VideoDuration,
+} from '@/entities/activity/model/activity-share/activity-share-video';
+import type { ShareStatKey } from '@/entities/activity/model/activity-share/activity-share.types';
+import { useShareVideoExport } from '@/hooks/useShareVideoExport';
+import VideoPlaybackBar from '@/views/photo-editor-view/components/VideoPlaybackBar.vue';
 import { useActivityStore } from '@/stores/activity.store';
 import { useShareStore } from '@/stores/share.store';
 import { useShareDraftsStore } from '@/stores/share-drafts.store';
@@ -51,10 +62,18 @@ import StatsAppearancePanel from '@/views/photo-editor-view/components/panels/St
 /** Время на анимацию снятия выделения с показателя перед рендером. */
 const DESELECT_ANIMATION_MS = 160;
 
+/**
+ * Один редактор на фото и видео: в видео под карточкой — воспроизведение (точка бежит
+ * по треку, показатели растут ступеньками), а «Сохранить» делает MP4 вместо PNG.
+ * Оформление (черновик шаблона) у фото и видео общее.
+ */
+const props = withDefaults(defineProps<{ mode?: 'photo' | 'video' }>(), { mode: 'photo' });
+const isVideoMode = props.mode === 'video';
+
 const router = useRouter();
 const route = useRoute();
 const activityStore = useActivityStore();
-const { photoTemplateId } = storeToRefs(useShareStore());
+const { photoTemplateId, videoTemplateId } = storeToRefs(useShareStore());
 const draftsStore = useShareDraftsStore();
 const authStore = useAuthStore();
 const savedTemplates = useSavedTemplatesStore();
@@ -62,7 +81,8 @@ const savedTemplates = useSavedTemplatesStore();
 // Режим шаблона (`?template=<id>`, из кабинета): правим сам сохранённый шаблон.
 // «Сохранить» обновляет шаблон, картинку не делает; черновики карточек не трогаем.
 // Шаблон и тренировку (свою или демо) заранее готовит роутер.
-const editedTemplateId = typeof route.query.template === 'string' ? route.query.template : null;
+const editedTemplateId =
+  !isVideoMode && typeof route.query.template === 'string' ? route.query.template : null;
 const editedTemplateOnEnter = editedTemplateId ? savedTemplates.byId.get(editedTemplateId) : null;
 const isTemplateMode = Boolean(editedTemplateOnEnter);
 const editedTemplate = computed(
@@ -76,7 +96,9 @@ const activity = computed(
 const isDemoActivity = computed(() => isTemplateMode && !activityStore.activity);
 
 // Основу фиксируем на входе: черновик пишется туда же, откуда взят.
-const templateId = editedTemplateOnEnter?.baseTemplate ?? photoTemplateId.value;
+const templateId =
+  editedTemplateOnEnter?.baseTemplate ??
+  (isVideoMode ? videoTemplateId.value : photoTemplateId.value);
 
 const initialStatValues = activity.value ? getActivityShareStats(activity.value) : null;
 
@@ -258,9 +280,95 @@ function handleCanvasClick(event: MouseEvent) {
   }
 }
 
-const statValues = computed(() => (activity.value ? getActivityShareStats(activity.value) : null));
+// Видео: время ролика, точка на треке и показатели «на момент». В покое — конец ролика:
+// точка на финише, цифры итоговые (карточка как на фото).
+const videoDuration = ref<VideoDuration>(DEFAULT_VIDEO_DURATION);
+const videoTime = ref<number>(videoDuration.value);
+const isPlaying = ref(false);
+/** Во время записи видео показатели ставит экспорт — ступенька за ступенькой. */
+const exportStatProgress = ref<number | null>(null);
 
-const isBusy = computed(() => isExporting.value || isRendering.value);
+const routeProgress = computed(() =>
+  isVideoMode ? getRouteProgressAt(videoTime.value, videoDuration.value) : null,
+);
+const statProgress = computed(
+  () => exportStatProgress.value ?? getStatProgress(routeProgress.value ?? 1, videoDuration.value),
+);
+
+const timeline = computed(() => (activity.value ? buildTrackTimeline(activity.value.track) : null));
+// Ступенек немного (две в секунду ролика) — значения считаем один раз на ступеньку.
+const statsCache = new Map<number, Record<ShareStatKey, string>>();
+function getStatsAt(progress: number): Record<ShareStatKey, string> | null {
+  if (!activity.value || !timeline.value) return null;
+  let stats = statsCache.get(progress);
+  if (!stats) {
+    stats = getActivityShareStats(getActivityAtProgress(activity.value, timeline.value, progress));
+    statsCache.set(progress, stats);
+  }
+  return stats;
+}
+
+const statValues = computed(() => {
+  if (!activity.value) return null;
+  return isVideoMode ? getStatsAt(statProgress.value) : getActivityShareStats(activity.value);
+});
+
+let playFrame = 0;
+let lastFrameAt = 0;
+
+function playTick(now: number) {
+  const elapsed = (now - lastFrameAt) / 1000;
+  lastFrameAt = now;
+  videoTime.value = Math.min(videoDuration.value, videoTime.value + elapsed);
+  if (videoTime.value >= videoDuration.value) {
+    isPlaying.value = false;
+    return;
+  }
+  playFrame = requestAnimationFrame(playTick);
+}
+
+function pause() {
+  isPlaying.value = false;
+  cancelAnimationFrame(playFrame);
+}
+
+function togglePlay() {
+  if (isPlaying.value) {
+    pause();
+    return;
+  }
+  // Досмотрели до конца — запускаем сначала.
+  if (videoTime.value >= videoDuration.value - 0.05) videoTime.value = 0;
+  selected.value = null;
+  isPlaying.value = true;
+  lastFrameAt = performance.now();
+  playFrame = requestAnimationFrame(playTick);
+}
+
+function seek(time: number) {
+  pause();
+  videoTime.value = Math.min(videoDuration.value, Math.max(0, time));
+}
+
+/** Другая длительность — точка остаётся в том же месте трека. */
+function setVideoDuration(duration: VideoDuration) {
+  const fraction = videoTime.value / videoDuration.value;
+  videoDuration.value = duration;
+  videoTime.value = fraction * duration;
+}
+
+onBeforeUnmount(pause);
+
+const {
+  isRendering: isVideoRendering,
+  progress: videoRenderProgress,
+  isSaving: isVideoSaving,
+  video,
+  render: renderVideo,
+  save: saveVideoFile,
+} = useShareVideoExport();
+
+const isBusy = computed(() => isExporting.value || isRendering.value || isVideoRendering.value);
 
 async function createImage() {
   if (isBusy.value) return;
@@ -288,6 +396,51 @@ async function createImage() {
   } finally {
     isExporting.value = false;
   }
+}
+
+async function createVideo() {
+  if (isBusy.value) return;
+
+  pause();
+  selected.value = null;
+  isExporting.value = true;
+
+  try {
+    await delay(DESELECT_ANIMATION_MS);
+    await nextTick();
+    await waitForNextPaint();
+    await artwork.value?.whenReady();
+
+    const element = artwork.value?.getElement();
+    if (!element) return;
+
+    isResultOpen.value = await renderVideo({
+      element,
+      duration: videoDuration.value,
+      showStatsAt: async (progress) => {
+        exportStatProgress.value = progress;
+        await nextTick();
+        return settings.value.visibleStats.map((key) => statValues.value?.[key]).join('|');
+      },
+      getRouteDot: (progress) =>
+        settings.value.routeVisible ? (artwork.value?.getRouteDot(progress) ?? null) : null,
+      dotColors: { route: settings.value.routeColor, ring: settings.value.textColor },
+      backgroundColor: settings.value.backgroundColor,
+    });
+  } finally {
+    exportStatProgress.value = null;
+    isExporting.value = false;
+  }
+}
+
+function saveVideo() {
+  if (activity.value) void saveVideoFile(activity.value.name);
+}
+
+function handleSave() {
+  if (isTemplateMode) void handleSaveTemplate();
+  else if (isVideoMode) void createVideo();
+  else void createImage();
 }
 
 function saveImage() {
@@ -355,7 +508,7 @@ function goBack() {
       @undo="handleUndo"
       @redo="handleRedo"
       @reset="handleReset"
-      @save="isTemplateMode ? handleSaveTemplate() : createImage()"
+      @save="handleSave"
     >
       <template #history-extra>
         <!-- «Избранное» — только для вошедших: шаблоны хранятся в аккаунте.
@@ -385,6 +538,7 @@ function goBack() {
         :settings="settings"
         :stat-values="statValues"
         :exporting="isExporting"
+        :progress="routeProgress"
         @set-color="setColor"
         @remove-stat="removeStat"
         @set-stat-positions="setStatPositions"
@@ -401,6 +555,16 @@ function goBack() {
         @rotate-route="setRouteBearing"
       />
     </FitToBox>
+
+    <VideoPlaybackBar
+      v-if="isVideoMode"
+      :time="videoTime"
+      :duration="videoDuration"
+      :playing="isPlaying"
+      @toggle="togglePlay"
+      @seek="seek"
+      @set-duration="setVideoDuration"
+    />
 
     <!-- Панель выезжает, только когда открывается из закрытого состояния;
          при переключении между инструментами она остаётся на месте. -->
@@ -516,11 +680,26 @@ function goBack() {
     {{ templateMessage }}
   </v-snackbar>
 
+  <!-- Видео собирается кадр за кадром — показываем, сколько осталось. -->
+  <v-dialog :model-value="isVideoRendering" persistent max-width="320">
+    <v-card class="video-progress">
+      <div class="video-progress__title">Создаём видео…</div>
+      <v-progress-linear
+        :model-value="videoRenderProgress * 100"
+        color="primary"
+        height="6"
+        rounded
+      />
+      <div class="video-progress__value">{{ Math.round(videoRenderProgress * 100) }}%</div>
+    </v-card>
+  </v-dialog>
+
   <ShareCardResultDialog
     v-model="isResultOpen"
-    :image="image"
-    :loading="isSaving"
-    @save="saveImage"
+    :image="isVideoMode ? undefined : image"
+    :video="isVideoMode ? video?.url : undefined"
+    :loading="isVideoMode ? isVideoSaving : isSaving"
+    @save="isVideoMode ? saveVideo() : saveImage()"
   />
 </template>
 
@@ -574,6 +753,24 @@ function goBack() {
 .photo-editor__bottom {
   position: relative;
   flex: 0 0 auto;
+}
+
+.video-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+}
+
+.video-progress__title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.video-progress__value {
+  color: color-mix(in srgb, var(--app-on-surface) 65%, transparent);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
 .photo-editor__canvas {

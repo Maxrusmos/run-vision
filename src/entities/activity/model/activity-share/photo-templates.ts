@@ -31,3 +31,10 @@ export function getPhotoTemplatePresetId(id: PhotoTemplateId): string {
 export function getPhotoTemplateTitle(id: PhotoTemplateId): string {
   return PHOTO_TEMPLATES.find((template) => template.id === id)?.title ?? id;
 }
+
+/** Стили, которые уже есть в видео (остальные — «скоро»). */
+export const VIDEO_TEMPLATE_IDS: readonly PhotoTemplateId[] = ['minimal'];
+
+export function isVideoTemplateAvailable(id: PhotoTemplateId): boolean {
+  return VIDEO_TEMPLATE_IDS.includes(id);
+}

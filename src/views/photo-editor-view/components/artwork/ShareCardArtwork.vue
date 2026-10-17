@@ -14,7 +14,10 @@ import type {
   ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import { getShareStatCardLabel } from '@/entities/activity/model/activity-share/activity-share-stat-options';
-import { ROUTE_SLOT_HEIGHT_RATIO } from '@/entities/activity/model/activity-share/activity-share-route';
+import {
+  ROUTE_LAYER_WIDTH,
+  ROUTE_SLOT_HEIGHT_RATIO,
+} from '@/entities/activity/model/activity-share/activity-share-route';
 import { eventPathMatches } from '@/shared/lib/dom/event-path';
 import ArtworkBackground from '@/views/photo-editor-view/components/artwork/ArtworkBackground.vue';
 import ArtworkTitle from '@/views/photo-editor-view/components/artwork/ArtworkTitle.vue';
@@ -48,6 +51,8 @@ const props = defineProps<{
   statValues: Record<ShareStatKey, string>;
   /** Скрывает элементы редактора перед рендером в PNG. */
   exporting?: boolean;
+  /** Видео: точка на треке прошла эту долю дистанции; null — фото, точки нет. */
+  progress?: number | null;
 }>();
 
 const emit = defineEmits<{
@@ -73,6 +78,7 @@ const selected = defineModel<ShareCardElement | null>('selected', { default: nul
 const rootElement = useTemplateRef<HTMLElement>('root');
 const routeSlot = useTemplateRef<HTMLElement>('routeSlot');
 const mapRef = useTemplateRef<InstanceType<typeof ArtworkMap>>('map');
+const routeRef = useTemplateRef<InstanceType<typeof ArtworkRoute>>('route');
 
 /** Высота области над показателями (карта и график) — до первой строки; 0 — не измерено. */
 const visualHeight = ref(0);
@@ -248,6 +254,26 @@ defineExpose({
   /** Дождаться отрисовки карты перед экспортом. */
   whenReady: async () => {
     await mapRef.value?.whenReady();
+  },
+  /**
+   * Видео: где точка, прошедшая долю `progress` дистанции, — в пикселях раскладки
+   * карточки (без масштаба на экране), и сколько таких пикселей в единице слоя трека.
+   */
+  getRouteDot: (progress: number) => {
+    const root = rootElement.value;
+    const layer = routeRef.value?.getLayerElement();
+    const point = routeRef.value?.getDotPoint(progress);
+    if (!root || !layer || !point || !root.offsetWidth) return null;
+    // Экранные пиксели ≠ пиксели раскладки: карточка уменьшена под экран.
+    const rootRect = root.getBoundingClientRect();
+    const layerRect = layer.getBoundingClientRect();
+    const screenScale = rootRect.width / root.offsetWidth;
+    const unit = layerRect.width / screenScale / ROUTE_LAYER_WIDTH;
+    return {
+      x: (layerRect.left - rootRect.left) / screenScale + point.x * unit,
+      y: (layerRect.top - rootRect.top) / screenScale + point.y * unit,
+      unit,
+    };
   },
 });
 
@@ -437,6 +463,7 @@ function removeRoute() {
       <!-- Трек двигается по всей области: от низа названия до низа карточки. -->
       <ArtworkRoute
         v-if="settings.routeVisible && !settings.map"
+        ref="route"
         class="share-artwork__route"
         :track="activity.track"
         :color="settings.routeColor"
@@ -451,6 +478,7 @@ function removeRoute() {
         :start-finish="settings.routeStartFinish"
         :selected="selected === 'route'"
         :slot-element="routeSlot"
+        :progress="exporting ? null : progress"
         @select="selected = 'route'"
         @set-scale="emit('setRouteScale', $event)"
         @set-position="emit('setRoutePosition', $event)"
