@@ -41,6 +41,14 @@ const router = createRouter({
       meta: { requiresActivity: true, hideAppHeader: true },
     },
     {
+      // Видео — тот же редактор, что и фото, плюс точка на треке и воспроизведение.
+      path: '/share/video/editor',
+      name: ROUTE_NAMES.videoEditor,
+      component: () => import('@/views/photo-editor-view/PhotoEditorView.vue'),
+      props: { mode: 'video' },
+      meta: { requiresActivity: true, hideAppHeader: true },
+    },
+    {
       path: '/login',
       name: ROUTE_NAMES.login,
       component: () => import('@/views/auth-view/AuthView.vue'),

@@ -9,14 +9,16 @@ import SectionHeading from '@/shared/ui/SectionHeading.vue';
 import ActivitySummary from '@/components/activity/ActivitySummary.vue';
 import ShareTypeSelector from '@/views/share-view/components/ShareTypeSelector.vue';
 import PhotoTemplateCarousel from '@/views/share-view/components/PhotoTemplateCarousel.vue';
-import VideoPlaceholder from '@/views/share-view/components/VideoPlaceholder.vue';
+import { VIDEO_TEMPLATE_IDS } from '@/entities/activity/model/activity-share/photo-templates';
 
 const router = useRouter();
 const { activity } = storeToRefs(useActivityStore());
-const { shareType, photoTemplateId } = storeToRefs(useShareStore());
+const { shareType, photoTemplateId, videoTemplateId } = storeToRefs(useShareStore());
 
 function goToEditor() {
-  router.push({ name: ROUTE_NAMES.photoEditor });
+  router.push({
+    name: shareType.value === 'video' ? ROUTE_NAMES.videoEditor : ROUTE_NAMES.photoEditor,
+  });
 }
 </script>
 
@@ -36,12 +38,22 @@ function goToEditor() {
       <PhotoTemplateCarousel v-model="photoTemplateId" :activity="activity" />
     </template>
 
-    <VideoPlaceholder v-else />
+    <template v-else>
+      <v-divider />
+      <SectionHeading
+        title="Выбери стиль"
+        description="Тот же дизайн, что у фото, — по треку бежит точка, цифры растут"
+      />
+      <!-- Пока в видео только «Минимализм»: остальные стили — «скоро». -->
+      <PhotoTemplateCarousel
+        v-model="videoTemplateId"
+        :activity="activity"
+        :available-ids="VIDEO_TEMPLATE_IDS"
+      />
+    </template>
 
     <template #footer>
-      <v-btn color="primary" variant="flat" :disabled="shareType !== 'photo'" @click="goToEditor">
-        Продолжить
-      </v-btn>
+      <v-btn color="primary" variant="flat" @click="goToEditor"> Продолжить </v-btn>
     </template>
   </StepPage>
 </template>

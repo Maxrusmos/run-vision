@@ -31,8 +31,17 @@ export function isShareAbortError(error: unknown): boolean {
  */
 export async function shareOrDownloadImage(dataUrl: string, baseName: string): Promise<void> {
   const blob = await (await fetch(dataUrl)).blob();
-  const fileName = `${baseName}.png`;
-  const file = new File([blob], fileName, { type: 'image/png' });
+  await shareOrDownloadFile(blob, baseName, 'png');
+}
+
+/** То же для любого файла (видео): «Поделиться» с файлом или скачивание. */
+export async function shareOrDownloadFile(
+  blob: Blob,
+  baseName: string,
+  extension: string,
+): Promise<void> {
+  const fileName = `${baseName}.${extension}`;
+  const file = new File([blob], fileName, { type: blob.type });
 
   if (canShareFile(file)) {
     await navigator.share({ files: [file], title: baseName });

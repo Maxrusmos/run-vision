@@ -9,7 +9,13 @@ import { useShareDraftsStore } from '@/stores/share-drafts.store';
 
 const props = defineProps<{
   activity: IActivity;
+  /** Какие стили можно выбрать (видео); остальные — «скоро». Без списка — все. */
+  availableIds?: readonly PhotoTemplateId[];
 }>();
+
+function isAvailable(id: PhotoTemplateId) {
+  return !props.availableIds || props.availableIds.includes(id);
+}
 
 const selected = defineModel<PhotoTemplateId>({ required: true });
 
@@ -39,13 +45,19 @@ const {
     mandatory
     class="template-carousel"
   >
-    <v-slide-group-item v-for="template in PHOTO_TEMPLATES" :key="template.id" :value="template.id">
+    <v-slide-group-item
+      v-for="template in PHOTO_TEMPLATES"
+      :key="template.id"
+      :value="template.id"
+      :disabled="!isAvailable(template.id)"
+    >
       <PhotoTemplateCard
         :title="template.title"
         :description="template.description"
         :selected="selected === template.id"
         :edited="Boolean(draftsStore.drafts[template.id])"
-        @select="selected = template.id"
+        :soon="!isAvailable(template.id)"
+        @select="isAvailable(template.id) && (selected = template.id)"
       >
         <template #preview>
           <TemplateRoutePreview

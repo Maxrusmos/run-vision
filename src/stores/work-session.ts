@@ -31,6 +31,8 @@ export interface WorkSessionRecord {
   gpx: File;
   shareType: ShareType;
   photoTemplateId: PhotoTemplateId;
+  /** Шаблон видео (в старых записях нет). */
+  videoTemplateId?: PhotoTemplateId;
   drafts: ShareDrafts;
   /** Из каких сохранённых шаблонов открыты черновики. */
   links?: ShareDraftLinks;
@@ -106,6 +108,7 @@ export async function persistWorkSession(): Promise<void> {
     gpx,
     shareType: shareStore.shareType,
     photoTemplateId: shareStore.photoTemplateId,
+    videoTemplateId: shareStore.videoTemplateId,
     drafts: JSON.parse(JSON.stringify(drafts)) as ShareDrafts,
     links: { ...draftsStore.links },
     images,
@@ -131,6 +134,7 @@ async function runRestore(): Promise<boolean> {
   const shareStore = useShareStore(pinia);
   shareStore.setShareType(record.shareType);
   shareStore.setPhotoTemplate(record.photoTemplateId);
+  if (record.videoTemplateId) shareStore.setVideoTemplate(record.videoTemplateId);
 
   // Старые object URL после перезагрузки недействительны — создаём новые из файлов.
   const urls = new Map<string, string>();
@@ -175,6 +179,7 @@ export function setupWorkSession(app: Pinia) {
       activityStore.sourceFile,
       shareStore.shareType,
       shareStore.photoTemplateId,
+      shareStore.videoTemplateId,
       draftsStore.drafts,
       draftsStore.links,
     ],

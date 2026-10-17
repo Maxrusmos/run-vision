@@ -1,6 +1,8 @@
 <script setup lang="ts">
 defineProps<{
-  image: string;
+  image?: string;
+  /** Видео (object URL) вместо картинки. */
+  video?: string;
   loading?: boolean;
 }>();
 
@@ -14,12 +16,25 @@ const emit = defineEmits<{
 <template>
   <v-dialog v-model="isOpen" max-width="720" content-class="result-dialog">
     <v-card class="result-card">
-      <div class="text-h6 font-weight-bold">Готовая карточка</div>
+      <div class="text-h6 font-weight-bold">{{ video ? 'Готовое видео' : 'Готовая карточка' }}</div>
       <div class="text-body-2 text-medium-emphasis mb-4">
-        Проверьте изображение перед сохранением
+        {{
+          video ? 'Проверьте видео перед сохранением' : 'Проверьте изображение перед сохранением'
+        }}
       </div>
 
-      <div v-if="image" class="result-card__image-wrapper checkerboard">
+      <div v-if="video" class="result-card__image-wrapper">
+        <video
+          :src="video"
+          class="result-card__image"
+          autoplay
+          loop
+          muted
+          playsinline
+          aria-label="Итоговое видео тренировки"
+        />
+      </div>
+      <div v-else-if="image" class="result-card__image-wrapper checkerboard">
         <img :src="image" alt="Итоговая карточка тренировки" class="result-card__image" />
       </div>
 
@@ -28,7 +43,7 @@ const emit = defineEmits<{
         <v-btn
           color="primary"
           :loading="loading"
-          :disabled="!image || loading"
+          :disabled="!(image || video) || loading"
           @click="emit('save')"
         >
           Сохранить
