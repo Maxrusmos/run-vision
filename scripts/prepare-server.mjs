@@ -1,17 +1,15 @@
-// Перед локальным запуском сервера: ставит его зависимости, создаёт server/.env,
+// Перед локальным запуском сервера: ставит недостающие зависимости, создаёт server/.env,
 // если их нет, и накатывает новые миграции. Без этого `npm run dev` поднимал только
 // фронт (вход падал с ERR_CONNECTION_REFUSED), а после `git pull` с новой миграцией
 // запросы падали с «relation … does not exist».
 import { execSync } from 'node:child_process';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { ensureDeps } from './ensure-deps.mjs';
 
 const serverDir = join(import.meta.dirname, '..', 'server');
 
-if (!existsSync(join(serverDir, 'node_modules'))) {
-  console.log('[server] ставлю зависимости сервера (npm install в server/)…');
-  execSync('npm install', { cwd: serverDir, stdio: 'inherit' });
-}
+ensureDeps(serverDir, 'server');
 
 if (!existsSync(join(serverDir, '.env'))) {
   copyFileSync(join(serverDir, '.env.example'), join(serverDir, '.env'));
