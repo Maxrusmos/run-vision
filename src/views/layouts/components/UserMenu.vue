@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { useAuthStore } from '@/stores/auth.store';
 import { PLAN_LABELS } from '@/entities/user';
+import { ROUTE_NAMES } from '@/router/routes';
 
 const authStore = useAuthStore();
 const isOpen = ref(false);
@@ -61,6 +62,12 @@ async function logout() {
       </template>
 
       <v-divider class="my-1" />
+      <v-list-item
+        prepend-icon="mdi-star-outline"
+        title="Мои шаблоны"
+        :to="{ name: ROUTE_NAMES.account }"
+        @click="isOpen = false"
+      />
       <v-list-item prepend-icon="mdi-logout" title="Выйти" @click="logout" />
     </v-list>
   </v-menu>

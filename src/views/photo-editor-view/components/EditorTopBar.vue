@@ -36,7 +36,9 @@ const emit = defineEmits<{
       @undo="emit('undo')"
       @redo="emit('redo')"
       @reset="emit('reset')"
-    />
+    >
+      <slot name="history-extra" />
+    </EditorHistoryActions>
 
     <v-btn
       class="editor-top-bar__save"
@@ -96,5 +98,24 @@ const emit = defineEmits<{
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
+}
+
+/* iPhone SE (320px): с «Избранным» в капсуле всё должно влезть в одну строку. */
+@media (max-width: 360px) {
+  .editor-top-bar {
+    gap: 6px;
+    padding-inline: 8px;
+  }
+
+  .editor-top-bar__back {
+    flex-basis: 36px;
+    width: 36px;
+    height: 36px;
+  }
+
+  .editor-top-bar__save {
+    padding-inline: 12px;
+    font-size: 14px;
+  }
 }
 </style>

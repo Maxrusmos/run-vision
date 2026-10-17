@@ -54,6 +54,7 @@ type ApiErrorCode =
   | 'UNAUTHORIZED' // 401 — нет токена, токен неверный или истёк
   | 'PLAN_REQUIRED' // 403 — нужен тариф выше (пока ни один эндпоинт не отдаёт, задел под подписку)
   | 'EMAIL_TAKEN' // 409 — email уже зарегистрирован
+  | 'LIMIT_REACHED' // 409 — достигнут лимит (например, сохранённых шаблонов)
   | 'RATE_LIMITED' // 429 — слишком много попыток
   | 'NOT_FOUND' // 404
   | 'INTERNAL'; // 500
@@ -83,6 +84,48 @@ type ApiErrorCode =
 ### `POST /api/auth/logout` (Bearer)
 Удаляет текущую сессию. → `204` (и при уже недействительном токене — тоже `204`).
 
+## Сохранённые шаблоны (Bearer)
+
+Шаблон оформления карточки пользователя: только настройки, без тренировки и без фото фона.
+Применяется к любой тренировке. Чужие шаблоны не видны — для них, как и для несуществующих,
+`404 NOT_FOUND`.
+
+```ts
+type PhotoTemplateId = 'minimal' | 'topographic' | 'telemetry';
+
+interface SavedTemplate {
+  id: string; // uuid
+  name: string; // 1–60 символов, пробелы по краям обрезаются
+  baseTemplate: PhotoTemplateId; // шаблон приложения, от которого он сделан
+  settings: object; // ShareCardSettings фронта как есть (JSON-объект, до 32 КБ);
+  //                   сервер его не разбирает, `backgroundImage` всегда null
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+- `name`: обязательно, 1–60 символов после обрезки пробелов.
+- `settings`: JSON-объект (не массив), сериализованный — не больше 32 КБ.
+- Не больше 100 шаблонов на пользователя → `409 LIMIT_REACHED`.
+
+### `GET /api/templates`
+Свои шаблоны, новые изменения сверху (по `updatedAt`).
+→ `200 { "templates": SavedTemplate[] }` · `401`
+
+### `POST /api/templates`
+Тело: `{ "name": string, "baseTemplate": PhotoTemplateId, "settings": object }`
+→ `201 { "template": SavedTemplate }` · `400 VALIDATION_ERROR` · `401` · `409 LIMIT_REACHED`
+
+### `GET /api/templates/:id`
+→ `200 { "template": SavedTemplate }` · `401` · `404`
+
+### `PATCH /api/templates/:id`
+Тело: любые из `{ "name": string, "settings": object }` (хотя бы одно поле).
+→ `200 { "template": SavedTemplate }` · `400` · `401` · `404`
+
+### `DELETE /api/templates/:id`
+→ `204` · `401` · `404`
+
 ## Лимиты
 
 `register` и `login` — не больше 10 запросов в минуту с одного IP (`429 RATE_LIMITED`).
@@ -90,4 +133,5 @@ type ApiErrorCode =
 ## CORS
 
 Разрешённые источники — переменная `CORS_ORIGINS` (через запятую), по умолчанию
-`http://localhost:5173,https://maxrusmos.github.io`. Разрешён заголовок `Authorization`.
+`http://localhost:5173,https://maxrusmos.github.io`. Разрешён заголовок `Authorization`,
+методы `GET`, `POST`, `PATCH`, `DELETE`.

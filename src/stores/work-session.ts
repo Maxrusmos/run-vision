@@ -7,7 +7,11 @@ import type {
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import { idbDelete, idbGet, idbSet } from '@/shared/lib/storage/idb-store';
 import { useActivityStore } from '@/stores/activity.store';
-import { useShareDraftsStore, type ShareDrafts } from '@/stores/share-drafts.store';
+import {
+  useShareDraftsStore,
+  type ShareDraftLinks,
+  type ShareDrafts,
+} from '@/stores/share-drafts.store';
 import { useShareStore } from '@/stores/share.store';
 
 /**
@@ -28,6 +32,8 @@ export interface WorkSessionRecord {
   shareType: ShareType;
   photoTemplateId: PhotoTemplateId;
   drafts: ShareDrafts;
+  /** Из каких сохранённых шаблонов открыты черновики. */
+  links?: ShareDraftLinks;
   /** Фото фона черновиков: object URL на момент сохранения → файл. */
   images: Record<string, Blob>;
 }
@@ -101,6 +107,7 @@ export async function persistWorkSession(): Promise<void> {
     shareType: shareStore.shareType,
     photoTemplateId: shareStore.photoTemplateId,
     drafts: JSON.parse(JSON.stringify(drafts)) as ShareDrafts,
+    links: { ...draftsStore.links },
     images,
   };
   await idbSet(RECORD_KEY, record);
@@ -138,7 +145,7 @@ async function runRestore(): Promise<boolean> {
     const image = draft.backgroundImage ? (urls.get(draft.backgroundImage) ?? null) : null;
     drafts[id as PhotoTemplateId] = { ...draft, backgroundImage: image };
   }
-  useShareDraftsStore(pinia).setDrafts(drafts);
+  useShareDraftsStore(pinia).setDrafts(drafts, record.links ?? {});
   return true;
 }
 
@@ -169,6 +176,7 @@ export function setupWorkSession(app: Pinia) {
       shareStore.shareType,
       shareStore.photoTemplateId,
       draftsStore.drafts,
+      draftsStore.links,
     ],
     schedulePersist,
   );

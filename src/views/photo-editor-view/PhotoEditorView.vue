@@ -20,6 +20,8 @@ import { eventPathMatches } from '@/shared/lib/dom/event-path';
 import FitToBox from '@/shared/ui/FitToBox.vue';
 import ShareCardArtwork from '@/views/photo-editor-view/components/artwork/ShareCardArtwork.vue';
 import EditorTopBar from '@/views/photo-editor-view/components/EditorTopBar.vue';
+import FavoriteTemplateButton from '@/views/photo-editor-view/components/FavoriteTemplateButton.vue';
+import { useAuthStore } from '@/stores/auth.store';
 import ShareCardResultDialog from '@/views/photo-editor-view/components/ShareCardResultDialog.vue';
 import EditorToolbar from '@/views/photo-editor-view/components/tools/EditorToolbar.vue';
 import EditorToolPanel from '@/views/photo-editor-view/components/tools/EditorToolPanel.vue';
@@ -45,6 +47,7 @@ const router = useRouter();
 const { activity } = storeToRefs(useActivityStore());
 const { photoTemplateId } = storeToRefs(useShareStore());
 const draftsStore = useShareDraftsStore();
+const authStore = useAuthStore();
 // Шаблон фиксируем на входе: черновик пишется туда же, откуда взят.
 const templateId = photoTemplateId.value;
 
@@ -239,7 +242,16 @@ function goBack() {
       @redo="handleRedo"
       @reset="handleReset"
       @save="createImage"
-    />
+    >
+      <template #history-extra>
+        <!-- «Избранное» — только для вошедших: шаблоны хранятся в аккаунте. -->
+        <FavoriteTemplateButton
+          v-if="authStore.isAuthenticated"
+          :template-id="templateId"
+          :settings="settings"
+        />
+      </template>
+    </EditorTopBar>
 
     <!-- Карточка всегда видна целиком: уменьшается под свободное место. -->
     <FitToBox class="photo-editor__canvas" @click="handleCanvasClick">

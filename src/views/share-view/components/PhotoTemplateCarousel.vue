@@ -1,19 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import type { IActivity } from '@/entities/activity/model/activity.types';
 import type { PhotoTemplateId } from '@/entities/activity/model/activity-share/activity-share.types';
 import { PHOTO_TEMPLATES } from '@/entities/activity/model/activity-share/photo-templates';
-import { projectRoute, toSvgPolylinePoints } from '@/entities/activity/lib/route-projection';
-import {
-  formatClockDuration,
-  formatPace,
-  formatPlaybackDistance,
-} from '@/shared/lib/formatters/formatters';
+import { useTemplatePreview } from '@/hooks/useTemplatePreview';
 import PhotoTemplateCard from '@/views/share-view/components/PhotoTemplateCard.vue';
 import TemplateRoutePreview from '@/views/share-view/components/TemplateRoutePreview.vue';
 import { useShareDraftsStore } from '@/stores/share-drafts.store';
-
-const PREVIEW_VIEWPORT = { width: 100, height: 100, padding: 12 };
 
 const props = defineProps<{
   activity: IActivity;
@@ -31,17 +23,11 @@ function getDraftColors(templateId: PhotoTemplateId) {
     : null;
 }
 
-const routePoints = computed(() =>
-  toSvgPolylinePoints(projectRoute(props.activity.track, PREVIEW_VIEWPORT)),
-);
-
-const distanceLabel = computed(() => `${formatPlaybackDistance(props.activity.distanceMeters)} км`);
-
-const secondaryLabel = computed(() => {
-  const pace = props.activity.averagePaceSecondsPerKm;
-  const paceLabel = pace > 0 ? `${formatPace(pace)} /км` : '—';
-  return `${formatClockDuration(props.activity.durationSeconds)} · ${paceLabel}`;
-});
+const {
+  routePoints,
+  primaryLabel: distanceLabel,
+  secondaryLabel,
+} = useTemplatePreview(() => props.activity);
 </script>
 
 <template>

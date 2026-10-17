@@ -82,6 +82,7 @@ PostgreSQL не установлен — поставьте его команд�
 
 ```
 migrations/001_users_sessions.sql  схема БД (users, sessions)
+migrations/002_templates.sql       сохранённые шаблоны оформления (templates)
 src/
   server.ts          запуск: конфиг → БД → слушаем порт
   app.ts             buildApp(): плагины, обработчик ошибок, маршруты (в тестах — без порта)
@@ -96,8 +97,19 @@ src/
     password.ts      хэш паролей (scrypt)
     tokens.ts        токены сессий
     authenticate.ts  хук app.authenticate и requirePlan('pro') для закрытых эндпоинтов
+  modules/templates/
+    routes.ts        /api/templates/* — «Мои шаблоны», только для вошедших
+    service.ts       список/чтение/создание/изменение/удаление; всё — в пределах user_id
+    schemas.ts       проверка полей (название, шаблон-основа, настройки ≤ 32 КБ)
 test/                тесты на настоящей БД
 ```
+
+### Сохранённые шаблоны
+
+Таблица `templates`: название, шаблон-основа (`minimal` / `topographic` / `telemetry`) и
+`settings` — настройки карточки фронта как есть (`jsonb`, сервер их не разбирает). Фото фона
+не храним (`backgroundImage` сервер всегда обнуляет). Чужие и несуществующие шаблоны — одинаково
+`404`. Не больше 100 шаблонов на пользователя (`409 LIMIT_REACHED`).
 
 ### Авторизация
 

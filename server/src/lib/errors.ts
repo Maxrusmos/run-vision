@@ -7,6 +7,7 @@ export type ApiErrorCode =
   | 'UNAUTHORIZED'
   | 'PLAN_REQUIRED'
   | 'EMAIL_TAKEN'
+  | 'LIMIT_REACHED'
   | 'RATE_LIMITED'
   | 'NOT_FOUND'
   | 'INTERNAL'
@@ -17,6 +18,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   UNAUTHORIZED: 401,
   PLAN_REQUIRED: 403,
   EMAIL_TAKEN: 409,
+  LIMIT_REACHED: 409,
   RATE_LIMITED: 429,
   NOT_FOUND: 404,
   INTERNAL: 500,
@@ -62,6 +64,8 @@ export const errors = {
   unauthorized: () => new ApiError('UNAUTHORIZED', 'Нужно войти в аккаунт'),
   planRequired: () => new ApiError('PLAN_REQUIRED', 'Доступно только на тарифе Pro'),
   emailTaken: () => new ApiError('EMAIL_TAKEN', 'Этот email уже зарегистрирован'),
+  limitReached: (message = 'Достигнут лимит сохранённых шаблонов') =>
+    new ApiError('LIMIT_REACHED', message),
   rateLimited: () => new ApiError('RATE_LIMITED', 'Слишком много попыток, попробуйте через минуту'),
   notFound: () => new ApiError('NOT_FOUND', 'Не найдено'),
   internal: () => new ApiError('INTERNAL', 'Внутренняя ошибка сервера, попробуйте позже'),

@@ -6,6 +6,8 @@ export type ApiErrorCode =
   /** 403 — нужен тариф выше. */
   | 'PLAN_REQUIRED'
   | 'EMAIL_TAKEN'
+  /** 409 — достигнут лимит (например, сохранённых шаблонов). */
+  | 'LIMIT_REACHED'
   | 'RATE_LIMITED'
   | 'NOT_FOUND'
   | 'INTERNAL'

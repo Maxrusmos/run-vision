@@ -1,0 +1,28 @@
+import type { ShareCardSettings } from '@/entities/activity/model/activity-share/activity-share.types';
+
+/**
+ * Настройки карточки в том виде, в каком их хранит шаблон: без фото фона (его не храним)
+ * и без своего текста названия (у каждой тренировки своё — берётся из GPX).
+ */
+export function toTemplateSettings(settings: ShareCardSettings): ShareCardSettings {
+  return JSON.parse(
+    JSON.stringify({ ...settings, backgroundImage: null, title: null }),
+  ) as ShareCardSettings;
+}
+
+/** JSON с ключами по алфавиту: PostgreSQL (jsonb) возвращает ключи в своём порядке. */
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, item]) => item !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/** Карточка совпадает с сохранённым шаблоном (без учёта фото и текста названия). */
+export function isSameTemplateSettings(a: ShareCardSettings, b: ShareCardSettings): boolean {
+  return stableStringify(toTemplateSettings(a)) === stableStringify(toTemplateSettings(b));
+}
