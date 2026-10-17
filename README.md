@@ -32,7 +32,8 @@ npm install
 ### Compile and Hot-Reload for Development
 
 ```sh
-npm run dev
+npm run dev        # фронт + сервер API (localhost:3000)
+npm run dev:front  # только фронт
 ```
 
 ### Type-Check, Compile and Minify for Production

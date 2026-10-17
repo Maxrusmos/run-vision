@@ -20,7 +20,8 @@ npm run dev               # сервер на http://localhost:3000 с пере�
 Проверка: `curl http://localhost:3000/api/health` → `{"ok":true}`.
 
 Фронт ходит на `VITE_API_URL` (по умолчанию `http://localhost:3000`). Запустить фронт и
-сервер вместе одной командой — `npm run dev:all` в корне репозитория (Ctrl+C останавливает оба).
+сервер вместе одной командой — `npm run dev` в корне репозитория (Ctrl+C останавливает оба;
+зависимости сервера и `server/.env` создаются сами при первом запуске). Только фронт — `npm run dev:front`.
 
 ### PostgreSQL без Docker
 
