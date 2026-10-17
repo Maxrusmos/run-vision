@@ -65,6 +65,8 @@ const {
   removeBackgroundImage,
   setRouteVisible,
   setRouteScale,
+  setRouteBearing,
+  setRoutePitch,
   setRouteStyle,
   setRoutePosition,
   setTitle,
@@ -94,8 +96,7 @@ const {
   canUndo,
   canRedo,
 } = useShareCardSettings(getPhotoTemplatePresetId(photoTemplateId.value), {
-  withMap: photoTemplateId.value === 'topographic',
-  withTelemetry: photoTemplateId.value === 'telemetry',
+  template: photoTemplateId.value,
   hasHeartRate: activity.value?.track.some((point) => (point.heartRate ?? 0) > 0) ?? false,
   hasElevation: activity.value?.hasElevation ?? false,
   // Показатели без данных («—») на новую карточку не ставим.
@@ -249,6 +250,7 @@ function goBack() {
         @remove-widget="setWidgetVisible($event, false)"
         @set-widget-side="setWidgetSide"
         @rotate-map="setMapBearing"
+        @rotate-route="setRouteBearing"
       />
     </FitToBox>
 
@@ -328,6 +330,8 @@ function goBack() {
             :track="activity.track"
             @set-route-color="setColor('routeColor', $event)"
             @set-route-style="setRouteStyle"
+            @set-route-bearing="setRouteBearing"
+            @set-route-pitch="setRoutePitch"
           />
           <StatsAppearancePanel
             v-else-if="displayedTool === 'stats'"

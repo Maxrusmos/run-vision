@@ -1,3 +1,22 @@
+<script setup lang="ts">
+import { onMounted, useTemplateRef } from 'vue';
+
+const scroller = useTemplateRef<HTMLElement>('scroller');
+
+// Меню открывается сразу на выбранной плитке (по центру ряда), без анимации прокрутки:
+// иначе стиль в конце ряда («Изолинии») приходится искать свайпами.
+onMounted(() => {
+  const row = scroller.value;
+  const active = row?.querySelector<HTMLElement>('.option-tile--active');
+  if (!row || !active) return;
+
+  const rowRect = row.getBoundingClientRect();
+  const tileRect = active.getBoundingClientRect();
+  const left = row.scrollLeft + tileRect.left - rowRect.left - (rowRect.width - tileRect.width) / 2;
+  row.scrollTo({ left: Math.max(0, left), behavior: 'instant' });
+});
+</script>
+
 <template>
   <!-- Горизонтальный ряд плиток со свайпом. Одинаковая высота во всех панелях. -->
   <div class="option-tile-row">
@@ -6,6 +25,7 @@
       <slot name="fixed" />
     </div>
     <div
+      ref="scroller"
       class="option-tile-row__scroll"
       :class="{ 'option-tile-row__scroll--after-fixed': $slots.fixed }"
     >

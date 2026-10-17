@@ -14,6 +14,7 @@ import {
 } from '@/entities/activity/model/activity-share/activity-share-route';
 import {
   getRouteBounds,
+  orientRoute,
   projectRoute,
   toSvgPolylinePoints,
 } from '@/entities/activity/lib/route-projection';
@@ -45,6 +46,9 @@ const props = defineProps<{
   routeStyle: ShareRouteStyle;
   scale: number;
   position: ShareRoutePosition | null;
+  /** Поворот и наклон трека, градусы. */
+  bearing: number;
+  pitch: number;
   selected: boolean;
   /** Место под трек в раскладке карточки — задаёт размер M и исходное положение. */
   slotElement: HTMLElement | null;
@@ -81,7 +85,7 @@ useResizeObserver(
 );
 
 // Точки трека в масштабе 1 (размер M), относительно центра трека.
-const localPoints = computed(() => {
+const flatPoints = computed(() => {
   if (!slot.value) return [];
 
   const { width, height } = slot.value;
@@ -90,6 +94,17 @@ const localPoints = computed(() => {
     y: point.y - height / 2,
   }));
 });
+
+// Повёрнутый и наклонённый трек снова вписан в место под трек.
+const localPoints = computed(() =>
+  slot.value
+    ? orientRoute(
+        flatPoints.value,
+        { bearing: props.bearing, pitch: props.pitch },
+        { width: slot.value.width, height: slot.value.height, padding: SLOT_PADDING },
+      )
+    : [],
+);
 
 const polylinePoints = computed(() => toSvgPolylinePoints(localPoints.value));
 const bounds = computed(() => getRouteBounds(localPoints.value));

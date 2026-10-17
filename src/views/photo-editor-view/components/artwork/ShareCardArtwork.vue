@@ -63,6 +63,8 @@ const emit = defineEmits<{
   removeWidget: [kind: ShareWidgetKind];
   setWidgetSide: [kind: ShareWidgetKind, side: ShareWidgetSide | null];
   rotateMap: [bearing: number];
+  /** Поворот трека без карты двумя пальцами. */
+  rotateRoute: [bearing: number];
 }>();
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
@@ -193,10 +195,15 @@ watch(mapArea, (area) => {
 onBeforeUnmount(() => areaObserver?.disconnect());
 
 /**
- * Вращение карты двумя пальцами — по всей карточке: карта лежит под названием
- * и показателями, и попасть по ней пальцами было бы трудно.
+ * Вращение карты (или трека без карты) двумя пальцами — по всей карточке: карта лежит
+ * под названием и показателями, и попасть по ней (или по тонкой линии трека) было бы трудно.
  */
 let twist: { angle: number; bearing: number } | null = null;
+
+const twistBearing = computed(() => {
+  if (props.settings.map) return props.settings.map.bearing;
+  return props.settings.routeVisible ? props.settings.routeBearing : null;
+});
 
 function touchAngle(event: TouchEvent): number | null {
   const [a, b] = [event.touches[0], event.touches[1]];
@@ -205,8 +212,9 @@ function touchAngle(event: TouchEvent): number | null {
 }
 
 function handleTouchStart(event: TouchEvent) {
-  const angle = props.settings.map ? touchAngle(event) : null;
-  twist = angle === null ? null : { angle, bearing: props.settings.map!.bearing };
+  const bearing = twistBearing.value;
+  const angle = bearing === null ? null : touchAngle(event);
+  twist = angle === null || bearing === null ? null : { angle, bearing };
 }
 
 function handleTouchMove(event: TouchEvent) {
@@ -214,8 +222,10 @@ function handleTouchMove(event: TouchEvent) {
   if (!twist || angle === null) return;
   // Иначе браузер масштабирует страницу.
   event.preventDefault();
-  // Пальцы по часовой — карта тоже по часовой, то есть угол (bearing) уменьшается.
-  emit('rotateMap', twist.bearing - (angle - twist.angle));
+  // Пальцы по часовой — карта (трек) тоже по часовой, то есть угол (bearing) уменьшается.
+  const bearing = twist.bearing - (angle - twist.angle);
+  if (props.settings.map) emit('rotateMap', bearing);
+  else emit('rotateRoute', bearing);
 }
 
 function handleTouchEnd(event: TouchEvent) {
@@ -284,7 +294,7 @@ function removeRoute() {
     :class="{
       'share-artwork--transparent': settings.transparentBackground && !settings.map,
       'share-artwork--map-full': mapLayout === 'full',
-      'share-artwork--map': settings.map,
+      'share-artwork--twist': settings.map || settings.routeVisible,
       'share-artwork--exporting': exporting,
     }"
     :style="cssVariables"
@@ -419,6 +429,8 @@ function removeRoute() {
         :route-style="settings.routeStyle"
         :scale="settings.routeScale"
         :position="settings.routePosition"
+        :bearing="settings.routeBearing"
+        :pitch="settings.routePitch"
         :selected="selected === 'route'"
         :slot-element="routeSlot"
         @select="selected = 'route'"
@@ -454,8 +466,8 @@ function removeRoute() {
   background: var(--share-background);
 }
 
-.share-artwork--map {
-  /* Два пальца по карточке с картой — вращение карты, а не масштаб страницы. */
+.share-artwork--twist {
+  /* Два пальца по карточке — вращение карты или трека, а не масштаб страницы. */
   touch-action: pan-x pan-y;
 }
 

@@ -82,3 +82,57 @@ export function getRouteBounds(points: RoutePoint[]): RouteBounds | null {
 
   return bounds;
 }
+
+/** Поворот и наклон трека (без карты): угол как у карты — больше угол, трек против часовой. */
+export type RouteOrientation = {
+  bearing: number;
+  /** Наклон «плоскости» трека от себя, в градусах (0 — вид сверху). */
+  pitch: number;
+};
+
+/** Расстояние до «камеры» в радиусах трека: чем меньше, тем сильнее перспектива. */
+const ORIENT_CAMERA_DISTANCE = 3;
+
+/**
+ * Поворачивает и наклоняет трек (точки относительно центра) и снова вписывает его
+ * в область `width × height` с отступом: повёрнутый трек занимает то же место.
+ * Считается в JS, а не CSS 3D — чтобы картинка при экспорте совпала с экраном.
+ */
+export function orientRoute(
+  points: readonly RoutePoint[],
+  orientation: RouteOrientation,
+  viewport: { width: number; height: number; padding: number },
+): RoutePoint[] {
+  if (!points.length || (!orientation.bearing && !orientation.pitch)) return [...points];
+
+  const angle = (-orientation.bearing * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const tilt = (orientation.pitch * Math.PI) / 180;
+
+  let radius = 0;
+  const rotated = points.map(({ x, y }) => {
+    const point = { x: x * cos - y * sin, y: x * sin + y * cos };
+    radius = Math.max(radius, Math.hypot(point.x, point.y));
+    return point;
+  });
+
+  // Наклон: верх уходит от зрителя — сжимается по высоте и уменьшается перспективой.
+  const distance = Math.max(radius, 1e-9) * ORIENT_CAMERA_DISTANCE;
+  const tilted = rotated.map(({ x, y }) => {
+    const factor = distance / (distance - y * Math.sin(tilt));
+    return { x: x * factor, y: y * Math.cos(tilt) * factor };
+  });
+
+  const bounds = getRouteBounds(tilted)!;
+  const rawWidth = Math.max(bounds.maxX - bounds.minX, 1e-9);
+  const rawHeight = Math.max(bounds.maxY - bounds.minY, 1e-9);
+  const scale = Math.min(
+    (viewport.width - viewport.padding * 2) / rawWidth,
+    (viewport.height - viewport.padding * 2) / rawHeight,
+  );
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const centerY = (bounds.minY + bounds.maxY) / 2;
+
+  return tilted.map(({ x, y }) => ({ x: (x - centerX) * scale, y: (y - centerY) * scale }));
+}

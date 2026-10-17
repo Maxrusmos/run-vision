@@ -1,6 +1,7 @@
 import { onScopeDispose, ref } from 'vue';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import type {
+  PhotoTemplateId,
   ShareCardSettings,
   ShareColorKey,
   ShareColorPreset,
@@ -35,6 +36,7 @@ import { createShareElevationSettings } from '@/entities/activity/model/activity
 import {
   WIDGET_END_ROW,
   createShareTelemetrySettings,
+  resolveWidgetSide,
 } from '@/entities/activity/model/activity-share/activity-share-widgets';
 import {
   DEFAULT_SHARE_STAT_WIDTH,
@@ -47,22 +49,34 @@ export const STAT_SPACING_MAX = 24;
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 
 type ShareCardSettingsOptions = {
-  /** Карточка с картой (шаблон «Топография»). */
-  withMap?: boolean;
-  /** Карточка с виджетами (шаблон «Телеметрия»). */
-  withTelemetry?: boolean;
+  /** Шаблон карточки: от него зависят карта, виджеты и стили по умолчанию. */
+  template?: PhotoTemplateId;
   /** В GPX есть пульс — от этого зависят виджеты по умолчанию. */
   hasHeartRate?: boolean;
-  /** В GPX есть высота — иначе график высоты и боковой виджет высоты не ставятся. */
+  /** В GPX есть высота — иначе график высоты не ставится. */
   hasElevation?: boolean;
   /** Есть ли данные для показателя: пустые не ставятся на новую карточку. */
   isStatAvailable?: (key: ShareStatKey) => boolean;
+};
+
+/** Стили трека и показателей по умолчанию у каждого шаблона. */
+const TEMPLATE_STYLES: Record<PhotoTemplateId, { route: ShareRouteStyle; stat: ShareStatStyle }> = {
+  minimal: { route: 'shadow', stat: 'speed' },
+  topographic: { route: DEFAULT_ROUTE_STYLE, stat: 'tile' },
+  // «Телеметрия»: уголки-прицелы и светящийся трек — как на приборной панели.
+  telemetry: { route: 'glow', stat: 'brackets' },
 };
 
 function createSettings(
   preset: ShareColorPreset,
   options: ShareCardSettingsOptions,
 ): ShareCardSettings {
+  const withMap = options.template === 'topographic';
+  const withTelemetry = options.template === 'telemetry';
+  const styles = options.template
+    ? TEMPLATE_STYLES[options.template]
+    : { route: DEFAULT_ROUTE_STYLE, stat: DEFAULT_STAT_STYLE };
+
   return {
     title: null,
     titleVisible: true,
@@ -74,24 +88,30 @@ function createSettings(
     statWidths: {},
     statPositions: {},
     transparentBackground: false,
-    // «Телеметрия»: уголки-прицелы и светящийся трек — как на приборной панели.
-    statStyle: options.withTelemetry ? 'brackets' : DEFAULT_STAT_STYLE,
+    statStyle: styles.stat,
     backgroundImage: null,
     backgroundImageFit: 'cover',
     backgroundImagePosition: 'center',
     statSpacing: 12,
     routeVisible: true,
     routeScale: DEFAULT_ROUTE_SCALE,
-    routeStyle: options.withTelemetry ? 'glow' : DEFAULT_ROUTE_STYLE,
+    routeStyle: styles.route,
     routePosition: null,
-    map: options.withMap ? createShareMapSettings() : null,
+    routeBearing: 0,
+    routePitch: 0,
+    // «Топография»: карта во весь фон «в тон» с наклоном 60°, график-силуэт.
+    map: withMap
+      ? { ...createShareMapSettings(), layout: 'full', style: 'tinted', pitch: 60 }
+      : null,
     // Без высоты в GPX график был бы пустым — не ставим его (можно добавить вручную).
-    elevation: options.withMap
-      ? { ...createShareElevationSettings(), visible: options.hasElevation ?? true }
+    elevation: withMap
+      ? {
+          ...createShareElevationSettings(),
+          style: 'silhouette',
+          visible: options.hasElevation ?? true,
+        }
       : null,
-    telemetry: options.withTelemetry
-      ? createShareTelemetrySettings(options.hasHeartRate ?? false, options.hasElevation ?? true)
-      : null,
+    telemetry: withTelemetry ? createShareTelemetrySettings(options.hasHeartRate ?? false) : null,
   };
 }
 
@@ -253,6 +273,14 @@ export function useShareCardSettings(
     settings.value.routePosition = position;
   }
 
+  function setRouteBearing(bearing: number) {
+    settings.value.routeBearing = normalizeMapBearing(bearing);
+  }
+
+  function setRoutePitch(pitch: ShareMapPitch) {
+    settings.value.routePitch = pitch;
+  }
+
   function setTitleVisible(value: boolean) {
     settings.value.titleVisible = value;
   }
@@ -340,9 +368,10 @@ export function useShareCardSettings(
   }
 
   /** Виджет у края области трека (вертикально) или строкой на всю ширину. */
-  function setWidgetSide(kind: ShareWidgetKind, side: ShareWidgetSide | null) {
+  function setWidgetSide(kind: ShareWidgetKind, requested: ShareWidgetSide | null) {
     const telemetry = settings.value.telemetry;
     if (!telemetry) return;
+    const side = resolveWidgetSide(telemetry.widgets, kind, requested);
     updateTelemetry({
       widgets: telemetry.widgets.map((widget) =>
         widget.kind === kind
@@ -436,6 +465,8 @@ export function useShareCardSettings(
     settings,
     setRouteVisible,
     setRouteScale,
+    setRouteBearing,
+    setRoutePitch,
     setRouteStyle,
     setRoutePosition,
     setTitle,

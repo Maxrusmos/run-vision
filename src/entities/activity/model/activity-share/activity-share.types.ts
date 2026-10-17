@@ -1,6 +1,6 @@
 export type ShareType = 'photo' | 'video';
 
-export type PhotoTemplateId = 'minimal' | 'topographic' | 'telemetry' | 'custom';
+export type PhotoTemplateId = 'minimal' | 'topographic' | 'telemetry';
 
 export type ShareStatKey =
   | 'distance'
@@ -209,6 +209,10 @@ export type ShareCardSettings = {
   routeStyle: ShareRouteStyle;
   /** null — трек стоит на своём месте между названием и показателями. */
   routePosition: ShareRoutePosition | null;
+  /** Поворот трека без карты, градусы (как у карты: больше — против часовой). */
+  routeBearing: number;
+  /** Наклон трека без карты (у карты — свой, в `map.pitch`). */
+  routePitch: ShareMapPitch;
   /** Карта под треком (шаблон «Топография»); null — карточка без карты. */
   map: ShareMapSettings | null;
   /** График высоты (только у карточки с картой). */
@@ -232,7 +236,7 @@ export type ShareStat = {
 };
 
 export type PhotoTemplate = {
-  id: Exclude<PhotoTemplateId, 'custom'>;
+  id: PhotoTemplateId;
   title: string;
   description: string;
   presetId: string;

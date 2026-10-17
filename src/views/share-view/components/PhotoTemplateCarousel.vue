@@ -11,7 +11,6 @@ import {
 } from '@/shared/lib/formatters/formatters';
 import PhotoTemplateCard from '@/views/share-view/components/PhotoTemplateCard.vue';
 import TemplateRoutePreview from '@/views/share-view/components/TemplateRoutePreview.vue';
-import CustomTemplatePreview from '@/views/share-view/components/CustomTemplatePreview.vue';
 
 const PREVIEW_VIEWPORT = { width: 100, height: 100, padding: 12 };
 
@@ -50,19 +49,6 @@ const secondaryLabel = computed(() => {
             :primary-label="distanceLabel"
             :secondary-label="secondaryLabel"
           />
-        </template>
-      </PhotoTemplateCard>
-    </v-slide-group-item>
-
-    <v-slide-group-item>
-      <PhotoTemplateCard
-        title="Свой вариант"
-        description="Собственное оформление"
-        :selected="selected === 'custom'"
-        @select="selected = 'custom'"
-      >
-        <template #preview>
-          <CustomTemplatePreview />
         </template>
       </PhotoTemplateCard>
     </v-slide-group-item>
