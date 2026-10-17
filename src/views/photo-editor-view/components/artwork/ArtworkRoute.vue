@@ -25,7 +25,6 @@ import {
   spreadKmMarkers,
 } from '@/entities/activity/model/activity-share/activity-share-map';
 import {
-  VIDEO_DOT,
   buildTrackTimeline,
   getTrackLocation,
 } from '@/entities/activity/model/activity-share/activity-share-video';
@@ -37,6 +36,7 @@ import { useResizeObserver } from '@/hooks/useResizeObserver';
 import SelectionFrame from '@/views/photo-editor-view/components/artwork/SelectionFrame.vue';
 import RouteStyleLayers from '@/views/photo-editor-view/components/artwork/RouteStyleLayers.vue';
 import RouteMarkers from '@/views/photo-editor-view/components/artwork/RouteMarkers.vue';
+import VideoDotMark from '@/views/photo-editor-view/components/artwork/VideoDotMark.vue';
 
 /** Толщина невидимой линии, по которой удобно попасть пальцем. */
 const HIT_STROKE_WIDTH = 56;
@@ -397,22 +397,14 @@ function handleWheel(event: WheelEvent) {
       />
       <!-- Видео: точка на треке. В кадры видео её рисует холст: на время записи карточка
            не передаёт сюда progress (export-hidden внутри SVG html-to-image не учитывает). -->
-      <g v-if="dotPoint" aria-hidden="true">
-        <circle
-          :cx="dotPoint.x"
-          :cy="dotPoint.y"
-          :r="VIDEO_DOT.halo"
-          :fill="color"
-          :opacity="VIDEO_DOT.haloOpacity"
-        />
-        <circle
-          :cx="dotPoint.x"
-          :cy="dotPoint.y"
-          :r="VIDEO_DOT.radius + VIDEO_DOT.ring"
-          :fill="textColor"
-        />
-        <circle :cx="dotPoint.x" :cy="dotPoint.y" :r="VIDEO_DOT.radius" :fill="color" />
-      </g>
+      <VideoDotMark
+        v-if="dotPoint"
+        :x="dotPoint.x"
+        :y="dotPoint.y"
+        :route-color="color"
+        :ring-color="textColor"
+        :unit="1"
+      />
     </svg>
 
     <!-- Зона касания лежит под показателями: тап по показателю не выделяет трек. -->

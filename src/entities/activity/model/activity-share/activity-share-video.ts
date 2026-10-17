@@ -191,3 +191,66 @@ export function drawVideoDot(
   context.fill();
   context.restore();
 }
+
+/**
+ * Маркер на графике высоты: вертикальная черта на всю высоту графика и точка на профиле,
+ * поменьше точки трека. Единицы — слоя трека, как у линии графика.
+ */
+export const VIDEO_ELEVATION_MARKER = {
+  line: 3,
+  lineOpacity: 0.55,
+  radius: 9,
+  ring: 4,
+  halo: 22,
+} as const;
+
+export type ElevationMarkerPoint = {
+  x: number;
+  y: number;
+  /** Верх и низ черты (область графика). */
+  top: number;
+  bottom: number;
+};
+
+/** Рисует маркер графика на холсте: `unit` — пикселей холста в единице слоя трека. */
+export function drawElevationMarker(
+  context: CanvasRenderingContext2D,
+  marker: ElevationMarkerPoint,
+  unit: number,
+  colors: VideoDotColors,
+) {
+  const { line, lineOpacity, radius, ring, halo } = VIDEO_ELEVATION_MARKER;
+  context.save();
+  context.globalAlpha = lineOpacity;
+  context.fillStyle = colors.ring;
+  context.fillRect(
+    marker.x - (line * unit) / 2,
+    marker.top,
+    line * unit,
+    marker.bottom - marker.top,
+  );
+  context.globalAlpha = VIDEO_DOT.haloOpacity;
+  context.fillStyle = colors.route;
+  context.beginPath();
+  context.arc(marker.x, marker.y, halo * unit, 0, Math.PI * 2);
+  context.fill();
+  context.globalAlpha = 1;
+  context.fillStyle = colors.ring;
+  context.beginPath();
+  context.arc(marker.x, marker.y, (radius + ring) * unit, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = colors.route;
+  context.beginPath();
+  context.arc(marker.x, marker.y, radius * unit, 0, Math.PI * 2);
+  context.fill();
+  context.restore();
+}
+
+/**
+ * Что рисует холст поверх кадра видео — в пикселях раскладки карточки; `unit` — таких
+ * пикселей в единице слоя трека. null — элемента нет на карточке.
+ */
+export type VideoMarks = {
+  dot: { x: number; y: number; unit: number } | null;
+  elevation: (ElevationMarkerPoint & { unit: number }) | null;
+};

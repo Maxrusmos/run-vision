@@ -35,6 +35,7 @@ import {
 import type { MapFitPadding } from '@/entities/activity/model/activity-share/activity-share-map';
 import { getElevationSizeRatio } from '@/entities/activity/model/activity-share/activity-share-elevation';
 import type { BandState } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
+import type { VideoMarks } from '@/entities/activity/model/activity-share/activity-share-video';
 
 const BLOCK_MAP_FIT_PADDING: MapFitPadding = { top: 0.1, right: 0.1, bottom: 0.1, left: 0.1 };
 /** Карта во весь фон: поля вокруг свободной области (между названием и графиком/показателями). */
@@ -79,6 +80,14 @@ const rootElement = useTemplateRef<HTMLElement>('root');
 const routeSlot = useTemplateRef<HTMLElement>('routeSlot');
 const mapRef = useTemplateRef<InstanceType<typeof ArtworkMap>>('map');
 const routeRef = useTemplateRef<InstanceType<typeof ArtworkRoute>>('route');
+const elevationRef = useTemplateRef<InstanceType<typeof ArtworkElevation>>('elevationChart');
+
+/** Видео: точку и маркер графика на время записи не рисуем — их рисует холст. */
+const liveProgress = computed(() => (props.exporting ? null : (props.progress ?? null)));
+/** Точка на карте — только если трек показан. */
+const routeVisibleProgress = computed(() =>
+  props.settings.routeVisible ? liveProgress.value : null,
+);
 
 /** Высота области над показателями (карта и график) — до первой строки; 0 — не измерено. */
 const visualHeight = ref(0);
@@ -256,24 +265,64 @@ defineExpose({
     await mapRef.value?.whenReady();
   },
   /**
-   * Видео: где точка, прошедшая долю `progress` дистанции, — в пикселях раскладки
-   * карточки (без масштаба на экране), и сколько таких пикселей в единице слоя трека.
+   * Видео: где точка на треке и маркер на графике высоты для доли `progress` дистанции —
+   * в пикселях раскладки карточки (без масштаба на экране) — и сколько таких пикселей
+   * в единице слоя трека. Их рисует холст поверх кадра.
    */
-  getRouteDot: (progress: number) => {
+  getVideoMarks: (progress: number): VideoMarks => {
     const root = rootElement.value;
-    const layer = routeRef.value?.getLayerElement();
-    const point = routeRef.value?.getDotPoint(progress);
-    if (!root || !layer || !point || !root.offsetWidth) return null;
+    if (!root?.offsetWidth) return { dot: null, elevation: null };
     // Экранные пиксели ≠ пиксели раскладки: карточка уменьшена под экран.
     const rootRect = root.getBoundingClientRect();
-    const layerRect = layer.getBoundingClientRect();
     const screenScale = rootRect.width / root.offsetWidth;
-    const unit = layerRect.width / screenScale / ROUTE_LAYER_WIDTH;
-    return {
-      x: (layerRect.left - rootRect.left) / screenScale + point.x * unit,
-      y: (layerRect.top - rootRect.top) / screenScale + point.y * unit,
-      unit,
+    /** Левый верхний угол элемента и масштаб его пикселей — в пикселях карточки. */
+    const placeOf = (element: HTMLElement | null | undefined) => {
+      if (!element?.offsetWidth) return null;
+      const rect = element.getBoundingClientRect();
+      return {
+        left: (rect.left - rootRect.left) / screenScale,
+        top: (rect.top - rootRect.top) / screenScale,
+        scale: rect.width / screenScale / element.offsetWidth,
+      };
     };
+
+    let dot: VideoMarks['dot'] = null;
+    if (props.settings.map) {
+      const place = placeOf(mapRef.value?.getElement());
+      const point = mapRef.value?.getDotPoint(progress);
+      if (place && point) {
+        dot = {
+          x: place.left + point.x * place.scale,
+          y: place.top + point.y * place.scale,
+          unit: (mapRef.value?.getUnit() ?? 0) * place.scale,
+        };
+      }
+    } else {
+      const layer = routeRef.value?.getLayerElement();
+      const place = placeOf(layer);
+      const point = routeRef.value?.getDotPoint(progress);
+      if (layer && place && point) {
+        // Трек — в единицах слоя (ширина слоя = ROUTE_LAYER_WIDTH).
+        const unit = (layer.offsetWidth * place.scale) / ROUTE_LAYER_WIDTH;
+        dot = { x: place.left + point.x * unit, y: place.top + point.y * unit, unit };
+      }
+    }
+
+    let elevationMark: VideoMarks['elevation'] = null;
+    const chart = elevationRef.value;
+    const chartPlace = placeOf(chart?.getChartElement());
+    if (chart && chartPlace) {
+      const marker = chart.getMarker(progress);
+      const toCard = (value: number) => value * chartPlace.scale;
+      elevationMark = {
+        x: chartPlace.left + toCard(marker.x),
+        y: chartPlace.top + toCard(marker.y),
+        top: chartPlace.top + toCard(marker.top),
+        bottom: chartPlace.top + toCard(marker.bottom),
+        unit: chart.getUnit() * chartPlace.scale,
+      };
+    }
+    return { dot, elevation: elevationMark };
   },
 });
 
@@ -352,6 +401,7 @@ function removeRoute() {
         :text-color="settings.textColor"
         :background-color="settings.backgroundColor"
         :fit-padding="fullFitPadding"
+        :progress="routeVisibleProgress"
       />
       <div class="share-artwork__map-scrim" aria-hidden="true" />
     </template>
@@ -413,6 +463,7 @@ function removeRoute() {
           :text-color="settings.textColor"
           :background-color="settings.backgroundColor"
           :fit-padding="BLOCK_MAP_FIT_PADDING"
+          :progress="routeVisibleProgress"
         />
         <div v-else ref="mapArea" class="share-artwork__map-area" />
       </div>
@@ -450,6 +501,8 @@ function removeRoute() {
           />
           <ArtworkElevation
             v-else-if="elevation && bandKey === 'elevation'"
+            ref="elevationChart"
+            :progress="liveProgress"
             :track="activity.track"
             :settings="elevation"
             :color="elevation.color ?? settings.routeColor"
@@ -478,7 +531,7 @@ function removeRoute() {
         :start-finish="settings.routeStartFinish"
         :selected="selected === 'route'"
         :slot-element="routeSlot"
-        :progress="exporting ? null : progress"
+        :progress="liveProgress"
         @select="selected = 'route'"
         @set-scale="emit('setRouteScale', $event)"
         @set-position="emit('setRoutePosition', $event)"

@@ -422,9 +422,15 @@ async function createVideo() {
         await nextTick();
         return settings.value.visibleStats.map((key) => statValues.value?.[key]).join('|');
       },
-      getRouteDot: (progress) =>
-        settings.value.routeVisible ? (artwork.value?.getRouteDot(progress) ?? null) : null,
+      getMarks: (progress) => {
+        const marks = artwork.value?.getVideoMarks(progress) ?? { dot: null, elevation: null };
+        return settings.value.routeVisible ? marks : { ...marks, dot: null };
+      },
       dotColors: { route: settings.value.routeColor, ring: settings.value.textColor },
+      elevationColors: {
+        route: settings.value.elevation?.color ?? settings.value.routeColor,
+        ring: settings.value.textColor,
+      },
       backgroundColor: settings.value.backgroundColor,
     });
   } finally {

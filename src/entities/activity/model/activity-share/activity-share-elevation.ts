@@ -186,6 +186,33 @@ const FLOOR = 0.12;
  * Фигуры графика в координатах `width × height` (0,0 — левый верхний угол).
  * `top` — отступ сверху (под подписи и толщину линии).
  */
+/** Запас сверху графика (пиксели), чтобы толстая линия и ореол «Свечения» на пике не обрезались. */
+export function getElevationChartTop(style: ShareElevationStyle, unit: number): number {
+  return (style === 'glow' ? 16 : 9) * unit;
+}
+
+/**
+ * Видео: где на графике точка, прошедшая долю `progress` дистанции. Высота — по тому же
+ * правилу, что у линии графика (`buildElevationShapes`), по подробному ряду профиля.
+ */
+export function getElevationMarker(
+  values: number[],
+  progress: number,
+  width: number,
+  height: number,
+  top: number,
+): { x: number; y: number } {
+  const clamped = Math.min(1, Math.max(0, progress));
+  const position = clamped * Math.max(0, values.length - 1);
+  const left = Math.floor(position);
+  const right = Math.min(values.length - 1, left + 1);
+  const value = values.length
+    ? values[left]! + (values[right]! - values[left]!) * (position - left)
+    : 0.5;
+  const level = FLOOR + (1 - FLOOR) * value;
+  return { x: clamped * width, y: height - level * (height - top) };
+}
+
 export function buildElevationShapes(
   values: number[],
   style: ShareElevationStyle,
