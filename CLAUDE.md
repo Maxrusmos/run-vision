@@ -226,8 +226,7 @@ sudo -u postgres createdb -O runvision runvision_test
 cd ~/WebstormProjects/run-vision/server && npm install && cp .env.example .env && npm run migrate
 ```
 Каждый раз — из корня: `npm run dev` (= `dev:all`; фронт http://localhost:5173/run-vision/ +
-сервер http://localhost:3000, Ctrl+C останавливает оба; зависимости сервера и `server/.env` ставятся сами — `scripts/prepare-server.mjs`). Раньше `npm run dev` поднимал только Vite → вход падал с `ERR_CONNECTION_REFUSED` (было). После `git pull` с новыми
-миграциями — `cd server && npm run migrate`. Проверка сервера — `/api/health` → `{"ok":true}`.
+сервер http://localhost:3000, Ctrl+C останавливает оба; зависимости сервера, `server/.env` и новые миграции — сами, `scripts/prepare-server.mjs`). Раньше `npm run dev` поднимал только Vite → вход падал с `ERR_CONNECTION_REFUSED`, а без миграции после `git pull` — `relation "templates" does not exist` (было). Вручную — `cd server && npm run migrate`. Проверка сервера — `/api/health` → `{"ok":true}`.
 Vite не на 5173 → добавить его адрес в `CORS_ORIGINS` в `server/.env`.
 Вариант с Docker — `cd server && docker compose up -d` (до установки Docker не дошли).
 
@@ -414,6 +413,8 @@ vue-devtools (`#__vue-devtools-container__{display:none}`); после перв�
   в Playwright; код не меняет, выдаёт отчёт только с подтверждёнными багами.
 
 ## Ветки
+
+Баги правим в отдельных ветках `bugfix/<тема-бага>` (так попросил пользователь).
 
 `feature/stats-grid-layout`, `feature/topo-style` и `backend/init` (бэкенд, регистрация и
 вход), `feature/session-drafts` (черновики, сессия в IndexedDB, автозаполнение, шапка) и
