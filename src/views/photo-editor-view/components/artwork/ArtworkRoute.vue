@@ -25,6 +25,7 @@ import {
   spreadKmMarkers,
 } from '@/entities/activity/model/activity-share/activity-share-map';
 import { usePinchDrag } from '@/hooks/usePinchDrag';
+import { dragTrash } from '@/hooks/useDragTrash';
 import { usePointerDrag } from '@/hooks/usePointerDrag';
 import { useResizeObserver } from '@/hooks/useResizeObserver';
 import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
@@ -69,6 +70,8 @@ const emit = defineEmits<{
   setScale: [scale: number];
   setPosition: [position: ShareRoutePosition];
   remove: [];
+  /** Трек бросили в корзину. */
+  trash: [];
 }>();
 
 const layerElement = useTemplateRef<HTMLElement>('layer');
@@ -220,9 +223,16 @@ function applyTransform(nextScale: number, nextCenter: ShareRoutePosition) {
 // Один палец (или мышь) двигает трек, два пальца — масштабируют щипком и двигают.
 let gestureStart = { scale: 1, center: { x: 0, y: 0 } };
 
+/** Трек сейчас тащат (для подсветки над корзиной). */
+const isDragging = ref(false);
+
 const { handlePointerDown } = usePinchDrag({
   onStart: () => {
+    isDragging.value = true;
     gestureStart = { scale: scale.value, center: center.value };
+  },
+  onEnd: () => {
+    isDragging.value = false;
   },
   onChange: ({ dx, dy, scale: pinch }) => {
     const units = unitsPerPixel();
@@ -231,6 +241,8 @@ const { handlePointerDown } = usePinchDrag({
       y: gestureStart.center.y + dy * units,
     });
   },
+  // Отпустили над корзиной — трек убирается с карточки (вернуть — «Добавить» или отмена).
+  onTrash: () => emit('trash'),
 });
 
 // Десктоп: уголок рамки масштабирует трек относительно его центра.
@@ -266,7 +278,14 @@ function handleWheel(event: WheelEvent) {
 </script>
 
 <template>
-  <div ref="layer" class="route-layer" :class="{ 'route-layer--selected': selected }">
+  <div
+    ref="layer"
+    class="route-layer"
+    :class="{
+      'route-layer--selected': selected,
+      'route-layer--over-trash': isDragging && dragTrash.state.over,
+    }"
+  >
     <svg
       class="route-layer__svg"
       :viewBox="`0 0 ${layer.width} ${layer.height}`"
@@ -440,5 +459,10 @@ function handleWheel(event: WheelEvent) {
 .route-layer__toolbar--inside {
   top: 8px;
   right: 8px;
+}
+
+/* Над корзиной трек бледнеет — «сейчас удалится». */
+.route-layer--over-trash .route-layer__svg {
+  opacity: 0.35;
 }
 </style>

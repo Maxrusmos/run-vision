@@ -1,4 +1,5 @@
 import { onScopeDispose } from 'vue';
+import { dragTrash } from '@/hooks/useDragTrash';
 
 type LongPressDragOptions<T> = {
   /** Сколько держать палец, прежде чем начнётся перетаскивание. */
@@ -8,6 +9,11 @@ type LongPressDragOptions<T> = {
   onMove: (id: T, dx: number, dy: number) => void;
   /** dropped = false, если перетаскивание отменили (например, pointercancel). */
   onEnd: (id: T, dropped: boolean) => void;
+  /**
+   * Отпустили над корзиной (`dragTrash`): элемент удалить. С ним во время переноса
+   * видна корзина; onEnd перед этим вызывается с dropped = false (вернуть всё как было).
+   */
+  onTrash?: (id: T) => void;
 };
 
 /**
@@ -58,6 +64,7 @@ export function useLongPressDrag<T>({
   onStart,
   onMove,
   onEnd,
+  onTrash,
 }: LongPressDragOptions<T>) {
   let session: DragSession<T> | null = null;
   let suppressNextClick = false;
@@ -67,6 +74,7 @@ export function useLongPressDrag<T>({
 
     session.active = true;
     navigator.vibrate?.(8);
+    if (onTrash) dragTrash.begin();
     onStart(session.id);
   }
 
@@ -94,6 +102,8 @@ export function useLongPressDrag<T>({
       }
     }
 
+    // Сначала корзина: onMove уже знает, над ней ли палец (dragTrash.state.over).
+    if (onTrash) dragTrash.move(event.clientX, event.clientY);
     onMove(session.id, dx, dy);
   }
 
@@ -135,7 +145,9 @@ export function useLongPressDrag<T>({
       // Отпускание после перетаскивания не должно считаться тапом по элементу.
       suppressNextClick = true;
       window.setTimeout(() => (suppressNextClick = false), 0);
-      onEnd(id, dropped);
+      const trashed = onTrash ? dragTrash.end() && dropped : false;
+      onEnd(id, dropped && !trashed);
+      if (trashed) onTrash?.(id);
     }
   }
 

@@ -32,6 +32,7 @@ import {
 } from '@/entities/activity/model/activity-share/activity-share-stat-layout';
 import { useFlipAnimation } from '@/hooks/useFlipAnimation';
 import { useLongPressDrag } from '@/hooks/useLongPressDrag';
+import { dragTrash } from '@/hooks/useDragTrash';
 import { useResizeObserver } from '@/hooks/useResizeObserver';
 import ShareCardStatItem from '@/views/photo-editor-view/components/artwork/ShareCardStatItem.vue';
 
@@ -66,6 +67,8 @@ const emit = defineEmits<{
   reservedHeight: [height: number];
   /** Полосу перенесли: строки, боковые колонки и показатели после переноса. */
   dropBands: [state: BandState];
+  /** Полосу (график, виджет) бросили в корзину. */
+  removeBand: [key: ShareCardElement];
 }>();
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
@@ -82,6 +85,8 @@ type DragState = {
   /** Масштаб карточки на экране: смещение пальца делим на него. */
   scale: number;
   target: DropTarget | null;
+  /** Исходное место: над корзиной показатель «стоит» на нём, остальные не сдвигаются. */
+  originTarget: DropTarget | null;
 };
 
 type DropTarget = StatDropTarget;
@@ -355,6 +360,7 @@ const { start: startDrag, isClickSuppressed } = useLongPressDrag<ShareStatKey>({
     const rect = element?.getBoundingClientRect();
 
     selected.value = null;
+    const originTarget: DropTarget = { kind: 'cell', ...layout.value[key], width: getWidth(key) };
     drag.value = {
       key,
       dx: 0,
@@ -362,15 +368,19 @@ const { start: startDrag, isClickSuppressed } = useLongPressDrag<ShareStatKey>({
       originX: rect ? rect.left + rect.width / 2 : 0,
       originY: rect ? rect.top + rect.height / 2 : 0,
       scale: rect && element?.offsetWidth ? rect.width / element.offsetWidth : 1,
-      target: { kind: 'cell', ...layout.value[key], width: getWidth(key) },
+      target: originTarget,
+      originTarget,
     };
   },
   onMove: (_key, dx, dy) => {
     if (!drag.value) return;
     drag.value.dx = dx;
     drag.value.dy = dy;
-    drag.value.target = findNearestTarget() ?? drag.value.target;
+    drag.value.target = dragTrash.state.over
+      ? drag.value.originTarget
+      : (findNearestTarget() ?? drag.value.target);
   },
+  onTrash: (key) => remove(key),
   onEnd: (key, dropped) => {
     const target = drag.value?.target;
     drag.value = null;
@@ -531,7 +541,12 @@ const { start: startBandDrag, isClickSuppressed: isBandClickSuppressed } = useLo
       if (!drag) return;
       drag.dx = dx;
       drag.dy = dy;
-      drag.target = findBandTarget(drag);
+      // Над корзиной полоса «на своём месте» — остальные не расступаются.
+      drag.target = dragTrash.state.over ? drag.originTarget : findBandTarget(drag);
+    },
+    onTrash: (key) => {
+      if (selected.value === key) selected.value = null;
+      emit('removeBand', key as ShareCardElement);
     },
     onEnd: (_key, dropped) => {
       const drag = bandDrag.value;
@@ -627,6 +642,7 @@ function remove(key: ShareStatKey) {
       :selected="selected === stat.key"
       :class="{
         'stat--dragging': drag?.key === stat.key,
+        'stat--over-trash': drag?.key === stat.key && dragTrash.state.over,
         'stat--swap-target': isSwapTarget(stat.key),
       }"
       :style="itemStyle(stat.key)"
@@ -680,6 +696,7 @@ function remove(key: ShareStatKey) {
     <div
       v-if="bandDrag"
       class="stats-grid__ghost export-hidden"
+      :class="{ 'stats-grid__ghost--over-trash': dragTrash.state.over }"
       :style="ghostStyle"
       aria-hidden="true"
     >
@@ -800,6 +817,15 @@ function remove(key: ShareStatKey) {
   background: color-mix(in srgb, var(--share-background) 88%, transparent);
   box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
   pointer-events: none;
+}
+
+/* Над корзиной: элемент бледнеет и уменьшается — «сейчас удалится». */
+.stats-grid :deep(.stat--over-trash),
+.stats-grid__ghost--over-trash {
+  opacity: 0.45;
+  outline: 2px solid #e5484d;
+  outline-offset: 2px;
+  scale: 0.92;
 }
 
 .stats-grid__ghost > :deep(*) {

@@ -1,4 +1,5 @@
 import { onScopeDispose } from 'vue';
+import { dragTrash } from '@/hooks/useDragTrash';
 
 export type PinchDragChange = {
   /** Смещение середины между пальцами (или одного указателя) в пикселях. */
@@ -13,7 +14,15 @@ type PinchDragHandlers = {
   onStart: () => void;
   onChange: (change: PinchDragChange) => void;
   onEnd?: () => void;
+  /**
+   * Отпустили над корзиной (`dragTrash`), перетаскивая одним пальцем: удалить элемент.
+   * Корзина появляется, только когда элемент заметно сдвинули (не на каждый тап).
+   */
+  onTrash?: () => void;
 };
+
+/** Сдвиг одним пальцем, после которого это перенос (и видна корзина), а не тап. */
+const TRASH_THRESHOLD = 8;
 
 type Point = { x: number; y: number };
 
@@ -34,10 +43,19 @@ function getSpread(points: Point[]): number {
  * Перетаскивание одним пальцем (или мышью) и масштабирование щипком двумя пальцами.
  * Второй палец может коснуться экрана где угодно — жест уже начался на элементе.
  */
-export function usePinchDrag({ onStart, onChange, onEnd }: PinchDragHandlers) {
+export function usePinchDrag({ onStart, onChange, onEnd, onTrash }: PinchDragHandlers) {
   const pointers = new Map<number, Point>();
   let startMidpoint: Point = { x: 0, y: 0 };
   let startSpread = 0;
+  /** Точка, где жест начался одним пальцем (null — был второй палец: это щипок). */
+  let singleStart: Point | null = null;
+  let isTrashActive = false;
+
+  function stopTrash(): boolean {
+    if (!isTrashActive) return false;
+    isTrashActive = false;
+    return dragTrash.end();
+  }
 
   function rebase() {
     const points = [...pointers.values()];
@@ -54,6 +72,17 @@ export function usePinchDrag({ onStart, onChange, onEnd }: PinchDragHandlers) {
     const midpoint = getMidpoint(points);
     const spread = getSpread(points);
 
+    if (onTrash && singleStart && pointers.size === 1) {
+      if (
+        !isTrashActive &&
+        Math.hypot(event.clientX - singleStart.x, event.clientY - singleStart.y) > TRASH_THRESHOLD
+      ) {
+        isTrashActive = true;
+        dragTrash.begin();
+      }
+      if (isTrashActive) dragTrash.move(event.clientX, event.clientY);
+    }
+
     onChange({
       dx: midpoint.x - startMidpoint.x,
       dy: midpoint.y - startMidpoint.y,
@@ -68,7 +97,9 @@ export function usePinchDrag({ onStart, onChange, onEnd }: PinchDragHandlers) {
       rebase();
     } else {
       removeListeners();
+      const trashed = stopTrash();
       onEnd?.();
+      if (trashed) onTrash?.();
     }
   }
 
@@ -79,6 +110,9 @@ export function usePinchDrag({ onStart, onChange, onEnd }: PinchDragHandlers) {
     event.preventDefault();
     event.stopPropagation();
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    // Второй палец — щипок, не перенос в корзину.
+    singleStart = null;
+    stopTrash();
     rebase();
   }
 
@@ -106,6 +140,7 @@ export function usePinchDrag({ onStart, onChange, onEnd }: PinchDragHandlers) {
     }
 
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    singleStart = { x: event.clientX, y: event.clientY };
     rebase();
 
     window.addEventListener('pointermove', handleMove);
@@ -117,6 +152,7 @@ export function usePinchDrag({ onStart, onChange, onEnd }: PinchDragHandlers) {
 
   onScopeDispose(() => {
     pointers.clear();
+    stopTrash();
     removeListeners();
   });
 

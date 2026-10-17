@@ -30,6 +30,7 @@ import FavoriteTemplateButton from '@/views/photo-editor-view/components/Favorit
 import { useAuthStore } from '@/stores/auth.store';
 import ShareCardResultDialog from '@/views/photo-editor-view/components/ShareCardResultDialog.vue';
 import EditorToolbar from '@/views/photo-editor-view/components/tools/EditorToolbar.vue';
+import EditorTrashZone from '@/views/photo-editor-view/components/EditorTrashZone.vue';
 import EditorToolPanel from '@/views/photo-editor-view/components/tools/EditorToolPanel.vue';
 import {
   EDITOR_TOOLS,
@@ -121,7 +122,7 @@ const {
   setTelemetryChartStyle,
   setTelemetryColor,
   setTelemetryLabels,
-  setTelemetryGrid,
+  setBackgroundPattern,
   undo,
   redo,
   canUndo,
@@ -425,7 +426,6 @@ function goBack() {
             @set-chart-style="setTelemetryChartStyle"
             @set-color="setTelemetryColor"
             @set-labels="setTelemetryLabels"
-            @set-grid="setTelemetryGrid"
           />
           <ElevationPanel
             v-else-if="displayedTool === 'elevation' && settings.elevation"
@@ -446,6 +446,7 @@ function goBack() {
             @set-transparent-background="setTransparentBackground"
             @set-background-image="setBackgroundImage"
             @remove-background-image="removeBackgroundImage"
+            @set-pattern="setBackgroundPattern"
           />
           <PresetsPanel
             v-else-if="displayedTool === 'presets'"
@@ -476,7 +477,11 @@ function goBack() {
       </div>
     </Transition>
 
-    <EditorToolbar v-model="activeTool" :tools="tools" :disabled-tools="disabledTools" />
+    <!-- Пока элемент тащат, панель закрывает корзина: бросили в неё — элемент удалён. -->
+    <div class="photo-editor__bottom">
+      <EditorToolbar v-model="activeTool" :tools="tools" :disabled-tools="disabledTools" />
+      <EditorTrashZone />
+    </div>
   </div>
 
   <TemplateLeaveDialog
@@ -543,6 +548,11 @@ function goBack() {
   .tool-panel-leave-active {
     transition: none;
   }
+}
+
+.photo-editor__bottom {
+  position: relative;
+  flex: 0 0 auto;
 }
 
 .photo-editor__canvas {
