@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import type { SavedTemplate } from '@/entities/saved-template';
 import { useRouter } from 'vue-router';
 import { PLAN_LABELS } from '@/entities/user';
 import { isApiError, UNKNOWN_ERROR_MESSAGE } from '@/shared/api';
@@ -11,6 +12,8 @@ import { usePreviewActivity } from '@/hooks/usePreviewActivity';
 import { useTemplatePreview } from '@/hooks/useTemplatePreview';
 import StepPage from '@/shared/ui/StepPage.vue';
 import SavedTemplateCard from '@/views/account-view/components/SavedTemplateCard.vue';
+import PageTopRow from '@/views/account-view/components/PageTopRow.vue';
+import DeleteTemplateDialog from '@/views/account-view/components/DeleteTemplateDialog.vue';
 
 /** Личный кабинет: аккаунт и «Мои шаблоны». */
 const router = useRouter();
@@ -39,6 +42,14 @@ const isFirstLoad = computed(
   () => savedTemplates.status === 'loading' && savedTemplates.templates.length === 0,
 );
 
+/** Назад — туда, откуда пришли (выбор стиля, редактор…); открыли по ссылке — на главную. */
+function goBack() {
+  if (typeof window.history.state?.back === 'string') router.back();
+  else void router.replace('/');
+}
+
+const templateToDelete = ref<SavedTemplate | null>(null);
+
 function goCreate() {
   void router.push({
     name: activityStore.activity ? ROUTE_NAMES.share : ROUTE_NAMES.import,
@@ -48,10 +59,10 @@ function goCreate() {
 
 <template>
   <StepPage>
-    <div class="account-view__header">
+    <PageTopRow back-label="Назад" @back="goBack">
       <h1 class="account-view__title">Мои шаблоны</h1>
       <p class="account-view__account">{{ accountLine }}</p>
-    </div>
+    </PageTopRow>
 
     <div v-if="isFirstLoad" class="account-view__grid" aria-busy="true">
       <v-skeleton-loader
@@ -94,33 +105,34 @@ function goCreate() {
           :route-points="routePoints"
           :primary-label="primaryLabel"
           :secondary-label="secondaryLabel"
+          @delete="templateToDelete = template"
         />
       </div>
       <p v-if="isDemo" class="account-view__hint">
         Превью — на демо-пробежке. Загрузите свою тренировку, и шаблоны покажутся на ней.
       </p>
     </template>
+    <DeleteTemplateDialog
+      :template="templateToDelete"
+      @close="templateToDelete = null"
+      @deleted="templateToDelete = null"
+    />
   </StepPage>
 </template>
 
 <style scoped>
-.account-view__header {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
 .account-view__title {
   margin: 0;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
+  line-height: 1.2;
 }
 
 .account-view__account {
-  margin: 0;
+  margin: 2px 0 0;
   overflow: hidden;
   color: color-mix(in srgb, var(--app-on-surface) 60%, transparent);
-  font-size: 14px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
