@@ -124,8 +124,7 @@ const {
   setRouteScale,
   setRouteBearing,
   setRoutePitch,
-  setRouteKmMarkers,
-  setRouteStartFinish,
+  setRouteFlags,
   setRouteStyle,
   setRoutePosition,
   setTitle,
@@ -655,8 +654,7 @@ function goBack() {
             @set-route-style="setRouteStyle"
             @set-route-bearing="setRouteBearing"
             @set-route-pitch="setRoutePitch"
-            @set-route-km-markers="setRouteKmMarkers"
-            @set-route-start-finish="setRouteStartFinish"
+            @set-route-flags="setRouteFlags"
           />
           <StatsAppearancePanel
             v-else-if="displayedTool === 'stats'"

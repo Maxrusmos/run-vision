@@ -214,9 +214,12 @@ export type ShareCardSettings = {
   routeBearing: number;
   /** Наклон трека (с картой — наклон карты). */
   routePitch: ShareRoutePitch;
-  /** Флажки на треке: отметки километров (шаг — по дистанции) и старт/финиш. */
-  routeKmMarkers: boolean;
-  routeStartFinish: boolean;
+  /**
+   * Флажки на треке — одной кнопкой: отметки километров (шаг — по дистанции), кольцо
+   * старта и флажок финиша. Раньше были два поля (`routeKmMarkers`, `routeStartFinish`) —
+   * их переводит `normalizeShareCardSettings`.
+   */
+  routeFlags: boolean;
   /** Карта под треком (шаблон «Топография»); null — карточка без карты. */
   map: ShareMapSettings | null;
   /** График высоты (только у карточки с картой). */

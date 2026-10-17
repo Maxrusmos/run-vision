@@ -17,6 +17,22 @@ describe('normalizeShareCardSettings', () => {
     expect(off.telemetry).not.toHaveProperty('grid');
   });
 
+  it('две старые кнопки флажков становятся одной', () => {
+    const legacy = (km: boolean, startFinish: boolean) =>
+      ({
+        title: null,
+        telemetry: null,
+        routeFlags: true,
+        routeKmMarkers: km,
+        routeStartFinish: startFinish,
+      }) as unknown as ShareCardSettings;
+    expect(normalizeShareCardSettings(legacy(false, false)).routeFlags).toBe(false);
+    expect(normalizeShareCardSettings(legacy(true, false)).routeFlags).toBe(true);
+    expect(normalizeShareCardSettings(legacy(false, true)).routeFlags).toBe(true);
+    expect(normalizeShareCardSettings(legacy(true, true))).not.toHaveProperty('routeKmMarkers');
+    expect(normalizeShareCardSettings(legacy(true, true))).not.toHaveProperty('routeStartFinish');
+  });
+
   it('новые настройки и карточки без «Телеметрии» не меняются', () => {
     const telemetry = { ...createShareTelemetrySettings(true), pattern: 'radar' };
     expect(normalizeShareCardSettings(withTelemetry(telemetry)).telemetry).toEqual(telemetry);

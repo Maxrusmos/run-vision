@@ -101,10 +101,9 @@ function createSettings(
     routeStyle: styles.route,
     routePosition: null,
     routeBearing: 0,
-    // «Топография»: карта с наклоном 60° и флажками на треке.
+    // «Топография»: карта с наклоном 60°. Флажки на треке — во всех стилях.
     routePitch: withMap ? 60 : 0,
-    routeKmMarkers: withMap,
-    routeStartFinish: withMap,
+    routeFlags: true,
     // «Топография»: карта во весь фон «в тон», график-силуэт.
     map: withMap ? { ...createShareMapSettings(), layout: 'full', style: 'tinted' } : null,
     // Без высоты в GPX график был бы пустым — не ставим его (можно добавить вручную).
@@ -306,12 +305,8 @@ export function useShareCardSettings(
     settings.value.routePitch = pitch;
   }
 
-  function setRouteKmMarkers(value: boolean) {
-    settings.value.routeKmMarkers = value;
-  }
-
-  function setRouteStartFinish(value: boolean) {
-    settings.value.routeStartFinish = value;
+  function setRouteFlags(value: boolean) {
+    settings.value.routeFlags = value;
   }
 
   function setTitleVisible(value: boolean) {
@@ -493,8 +488,7 @@ export function useShareCardSettings(
     setRouteScale,
     setRouteBearing,
     setRoutePitch,
-    setRouteKmMarkers,
-    setRouteStartFinish,
+    setRouteFlags,
     setRouteStyle,
     setRoutePosition,
     setTitle,

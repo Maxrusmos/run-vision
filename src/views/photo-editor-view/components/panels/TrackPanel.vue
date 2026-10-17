@@ -40,30 +40,18 @@ const emit = defineEmits<{
   setRouteStyle: [style: ShareRouteStyle];
   setRouteBearing: [bearing: number];
   setRoutePitch: [pitch: ShareRoutePitch];
-  setRouteKmMarkers: [value: boolean];
-  setRouteStartFinish: [value: boolean];
+  setRouteFlags: [value: boolean];
 }>();
 
-/** Флажки на треке: старт/финиш и отметки километров (шаг — по дистанции). */
-const markerOptions = computed(() => [
+/** Флажки на треке — одной кнопкой: отметки километров, старт и финиш. */
+const flagOptions = computed(() => [
   {
-    key: 'startFinish',
+    key: 'flags',
     icon: 'mdi-flag-checkered',
-    title: 'Старт и финиш',
-    active: props.settings.routeStartFinish,
-  },
-  {
-    key: 'km',
-    label: 'км',
-    title: 'Отметки километров',
-    active: props.settings.routeKmMarkers,
+    title: props.settings.routeFlags ? 'Убрать флажки' : 'Флажки: километры и финиш',
+    active: props.settings.routeFlags,
   },
 ]);
-
-function toggleMarker(key: string) {
-  if (key === 'km') emit('setRouteKmMarkers', !props.settings.routeKmMarkers);
-  else emit('setRouteStartFinish', !props.settings.routeStartFinish);
-}
 
 const pitch = computed({
   get: () => props.settings.routePitch,
@@ -108,7 +96,11 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
          На карточке поворот — двумя пальцами. -->
     <div class="track-panel__controls">
       <SegmentedGroup v-model="pitch" :options="pitchOptions" group-label="Наклон трека" grow />
-      <ToggleGroup :options="markerOptions" group-label="Флажки на треке" @toggle="toggleMarker" />
+      <ToggleGroup
+        :options="flagOptions"
+        group-label="Флажки на треке"
+        @toggle="emit('setRouteFlags', !settings.routeFlags)"
+      />
     </div>
 
     <div class="track-panel__rotation">
