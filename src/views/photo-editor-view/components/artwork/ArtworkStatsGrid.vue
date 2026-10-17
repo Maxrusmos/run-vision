@@ -10,6 +10,7 @@ import type {
   ShareStatWidth,
 } from '@/entities/activity/model/activity-share/activity-share.types';
 import { DEFAULT_SHARE_STAT_WIDTH } from '@/entities/activity/model/activity-share/activity-share-stat-options';
+import { MAX_SIDE_WIDGETS } from '@/entities/activity/model/activity-share/activity-share-widgets';
 import {
   STAT_GRID_COLUMNS,
   getStatDropCells,
@@ -468,7 +469,9 @@ function findBandTarget(drag: BandDragState): BandTarget {
 
   if (props.allowSides && startRow.value && y < reserved) {
     const side = x < gridWidth.value / 3 ? 'left' : x > (gridWidth.value * 2) / 3 ? 'right' : null;
-    if (side) {
+    // В заполненную колонку не ставим — тогда цель по строкам, как в середине.
+    const others = side ? sides.value[side].filter((key) => key !== drag.key) : [];
+    if (side && others.length < MAX_SIDE_WIDGETS) {
       const index = sides.value[side].filter(
         (key) => key !== drag.key && (drag.sideCenters[key] ?? Infinity) < y,
       ).length;

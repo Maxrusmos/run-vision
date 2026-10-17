@@ -3,7 +3,7 @@ import type { ITrackPoint } from '@/entities/activity/model/activity.types';
 import { getDistanceMeters } from '@/entities/activity/model/elevation-profile';
 import type {
   ShareMapLayout,
-  ShareMapPitch,
+  ShareRoutePitch,
   ShareMapSettings,
   ShareMapStyle,
 } from './activity-share.types';
@@ -21,10 +21,6 @@ export function createShareMapSettings(): ShareMapSettings {
   return {
     layout: 'block',
     style: 'light',
-    pitch: 0,
-    bearing: 0,
-    kmMarkers: true,
-    startFinish: true,
   };
 }
 
@@ -37,7 +33,7 @@ export const SHARE_MAP_LAYOUTS: readonly { id: ShareMapLayout; name: string }[] 
  * Наклон: 35° — заметный объём, трек ещё почти без искажений;
  * 60° — предел MapLibre по умолчанию, сильная перспектива «с высоты полёта».
  */
-export const SHARE_MAP_PITCHES: readonly ShareMapPitch[] = [0, 35, 60];
+export const SHARE_ROUTE_PITCHES: readonly ShareRoutePitch[] = [0, 35, 60];
 export const SHARE_MAP_MAX_PITCH = 60;
 
 /** Обработка растра подложки (paint-свойства MapLibre). */
@@ -256,6 +252,9 @@ export function getKmMarkerStep(distanceKm: number): number {
 export type RouteKmMarker = {
   km: number;
   lngLat: [number, number];
+  /** Отрезок трека (среди точек с координатами) и доля пути по нему — для трека без карты. */
+  index: number;
+  t: number;
 };
 
 /** Точки трека на каждом `step`-м километре (интерполяция между точками GPX). */
@@ -286,6 +285,8 @@ export function getKmMarkers(track: ITrackPoint[], step?: number): RouteKmMarker
     const t = span > 0 ? (target - distances[cursor]!) / span : 0;
     markers.push({
       km,
+      index: cursor,
+      t,
       lngLat: [
         a.longitude + (b.longitude - a.longitude) * t,
         a.latitude + (b.latitude - a.latitude) * t,
@@ -294,6 +295,30 @@ export function getKmMarkers(track: ITrackPoint[], step?: number): RouteKmMarker
   }
 
   return markers;
+}
+
+/** Минимальное расстояние между флажками, в единицах слоя трека (≈ ширина флажка). */
+export const MARKER_SPACING = 64;
+
+type MarkerPoint = { x: number; y: number };
+
+/**
+ * Флажки километров в экранных координатах без наложений: флажок, который лёг бы
+ * вплотную к уже поставленному (круги по одной петле) или к старту/финишу, пропускается.
+ */
+export function spreadKmMarkers<T extends MarkerPoint>(
+  markers: readonly T[],
+  occupied: readonly MarkerPoint[],
+  minDistance: number,
+): T[] {
+  const kept: T[] = [];
+  for (const marker of markers) {
+    const isFree = [...occupied, ...kept].every(
+      (other) => Math.hypot(other.x - marker.x, other.y - marker.y) >= minDistance,
+    );
+    if (isFree) kept.push(marker);
+  }
+  return kept;
 }
 
 /** Круговой маршрут: финиш рядом со стартом. */

@@ -31,7 +31,7 @@ function goToEditor() {
       <v-divider />
       <SectionHeading
         title="Выбери стиль"
-        description="Выбери готовый дизайн или создай собственный"
+        description="Выбери один из готовых дизайнов — всё можно донастроить в редакторе"
       />
       <PhotoTemplateCarousel v-model="photoTemplateId" :activity="activity" />
     </template>

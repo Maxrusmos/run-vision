@@ -62,7 +62,8 @@ const emit = defineEmits<{
   dropBands: [state: BandState];
   removeWidget: [kind: ShareWidgetKind];
   setWidgetSide: [kind: ShareWidgetKind, side: ShareWidgetSide | null];
-  rotateMap: [bearing: number];
+  /** Поворот трека (с картой — и карты) двумя пальцами. */
+  rotateRoute: [bearing: number];
 }>();
 
 const selected = defineModel<ShareCardElement | null>('selected', { default: null });
@@ -193,10 +194,13 @@ watch(mapArea, (area) => {
 onBeforeUnmount(() => areaObserver?.disconnect());
 
 /**
- * Вращение карты двумя пальцами — по всей карточке: карта лежит под названием
- * и показателями, и попасть по ней пальцами было бы трудно.
+ * Вращение карты (или трека без карты) двумя пальцами — по всей карточке: карта лежит
+ * под названием и показателями, и попасть по ней (или по тонкой линии трека) было бы трудно.
  */
 let twist: { angle: number; bearing: number } | null = null;
+
+// Без карты и без трека вращать нечего.
+const canTwist = computed(() => Boolean(props.settings.map) || props.settings.routeVisible);
 
 function touchAngle(event: TouchEvent): number | null {
   const [a, b] = [event.touches[0], event.touches[1]];
@@ -205,8 +209,8 @@ function touchAngle(event: TouchEvent): number | null {
 }
 
 function handleTouchStart(event: TouchEvent) {
-  const angle = props.settings.map ? touchAngle(event) : null;
-  twist = angle === null ? null : { angle, bearing: props.settings.map!.bearing };
+  const angle = canTwist.value ? touchAngle(event) : null;
+  twist = angle === null ? null : { angle, bearing: props.settings.routeBearing };
 }
 
 function handleTouchMove(event: TouchEvent) {
@@ -214,8 +218,8 @@ function handleTouchMove(event: TouchEvent) {
   if (!twist || angle === null) return;
   // Иначе браузер масштабирует страницу.
   event.preventDefault();
-  // Пальцы по часовой — карта тоже по часовой, то есть угол (bearing) уменьшается.
-  emit('rotateMap', twist.bearing - (angle - twist.angle));
+  // Пальцы по часовой — карта (трек) тоже по часовой, то есть угол (bearing) уменьшается.
+  emit('rotateRoute', twist.bearing - (angle - twist.angle));
 }
 
 function handleTouchEnd(event: TouchEvent) {
@@ -284,7 +288,7 @@ function removeRoute() {
     :class="{
       'share-artwork--transparent': settings.transparentBackground && !settings.map,
       'share-artwork--map-full': mapLayout === 'full',
-      'share-artwork--map': settings.map,
+      'share-artwork--twist': canTwist,
       'share-artwork--exporting': exporting,
     }"
     :style="cssVariables"
@@ -300,6 +304,10 @@ function removeRoute() {
         ref="map"
         class="share-artwork__map-full"
         :map="settings.map"
+        :pitch="settings.routePitch"
+        :bearing="settings.routeBearing"
+        :km-markers="settings.routeKmMarkers"
+        :start-finish="settings.routeStartFinish"
         :track="activity.track"
         :route-visible="settings.routeVisible"
         :route-style="settings.routeStyle"
@@ -353,6 +361,10 @@ function removeRoute() {
           ref="map"
           class="share-artwork__map-block"
           :map="settings.map"
+          :pitch="settings.routePitch"
+          :bearing="settings.routeBearing"
+          :km-markers="settings.routeKmMarkers"
+          :start-finish="settings.routeStartFinish"
           :track="activity.track"
           :route-visible="settings.routeVisible"
           :route-style="settings.routeStyle"
@@ -419,6 +431,10 @@ function removeRoute() {
         :route-style="settings.routeStyle"
         :scale="settings.routeScale"
         :position="settings.routePosition"
+        :bearing="settings.routeBearing"
+        :pitch="settings.routePitch"
+        :km-markers="settings.routeKmMarkers"
+        :start-finish="settings.routeStartFinish"
         :selected="selected === 'route'"
         :slot-element="routeSlot"
         @select="selected = 'route'"
@@ -454,8 +470,8 @@ function removeRoute() {
   background: var(--share-background);
 }
 
-.share-artwork--map {
-  /* Два пальца по карточке с картой — вращение карты, а не масштаб страницы. */
+.share-artwork--twist {
+  /* Два пальца по карточке — вращение карты или трека, а не масштаб страницы. */
   touch-action: pan-x pan-y;
 }
 

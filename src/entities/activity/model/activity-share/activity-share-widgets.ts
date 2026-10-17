@@ -1,7 +1,9 @@
 import type {
   ShareElevationSize,
   ShareTelemetrySettings,
+  ShareWidget,
   ShareWidgetKind,
+  ShareWidgetSide,
 } from './activity-share.types';
 import { getElevationSizeRatio } from './activity-share-elevation';
 
@@ -51,6 +53,28 @@ export function getWidgetRatio(kind: ShareWidgetKind, size: ShareElevationSize):
 /** Строка «в конце» для нового виджета: дальше `compactBands` подтянет его под последний элемент. */
 export const WIDGET_END_ROW = 1000;
 
+/** Сколько вертикальных виджетов помещается в одну боковую колонку. */
+export const MAX_SIDE_WIDGETS = 2;
+
+/**
+ * Сторона для виджета `kind` с учётом места: в заполненную колонку не ставим —
+ * берём следующее положение по кругу кнопки (слева → справа → строкой).
+ */
+export function resolveWidgetSide(
+  widgets: readonly ShareWidget[],
+  kind: ShareWidgetKind,
+  side: ShareWidgetSide | null,
+): ShareWidgetSide | null {
+  const order: ShareWidgetSide[] = side === 'left' ? ['left', 'right'] : side ? [side] : [];
+  return (
+    order.find(
+      (candidate) =>
+        widgets.filter((widget) => widget.kind !== kind && widget.side === candidate).length <
+        MAX_SIDE_WIDGETS,
+    ) ?? null
+  );
+}
+
 /** Положения виджета по кругу (кнопка на панели выделенного виджета). */
 export const SHARE_WIDGET_PLACEMENTS = [
   { value: 'row', label: '▬', title: 'Строкой' },
@@ -58,26 +82,17 @@ export const SHARE_WIDGET_PLACEMENTS = [
   { value: 'right', label: '◨', title: 'Справа' },
 ] as const;
 
-export function createShareTelemetrySettings(
-  hasHeartRate: boolean,
-  hasElevation = true,
-): ShareTelemetrySettings {
-  // По умолчанию одна «лента» справа от трека — чтобы карточка не была стопкой строк.
-  // Ставим только виджет с данными: зоны (есть пульс) или высоту (есть высота).
-  const sideKind: ShareWidgetKind | null = hasHeartRate
-    ? 'zones'
-    : hasElevation
-      ? 'elevation'
-      : null;
+export function createShareTelemetrySettings(hasHeartRate: boolean): ShareTelemetrySettings {
+  // По умолчанию сплиты — колонкой справа от трека, над показателями — пульс
+  // (без пульса в GPX — темп): карточка не превращается в стопку строк.
   const widgets: ShareTelemetrySettings['widgets'] = [
-    { kind: 'splits', row: null, side: null },
-    { kind: 'pace', row: null, side: null },
-    ...(sideKind ? [{ kind: sideKind, row: null, side: 'right' as const }] : []),
+    { kind: 'splits', row: null, side: 'right' },
+    { kind: hasHeartRate ? 'heartRate' : 'pace', row: 0, side: null },
   ];
   return {
     widgets,
     size: 'medium',
-    chartStyle: 'gradient',
+    chartStyle: 'contour',
     color: null,
     labels: true,
     grid: true,

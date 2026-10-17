@@ -55,38 +55,38 @@ defineProps<{
 }
 
 .route-preview--minimal {
-  background: #17212b;
-  color: #fff;
+  background: #542b43;
+  color: #ffca91;
 }
 
 .route-preview--topographic {
-  background: #dce8d5;
-  color: #254b38;
+  background: #19152e;
+  color: #c6ff00;
 }
 
 .route-preview--telemetry {
-  background: #0a1118;
-  color: #2ee6ff;
+  background: #ffd60a;
+  color: #e63946;
 }
 
 .route-preview__grid {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(rgb(221 247 255 / 8%) 1px, transparent 1px) 0 0 / 100% 14px,
-    linear-gradient(90deg, rgb(221 247 255 / 8%) 1px, transparent 1px) 0 0 / 14px 100%;
+    linear-gradient(rgb(29 29 29 / 10%) 1px, transparent 1px) 0 0 / 100% 14px,
+    linear-gradient(90deg, rgb(29 29 29 / 10%) 1px, transparent 1px) 0 0 / 14px 100%;
 }
 
 .route-preview--telemetry .route-preview__route {
-  filter: drop-shadow(0 0 3px rgb(46 230 255 / 70%));
+  filter: drop-shadow(0 0 3px rgb(230 57 70 / 70%));
 }
 
 /* Плашка с цифрами — как у остальных шаблонов, но в тон приборной панели. */
 .route-preview--telemetry .route-preview__stats {
-  background: rgb(10 17 24 / 72%);
-  color: #ddf7ff;
+  background: rgb(255 214 10 / 72%);
+  color: #1d1d1d;
   font-variant-numeric: tabular-nums;
-  border-block: 1px solid rgb(46 230 255 / 35%);
+  border-block: 1px solid rgb(230 57 70 / 35%);
 }
 
 .route-preview__route {
@@ -127,9 +127,13 @@ defineProps<{
   text-align: center;
 }
 
+.route-preview--minimal .route-preview__stats {
+  color: #fff5ea;
+}
+
 .route-preview--topographic .route-preview__stats {
-  background: rgb(255 255 255 / 82%);
-  color: #254b38;
+  background: rgb(25 21 46 / 78%);
+  color: #fff;
 }
 
 .route-preview__primary {

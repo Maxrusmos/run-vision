@@ -2,6 +2,7 @@
 import { computed, ref, useTemplateRef } from 'vue';
 import type { CSSProperties } from 'vue';
 import type { ITrackPoint } from '@/entities/activity/model/activity.types';
+import type { RoutePoint } from '@/entities/activity/lib/route-projection';
 import type {
   ShareRoutePosition,
   ShareRouteStyle,
@@ -14,15 +15,22 @@ import {
 } from '@/entities/activity/model/activity-share/activity-share-route';
 import {
   getRouteBounds,
+  orientRoute,
   projectRoute,
   toSvgPolylinePoints,
 } from '@/entities/activity/lib/route-projection';
+import {
+  MARKER_SPACING,
+  getKmMarkers,
+  spreadKmMarkers,
+} from '@/entities/activity/model/activity-share/activity-share-map';
 import { usePinchDrag } from '@/hooks/usePinchDrag';
 import { usePointerDrag } from '@/hooks/usePointerDrag';
 import { useResizeObserver } from '@/hooks/useResizeObserver';
 import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
 import SelectionFrame from '@/views/photo-editor-view/components/artwork/SelectionFrame.vue';
 import RouteStyleLayers from '@/views/photo-editor-view/components/artwork/RouteStyleLayers.vue';
+import RouteMarkers from '@/views/photo-editor-view/components/artwork/RouteMarkers.vue';
 
 /** Толщина невидимой линии, по которой удобно попасть пальцем. */
 const HIT_STROKE_WIDTH = 56;
@@ -45,6 +53,12 @@ const props = defineProps<{
   routeStyle: ShareRouteStyle;
   scale: number;
   position: ShareRoutePosition | null;
+  /** Поворот и наклон трека, градусы. */
+  bearing: number;
+  pitch: number;
+  /** Флажки: отметки километров и старт/финиш. */
+  kmMarkers: boolean;
+  startFinish: boolean;
   selected: boolean;
   /** Место под трек в раскладке карточки — задаёт размер M и исходное положение. */
   slotElement: HTMLElement | null;
@@ -81,7 +95,7 @@ useResizeObserver(
 );
 
 // Точки трека в масштабе 1 (размер M), относительно центра трека.
-const localPoints = computed(() => {
+const flatPoints = computed(() => {
   if (!slot.value) return [];
 
   const { width, height } = slot.value;
@@ -90,6 +104,17 @@ const localPoints = computed(() => {
     y: point.y - height / 2,
   }));
 });
+
+// Повёрнутый и наклонённый трек снова вписан в место под трек.
+const localPoints = computed(() =>
+  slot.value
+    ? orientRoute(
+        flatPoints.value,
+        { bearing: props.bearing, pitch: props.pitch },
+        { width: slot.value.width, height: slot.value.height, padding: SLOT_PADDING },
+      )
+    : [],
+);
 
 const polylinePoints = computed(() => toSvgPolylinePoints(localPoints.value));
 const bounds = computed(() => getRouteBounds(localPoints.value));
@@ -116,6 +141,36 @@ const center = computed(() => {
 const transform = computed(
   () => `translate(${center.value.x} ${center.value.y}) scale(${scale.value})`,
 );
+
+const kmMarkerList = computed(() => (props.kmMarkers ? getKmMarkers(props.track) : []));
+
+/** Точка на слое (без масштаба линии): флажки одного размера при любом масштабе трека. */
+const toLayer = (point: RoutePoint): RoutePoint => ({
+  x: center.value.x + point.x * scale.value,
+  y: center.value.y + point.y * scale.value,
+});
+
+const startPoint = computed(() => (start.value ? toLayer(start.value) : null));
+const finishPoint = computed(() => {
+  const last = localPoints.value[localPoints.value.length - 1];
+  return last ? toLayer(last) : null;
+});
+
+// Флажок — между двумя точками уже повёрнутого трека: отрезки GPX короткие.
+const kmPoints = computed(() => {
+  const points = localPoints.value;
+  const placed = kmMarkerList.value.flatMap(({ km, index, t }) => {
+    const a = points[index];
+    const b = points[index + 1] ?? a;
+    if (!a || !b) return [];
+    return [{ ...toLayer({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }), km }];
+  });
+  const occupied =
+    props.startFinish && startPoint.value && finishPoint.value
+      ? [startPoint.value, finishPoint.value]
+      : [];
+  return spreadKmMarkers(placed, occupied, MARKER_SPACING);
+});
 
 const frame = computed(() => {
   if (!bounds.value) return null;
@@ -230,6 +285,16 @@ function handleWheel(event: WheelEvent) {
           :unit="1 / scale"
         />
       </g>
+      <RouteMarkers
+        v-if="polylinePoints && (kmMarkers || startFinish)"
+        :km-points="kmPoints"
+        :start="startPoint"
+        :finish="finishPoint"
+        :start-finish="startFinish"
+        :text-color="textColor"
+        :background-color="backgroundColor"
+        :unit="1"
+      />
     </svg>
 
     <!-- Зона касания лежит под показателями: тап по показателю не выделяет трек. -->

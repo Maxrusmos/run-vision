@@ -6,19 +6,19 @@ export const PHOTO_TEMPLATES: readonly PhotoTemplate[] = [
     id: 'minimal',
     title: 'Минимализм',
     description: 'Маршрут и главные цифры',
-    presetId: 'night',
+    presetId: 'sunset',
   },
   {
     id: 'topographic',
     title: 'Топография',
     description: 'Карта и рельеф',
-    presetId: 'forest',
+    presetId: 'neon',
   },
   {
     id: 'telemetry',
     title: 'Телеметрия',
     description: 'Сплиты, пульс, графики',
-    presetId: 'hud',
+    presetId: 'sun',
   },
 ];
 

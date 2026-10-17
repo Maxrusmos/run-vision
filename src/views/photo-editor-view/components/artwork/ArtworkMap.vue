@@ -15,6 +15,8 @@ import {
   getLngLatBounds,
   getKmMarkers,
   getRouteLngLats,
+  spreadKmMarkers,
+  MARKER_SPACING,
   type MapFitPadding,
 } from '@/entities/activity/model/activity-share/activity-share-map';
 import { ROUTE_LAYER_WIDTH } from '@/entities/activity/model/activity-share/activity-share-route';
@@ -28,11 +30,14 @@ const FIT_ITERATIONS = 4;
 const MAX_FIT_ZOOM = 16;
 /** Точек трека для подгонки камеры: хватает для рамки, а считается быстро (и при вращении пальцами). */
 const FIT_SAMPLE_POINTS = 400;
-/** Минимальное расстояние между флажками, в единицах слоя трека (≈ ширина флажка). */
-const MARKER_SPACING = 64;
 
 const props = defineProps<{
   map: ShareMapSettings;
+  /** Наклон и поворот — общие с треком (меню «Трек»). */
+  pitch: number;
+  bearing: number;
+  kmMarkers: boolean;
+  startFinish: boolean;
   track: ITrackPoint[];
   routeVisible: boolean;
   routeStyle: ShareRouteStyle;
@@ -51,11 +56,11 @@ const size = shallowRef({ width: 0, height: 0 });
 const projected = shallowRef<RoutePoint[]>([]);
 
 const lngLats = computed(() => getRouteLngLats(props.track));
-const kmMarkers = computed(() => (props.map.kmMarkers ? getKmMarkers(props.track) : []));
+const kmMarkers = computed(() => (props.kmMarkers ? getKmMarkers(props.track) : []));
 /** Флажки километров в пикселях карты. */
 const projectedKm = shallowRef<(RoutePoint & { km: number })[]>([]);
 const bounds = computed(() => getLngLatBounds(lngLats.value));
-const pitch = computed(() => props.map.pitch);
+const pitch = computed(() => props.pitch);
 
 const points = computed(() => toSvgPolylinePoints(projected.value));
 const start = computed(() => projected.value[0] ?? null);
@@ -94,7 +99,7 @@ function fitRoute(map: maplibregl.Map) {
     left: props.fitPadding.left * width,
     right: props.fitPadding.right * width,
   };
-  const bearing = props.map.bearing;
+  const bearing = props.bearing;
   const camera = map.cameraForBounds(bounds.value, { padding, maxZoom: MAX_FIT_ZOOM, bearing });
   if (!camera) return;
   map.jumpTo({ ...camera, bearing, pitch: pitch.value });
@@ -124,28 +129,19 @@ function fitRoute(map: maplibregl.Map) {
   projectKmMarkers(map);
 }
 
-/**
- * Флажки километров в пикселях карты. Флажок, который лёг бы вплотную к уже
- * поставленному (круги по одной петле) или к старту/финишу, пропускаем — иначе каша.
- */
+/** Флажки километров в пикселях карты (без наложений — см. `spreadKmMarkers`). */
 function projectKmMarkers(map: maplibregl.Map) {
-  const minDistance = MARKER_SPACING * unit.value;
-  const occupied: RoutePoint[] =
-    props.map.startFinish && start.value && finish.value ? [start.value, finish.value] : [];
-  const kept: (RoutePoint & { km: number })[] = [];
-
-  for (const marker of kmMarkers.value) {
-    const { x, y } = map.project(marker.lngLat);
-    const isFree = [...occupied, ...kept].every(
-      (other) => Math.hypot(other.x - x, other.y - y) >= minDistance,
-    );
-    if (isFree) kept.push({ x, y, km: marker.km });
-  }
-
-  projectedKm.value = kept;
+  projectedKm.value = spreadKmMarkers(
+    kmMarkers.value.map((marker) => {
+      const { x, y } = map.project(marker.lngLat);
+      return { x, y, km: marker.km };
+    }),
+    props.startFinish && start.value && finish.value ? [start.value, finish.value] : [],
+    MARKER_SPACING * unit.value,
+  );
 }
 
-watch([kmMarkers, () => props.map.startFinish], () => {
+watch([kmMarkers, () => props.startFinish], () => {
   if (instance.value) projectKmMarkers(instance.value);
 });
 
@@ -206,7 +202,7 @@ watch(
 // Вращение пальцами меняет угол на каждом кадре — подгоняем камеру не чаще кадра.
 let fitFrame = 0;
 watch(
-  () => [props.map.pitch, props.map.bearing, props.fitPadding, props.track] as const,
+  () => [props.pitch, props.bearing, props.fitPadding, props.track] as const,
   () => {
     if (fitFrame) return;
     fitFrame = requestAnimationFrame(() => {
@@ -255,7 +251,7 @@ defineExpose({ whenReady });
         :km-points="projectedKm"
         :start="start"
         :finish="finish"
-        :start-finish="map.startFinish"
+        :start-finish="startFinish"
         :text-color="textColor"
         :background-color="backgroundColor"
         :unit="unit"
