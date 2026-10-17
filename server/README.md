@@ -24,14 +24,29 @@ npm run dev               # сервер на http://localhost:3000 с пере�
 
 ### PostgreSQL без Docker
 
-Установите PostgreSQL 16 (macOS: `brew install postgresql@16`, Ubuntu: `apt install postgresql`)
-и создайте пользователя и две базы — для разработки и для тестов:
+Установите PostgreSQL и создайте пользователя и две базы — для разработки и для тестов.
+
+Ubuntu / WSL:
 
 ```sh
-psql -U postgres -c "CREATE ROLE runvision LOGIN PASSWORD 'runvision'"
-createdb -U postgres -O runvision runvision
-createdb -U postgres -O runvision runvision_test
+sudo apt update && sudo apt install -y postgresql   # сервер + клиент psql
+sudo service postgresql start                       # запустить (в WSL — после каждой перезагрузки)
+sudo -u postgres psql -c "CREATE ROLE runvision LOGIN PASSWORD 'runvision'"
+sudo -u postgres createdb -O runvision runvision
+sudo -u postgres createdb -O runvision runvision_test
 ```
+
+macOS (Homebrew):
+
+```sh
+brew install postgresql@16 && brew services start postgresql@16
+psql postgres -c "CREATE ROLE runvision LOGIN PASSWORD 'runvision'"
+createdb -O runvision runvision
+createdb -O runvision runvision_test
+```
+
+Ошибка `You must install at least one postgresql-client-<version> package` значит, что
+PostgreSQL не установлен — поставьте его командой выше (или используйте Docker).
 
 `docker-compose.yml` делает то же самое (тестовая база — `docker/init-test-db.sql`).
 
