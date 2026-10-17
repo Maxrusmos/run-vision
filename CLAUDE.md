@@ -194,8 +194,60 @@ npx vite build
   Адрес API — `VITE_API_URL` (по умолчанию `http://localhost:3000`, см. `.env.example`).
   Сервер недоступен → токен не стираем (статус `offline`), приложение работает как гость;
   401 `UNAUTHORIZED` на запрос с текущим токеном → разлогин.
-- Локально: `pg_ctlcluster 16 main start` (в песочнице; роль и базы `runvision`,
-  `runvision_test`), `cd server && npm run migrate && npm run dev`, `npm test`.
+- В песочнице Claude: `pg_ctlcluster 16 main start` (роль и базы `runvision`,
+  `runvision_test` уже есть), `cd server && npm run migrate && npm run dev`, `npm test`.
+
+## Запуск и деплой (как делали)
+
+### Локально (у пользователя Ubuntu, PostgreSQL без Docker)
+
+Один раз:
+```sh
+# если apt update падает на чужом репозитории (было: deb.etcher.io) — удалить его .list
+# из /etc/apt/sources.list.d/, иначе apt install после && не запускается
+sudo apt update && sudo apt install -y postgresql
+sudo systemctl enable --now postgresql          # «active (exited)» в статусе — норма
+cd /tmp                                          # чтобы sudo -u postgres не ругался на права к папке
+sudo -u postgres psql -c "CREATE ROLE runvision LOGIN PASSWORD 'runvision'"
+sudo -u postgres createdb -O runvision runvision
+sudo -u postgres createdb -O runvision runvision_test
+cd ~/WebstormProjects/run-vision/server && npm install && cp .env.example .env && npm run migrate
+```
+Каждый раз — из корня: `npm run dev:all` (фронт http://localhost:5173/run-vision/ +
+сервер http://localhost:3000, Ctrl+C останавливает оба). После `git pull` с новыми
+миграциями — `cd server && npm run migrate`. Проверка сервера — `/api/health` → `{"ok":true}`.
+Vite не на 5173 → добавить его адрес в `CORS_ORIGINS` в `server/.env`.
+Вариант с Docker — `cd server && docker compose up -d` (до установки Docker не дошли).
+
+### Смотреть базу
+
+DBeaver (`sudo snap install dbeaver-ce`) → новое соединение PostgreSQL: `localhost:5432`,
+база/пользователь/пароль `runvision`. Таблицы: `users`, `sessions`, `schema_migrations`.
+Проверить Pro — поменять `plan` на `pro` у себя и обновить страницу. `runvision_test`
+не трогать — её чистят тесты. Прод-базу — так же, строкой подключения из Neon + SSL.
+
+### Прод
+
+- **База** — Neon (бесплатно, регион Frankfurt), строка подключения `…?sslmode=require`
+  (если не подключается — убрать `&channel_binding=require`).
+- **Сервер** — Render, Web Service `run-vision` → https://run-vision.onrender.com, ветка
+  `main`, Free. Root Directory **`server`** (без него Render собирает корень и падает с
+  `Missing script: "start:prod"` — было), Build `npm ci && npm run build`, Start
+  `npm run start:prod` (миграции, потом сервер), Health Check Path `/api/health`.
+  Переменные: `DATABASE_URL` (Neon), `CORS_ORIGINS=https://maxrusmos.github.io` (без `/` и
+  пути), `TRUST_PROXY=true`, `NODE_VERSION=22`; `PORT` задаёт Render.
+- **Фронт** — GitHub Pages: адрес API вшивается при сборке из переменной репозитория
+  `VITE_API_URL=https://run-vision.onrender.com` (Settings → Secrets and variables → Actions →
+  **Variables**, не Secrets). После смены переменной сайт надо пересобрать: Actions →
+  Deploy to GitHub Pages → Run workflow (`workflow_dispatch`) или любой пуш в `main`.
+  Без пересборки сайт ходит на `localhost:3000` → «Сервер недоступен» (было).
+- Пуш в `main` обновляет и Render, и Pages.
+- Бесплатный Render засыпает через 15 мин, старт до минуты — фронт будит его при открытии
+  (`wakeApi` в `main.ts`, потом `auth.init()`). Позже — платный тариф ($7/мес).
+- Диагностика «Сервер недоступен»: в логах Render запросы раз в 5 с с `10.x` — это его
+  проверка здоровья; нет `OPTIONS`/`POST /api/auth/*` при входе → сайт стучится не туда
+  (`VITE_API_URL`/пересборка); есть `OPTIONS` без `POST` → `CORS_ORIGINS`.
+- Из песочницы Claude onrender.com и github.io недоступны (403 прокси) — проверяет пользователь.
 
 ## Состояние
 
@@ -259,13 +311,14 @@ vue-devtools (`#__vue-devtools-container__{display:none}`); после перв�
 
 ## Ветки
 
-`feature/stats-grid-layout` и `feature/topo-style` слиты в `main`. Текущая — `backend/init`
-(от `main`): бэкенд, регистрация и вход.
+`feature/stats-grid-layout`, `feature/topo-style` и `backend/init` (бэкенд, регистрация и
+вход, PR #23) слиты в `main`. В `backend/init` после слияния — ручной запуск деплоя Pages.
 
 ## Идеи на потом (обсуждали, не сделано)
 
 - Аккаунт: смена/сброс пароля, подтверждение email, чистка просроченных сессий по
-  расписанию, подписка и платежи (схема в `server/README.md`), деплой сервера.
+  расписанию, подписка и платежи (схема в `server/README.md`), лимит попыток входа в
+  Redis при нескольких экземплярах сервера.
 
 - Отдельный цвет названия (сейчас общий с показателями).
 - Видео-режим (анимация прохождения маршрута).
