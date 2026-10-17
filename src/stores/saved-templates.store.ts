@@ -22,8 +22,6 @@ export const useSavedTemplatesStore = defineStore('saved-templates', () => {
   const templates = shallowRef<SavedTemplate[]>([]);
   const status = ref<SavedTemplatesStatus>('idle');
   const error = ref<unknown>(null);
-  /** Шаблон, который применить к следующей загруженной тренировке (из кабинета). */
-  const pendingTemplateId = ref<string | null>(null);
 
   const byId = computed(() => new Map(templates.value.map((item) => [item.id, item])));
 
@@ -95,14 +93,12 @@ export const useSavedTemplatesStore = defineStore('saved-templates', () => {
   async function remove(id: string) {
     await savedTemplatesApi.remove(id);
     templates.value = templates.value.filter((item) => item.id !== id);
-    if (pendingTemplateId.value === id) pendingTemplateId.value = null;
   }
 
   function reset() {
     templates.value = [];
     status.value = 'idle';
     error.value = null;
-    pendingTemplateId.value = null;
   }
 
   // Другой пользователь (или выход) — чужие шаблоны не показываем.
@@ -117,7 +113,6 @@ export const useSavedTemplatesStore = defineStore('saved-templates', () => {
     templates,
     status,
     error,
-    pendingTemplateId,
     byId,
     load,
     ensureLoaded,

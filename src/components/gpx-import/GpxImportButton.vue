@@ -21,6 +21,9 @@ withDefaults(
     icon?: string;
     /** Разрешить выбор любых файлов — запасной путь, если фильтр не пускает GPX. */
     acceptAll?: boolean;
+    /** Кнопка во всю ширину. */
+    block?: boolean;
+    disabled?: boolean;
   }>(),
   {
     compact: false,
@@ -28,6 +31,8 @@ withDefaults(
     variant: 'tonal',
     size: 'default',
     acceptAll: false,
+    block: false,
+    disabled: false,
     icon: 'mdi-upload',
   },
 );
@@ -58,7 +63,7 @@ async function handleFileChange(event: Event) {
 </script>
 
 <template>
-  <div class="gpx-import-button">
+  <div class="gpx-import-button" :class="{ 'gpx-import-button--block': block }">
     <v-btn
       v-if="compact"
       color="primary"
@@ -75,6 +80,8 @@ async function handleFileChange(event: Event) {
       :prepend-icon="icon || undefined"
       :variant="variant"
       :size="size"
+      :block="block"
+      :disabled="disabled"
       :loading="isImporting"
       @click="openFileDialog"
     >
@@ -96,5 +103,9 @@ async function handleFileChange(event: Event) {
 <style scoped>
 .gpx-import-button {
   display: inline-flex;
+}
+
+.gpx-import-button--block {
+  display: flex;
 }
 </style>

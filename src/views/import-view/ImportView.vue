@@ -2,14 +2,10 @@
 import { useRouter } from 'vue-router';
 import { ROUTE_NAMES } from '@/router/routes';
 import GpxImportButton from '@/components/gpx-import/GpxImportButton.vue';
-import { useApplySavedTemplate } from '@/hooks/useApplySavedTemplate';
 
 const router = useRouter();
-const { openPendingAfterImport } = useApplySavedTemplate();
 
-async function goToShare() {
-  // Пришли из кабинета «применить шаблон к своей тренировке» — сразу в редактор.
-  if (await openPendingAfterImport()) return;
+function goToShare() {
   router.push({ name: ROUTE_NAMES.share });
 }
 </script>

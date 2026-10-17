@@ -11,6 +11,7 @@ import { useSavedTemplatesStore } from '@/stores/saved-templates.store';
 import { useApplySavedTemplate } from '@/hooks/useApplySavedTemplate';
 import { usePreviewActivity } from '@/hooks/usePreviewActivity';
 import FitToBox from '@/shared/ui/FitToBox.vue';
+import GpxImportButton from '@/components/gpx-import/GpxImportButton.vue';
 import PageTopRow from '@/views/account-view/components/PageTopRow.vue';
 import DeleteTemplateDialog from '@/views/account-view/components/DeleteTemplateDialog.vue';
 import ShareCardArtwork from '@/views/photo-editor-view/components/artwork/ShareCardArtwork.vue';
@@ -70,7 +71,10 @@ const meta = computed(() => {
   return `Основа — «${getPhotoTemplateTitle(template.value.baseTemplate)}» · изменён ${date}`;
 });
 
-const hasOwnActivity = computed(() => Boolean(activityStore.activity));
+// Не реактивно: после выбора GPX тренировка появляется до события `imported`, и кнопка
+// загрузки, пропав по `v-if`, не успела бы его отправить (размонтированный компонент
+// события не шлёт) — перехода в редактор не было бы.
+const hasOwnActivity = Boolean(activityStore.activity);
 
 function goBack() {
   if (typeof window.history.state?.back === 'string') router.back();
@@ -90,7 +94,10 @@ async function edit() {
   }
 }
 
-/** Карточка своей тренировки по шаблону (без тренировки — сначала загрузка GPX). */
+/**
+ * Карточка своей тренировки по шаблону. Без своей тренировки кнопка сама выбирает GPX
+ * (без перехода на страницу загрузки) и вызывает это после импорта.
+ */
 async function apply() {
   if (!template.value || pendingAction.value) return;
   pendingAction.value = 'apply';
@@ -208,6 +215,7 @@ function handleDeleted() {
 
       <div class="saved-template__actions">
         <v-btn
+          v-if="hasOwnActivity"
           color="primary"
           variant="flat"
           size="large"
@@ -217,8 +225,30 @@ function handleDeleted() {
           :disabled="pendingAction === 'edit'"
           @click="apply"
         >
-          {{ hasOwnActivity ? 'Создать карточку по шаблону' : 'Загрузить GPX и создать карточку' }}
+          Создать карточку по шаблону
         </v-btn>
+        <template v-else>
+          <GpxImportButton
+            variant="flat"
+            size="large"
+            block
+            icon="mdi-image-plus-outline"
+            label="Загрузить GPX и создать карточку"
+            :disabled="pendingAction === 'edit'"
+            @imported="apply"
+          />
+          <!-- На части iPhone фильтр по типу не пускает .gpx — запасной путь без фильтра. -->
+          <GpxImportButton
+            class="saved-template__fallback"
+            variant="text"
+            size="small"
+            icon=""
+            label="Файл не выбирается? Показать все файлы"
+            accept-all
+            :disabled="pendingAction === 'edit'"
+            @imported="apply"
+          />
+        </template>
         <v-btn
           variant="tonal"
           size="large"
@@ -347,6 +377,17 @@ function handleDeleted() {
 .saved-template__actions :deep(.v-btn) {
   letter-spacing: 0;
   text-transform: none;
+}
+
+.saved-template__fallback {
+  justify-content: center;
+  margin-top: -6px;
+}
+
+.saved-template__actions .saved-template__fallback :deep(.v-btn) {
+  color: color-mix(in srgb, var(--app-on-surface) 60%, transparent) !important;
+  font-size: 12px;
+  text-decoration: underline;
 }
 
 .saved-template__state {
