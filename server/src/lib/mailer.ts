@@ -21,7 +21,13 @@ export function createMailer(
   if (!options.smtpUrl) {
     return {
       async send(mail) {
-        log(`Письмо (SMTP не настроен) → ${mail.to}: ${mail.subject}\n${mail.text}`)
+        // Отдельным блоком в консоль, а не строкой JSON-лога: там перевод строк — «\n»,
+        // и ссылку было не найти (было).
+        const line = '─'.repeat(60)
+        log(`Письмо не отправлено: SMTP_URL не задан. Текст — в консоли сервера (${mail.to}).`)
+        console.log(
+          `\n${line}\nПИСЬМО (SMTP не настроен, не отправлено)\nКому: ${mail.to}\nТема: ${mail.subject}\n\n${mail.text}\n${line}\n`,
+        )
       },
     }
   }
