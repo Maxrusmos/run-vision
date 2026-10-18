@@ -22,6 +22,9 @@ const envSchema = z.object({
   SMTP_URL: z.string().default(''),
   MAIL_FROM: z.string().default('RunVision <no-reply@localhost>'),
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().min(5).max(24 * 60).default(60),
+  // Платёжный сервис: none — оплата выключена (по умолчанию, прод), mock — тестовая оплата
+  // без денег (разработка: кнопки «Оплатить / Отменить» на фронте).
+  PAYMENT_PROVIDER: z.enum(['none', 'mock'], { error: 'PAYMENT_PROVIDER: none или mock' }).default('none'),
 })
 
 export interface Config {
@@ -40,6 +43,7 @@ export interface Config {
   smtpUrl: string
   mailFrom: string
   passwordResetTtlMinutes: number
+  paymentProvider: 'none' | 'mock'
 }
 
 function parseTrustProxy(value: string): boolean | number {
@@ -73,5 +77,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     smtpUrl: e.SMTP_URL.trim(),
     mailFrom: e.MAIL_FROM,
     passwordResetTtlMinutes: e.PASSWORD_RESET_TTL_MINUTES,
+    paymentProvider: e.PAYMENT_PROVIDER,
   }
 }

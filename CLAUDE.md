@@ -313,8 +313,21 @@ npx vite build
   `docs/launch-checklist.md`: перенести базу на российский хостинг (152-ФЗ, локализация),
   купить домен и настроить почту (SMTP_URL, MAIL_FROM, APP_URL), подать уведомление в РКН,
   заполнить реквизиты в `legal.ts`.
-- **Покупка Pro — план в `docs/pro-payments.md`** (не сделано): самозанятость + ЮKassa или
-  Robokassa, разовые платежи без автосписаний, вебхук продлевает `plan_expires_at`.
+- **Покупка Pro** (план и выбор сервиса — `docs/pro-payments.md`): сделана с **тестовым**
+  платёжным сервисом, Pro пока ничего не открывает (фичи — потом, `features.ts`). Сервер —
+  `modules/billing`: тарифы `PRO_PLANS` (месяц 149 ₽ / 30 дн., год 990 ₽ / 365 дн., цены только
+  на сервере), таблица `payments` (миграция 006), интерфейс `PaymentProvider`
+  (`provider.ts`; есть только `mock`), `completePayment` — проведение ровно один раз (FOR
+  UPDATE, повтор не меняет), продление `greatest(now, срок) + дни`, бессрочный Pro не
+  трогаем. `PAYMENT_PROVIDER`: `none` по умолчанию (прод — 503 `PAYMENTS_UNAVAILABLE`),
+  `mock` — локально (`prepare-server.mjs` дописывает в `server/.env`); маршрут тестовой
+  оплаты `POST /api/billing/mock/payments/:id/complete` есть только при `mock`. Фронт —
+  `entities/billing` (API, `formatRubles`, `formatPlanUntil`, выгода года), экраны
+  `/pro` (`ProView`: статус, тарифы, оплата внизу; гостя — на вход с `?redirect=/pro`),
+  `/pro/mock-checkout?payment=` (`MockCheckoutView`, «Оплатить / Отменить оплату») и
+  `/pro/return?payment=` (`ProReturnView`: опрос платежа, пока `pending`, потом
+  `refreshUser`). Вход — пункт «RunVision Pro» в меню аккаунта (подзаголовок — срок).
+  Настоящий сервис = ещё один `PaymentProvider` + вебхук.
 - Тарифы: `users.plan` (`free`/`pro`) + `plan_expires_at`; в API отдаётся действующий тариф.
   Уровни доступа `guest` < `free` < `pro`: на бэке `app.authenticate` + `requirePlan('pro')`
   (403 `PLAN_REQUIRED`), на фронте `useAccess()` и реестр фич `shared/config/features.ts`
@@ -563,7 +576,7 @@ Render и Pages). Сливаем по просьбе пользователя.
 (до появления `develop`). В `develop`, затем `develop` → `main`: `bugfix/tile-row-divider`,
 `feature/video-templates`, `docs/next-session-plans`. В `develop` (ещё не в `main`): `feature/vertical-widgets`, `feature/video-dot-styles`,
 `feature/login-auth` (вход по логину — **отменён** следующей веткой, миграция 004 удалена),
-`feature/password-reset`.
+`feature/password-reset`, `bugfix/auth-notes-mail-log`, `feature/pro-purchase`.
 
 ## Идеи на потом (обсуждали, не сделано)
 

@@ -8,6 +8,7 @@ export type ApiErrorCode =
   | 'PLAN_REQUIRED'
   | 'EMAIL_TAKEN'
   | 'RESET_TOKEN_INVALID'
+  | 'PAYMENTS_UNAVAILABLE'
   | 'LIMIT_REACHED'
   | 'RATE_LIMITED'
   | 'NOT_FOUND'
@@ -20,6 +21,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   PLAN_REQUIRED: 403,
   EMAIL_TAKEN: 409,
   RESET_TOKEN_INVALID: 400,
+  PAYMENTS_UNAVAILABLE: 503,
   LIMIT_REACHED: 409,
   RATE_LIMITED: 429,
   NOT_FOUND: 404,
@@ -73,6 +75,7 @@ export const errors = {
     ),
   limitReached: (message = 'Достигнут лимит сохранённых шаблонов') =>
     new ApiError('LIMIT_REACHED', message),
+  paymentsUnavailable: () => new ApiError('PAYMENTS_UNAVAILABLE', 'Оплата пока недоступна'),
   rateLimited: () => new ApiError('RATE_LIMITED', 'Слишком много попыток, попробуйте через минуту'),
   notFound: () => new ApiError('NOT_FOUND', 'Не найдено'),
   internal: () => new ApiError('INTERNAL', 'Внутренняя ошибка сервера, попробуйте позже'),

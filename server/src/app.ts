@@ -8,6 +8,9 @@ import { createMailer, type Mailer } from './lib/mailer.js'
 import { registerAuthenticate } from './modules/auth/authenticate.js'
 import { authRoutes } from './modules/auth/routes.js'
 import { AuthService } from './modules/auth/service.js'
+import { billingRoutes } from './modules/billing/routes.js'
+import { createMockProvider } from './modules/billing/provider.js'
+import { BillingService } from './modules/billing/service.js'
 import { templateRoutes } from './modules/templates/routes.js'
 import { TemplatesService } from './modules/templates/service.js'
 
@@ -92,6 +95,8 @@ export async function buildApp({ config, db, logger = true, mailer }: BuildAppOp
     rateLimitPerMinute: config.authRateLimitPerMinute,
   })
   await app.register(templateRoutes, { service: new TemplatesService(db) })
+  const paymentProvider = config.paymentProvider === 'mock' ? createMockProvider(config.appUrl) : null
+  await app.register(billingRoutes, { service: new BillingService(db, paymentProvider, config.appUrl) })
 
   return app
 }

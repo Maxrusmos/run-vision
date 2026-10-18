@@ -13,6 +13,9 @@ export const ROUTE_NAMES = {
   resetPassword: 'reset-password',
   privacy: 'privacy',
   consent: 'consent',
+  pro: 'pro',
+  proMockCheckout: 'pro-mock-checkout',
+  proReturn: 'pro-return',
 } as const;
 
 /** Редактор для шаблона «Моих шаблонов»: фото-шаблон — в фото-редакторе, видео — в видео. */

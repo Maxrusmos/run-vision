@@ -102,6 +102,11 @@ src/
     tokens.ts        токены сессий и ссылок сброса
     mails.ts         тексты писем (смена пароля)
     authenticate.ts  хук app.authenticate и requirePlan('pro') для закрытых эндпоинтов
+  modules/billing/
+    plans.ts         тарифы Pro (цены — только здесь)
+    provider.ts      интерфейс платёжного сервиса; пока только тестовый (PAYMENT_PROVIDER=mock)
+    service.ts       платёж → итог → продление plan_expires_at (ровно один раз)
+    routes.ts        /api/billing/*; тестовая оплата — только при mock
   modules/templates/
     routes.ts        /api/templates/* — «Мои шаблоны», только для вошедших
     service.ts       список/чтение/создание/изменение/удаление; всё — в пределах user_id

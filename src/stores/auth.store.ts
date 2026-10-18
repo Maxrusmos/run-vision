@@ -132,6 +132,21 @@ export const useAuthStore = defineStore('auth', () => {
     clearSession();
   }
 
+  /** Пользователь с сервера изменился (например, тариф после оплаты). */
+  function setUser(value: User) {
+    if (token.value) user.value = value;
+  }
+
+  /** Перечитать пользователя (тариф после оплаты); ошибки — молча, останется прежний. */
+  async function refreshUser() {
+    if (!token.value) return;
+    try {
+      user.value = await authApi.fetchMe();
+    } catch {
+      // Сеть или 401 (его уже обработал общий перехватчик) — не мешаем экрану.
+    }
+  }
+
   /** Выход: локально — всегда, сервер — по возможности. */
   async function logout() {
     const currentToken = token.value;
@@ -158,6 +173,8 @@ export const useAuthStore = defineStore('auth', () => {
     requestPasswordReset,
     resetPassword,
     deleteAccount,
+    setUser,
+    refreshUser,
     logout,
   };
 });

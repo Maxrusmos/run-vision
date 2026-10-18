@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { useAuthStore } from '@/stores/auth.store';
 import { PLAN_LABELS } from '@/entities/user';
+import { formatPlanUntil } from '@/entities/billing';
 import { ROUTE_NAMES } from '@/router/routes';
 import DeleteAccountDialog from '@/views/layouts/components/DeleteAccountDialog.vue';
 
@@ -14,6 +15,9 @@ const initial = computed(() => user.value?.email.charAt(0).toUpperCase() ?? '');
 const isChecking = computed(() => !user.value && authStore.status !== 'offline');
 const isOffline = computed(() => !user.value && authStore.status === 'offline');
 const planLabel = computed(() => (user.value ? PLAN_LABELS[user.value.plan] : ''));
+const proSubtitle = computed(() =>
+  user.value?.plan === 'pro' ? formatPlanUntil(user.value.planExpiresAt) : 'Подключить',
+);
 
 function retry() {
   void authStore.init();
@@ -69,6 +73,13 @@ async function logout() {
       </template>
 
       <v-divider class="my-1" />
+      <v-list-item
+        prepend-icon="mdi-crown-outline"
+        title="RunVision Pro"
+        :subtitle="proSubtitle"
+        :to="{ name: ROUTE_NAMES.pro }"
+        @click="isOpen = false"
+      />
       <v-list-item
         prepend-icon="mdi-star-outline"
         title="Мои шаблоны"

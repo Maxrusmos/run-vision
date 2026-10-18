@@ -74,6 +74,25 @@ const router = createRouter({
       component: () => import('@/views/auth-view/ResetPasswordView.vue'),
     },
     {
+      path: '/pro',
+      name: ROUTE_NAMES.pro,
+      component: () => import('@/views/pro-view/ProView.vue'),
+    },
+    {
+      // Тестовая «страница оплаты» (PAYMENT_PROVIDER=mock).
+      path: '/pro/mock-checkout',
+      name: ROUTE_NAMES.proMockCheckout,
+      component: () => import('@/views/pro-view/MockCheckoutView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      // Сюда платёжный сервис возвращает после оплаты: #/pro/return?payment=…
+      path: '/pro/return',
+      name: ROUTE_NAMES.proReturn,
+      component: () => import('@/views/pro-view/ProReturnView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/privacy',
       name: ROUTE_NAMES.privacy,
       component: () => import('@/views/legal-view/LegalView.vue'),

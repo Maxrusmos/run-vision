@@ -55,6 +55,7 @@ type ApiErrorCode =
   | 'PLAN_REQUIRED' // 403 — нужен тариф выше (пока ни один эндпоинт не отдаёт, задел под подписку)
   | 'EMAIL_TAKEN' // 409 — email уже зарегистрирован
   | 'RESET_TOKEN_INVALID' // 400 — ссылка сброса пароля неверная, использована или истекла
+  | 'PAYMENTS_UNAVAILABLE' // 503 — оплата на сервере не подключена (PAYMENT_PROVIDER=none)
   | 'LIMIT_REACHED' // 409 — достигнут лимит (например, сохранённых шаблонов)
   | 'RATE_LIMITED' // 429 — слишком много попыток
   | 'NOT_FOUND' // 404
@@ -159,6 +160,56 @@ interface SavedTemplate {
 
 ### `DELETE /api/templates/:id`
 → `204` · `401` · `404`
+
+## Покупка Pro
+
+Разовые платежи «месяц / год», без автосписаний (план — `docs/pro-payments.md`). Оплата
+проходит на странице платёжного сервиса; сервер узнаёт результат от сервиса и продлевает
+`plan_expires_at` (`greatest(now, текущий срок) + период`; бессрочный Pro не меняется).
+Сейчас подключён только **тестовый сервис** (`PAYMENT_PROVIDER=mock`): «страница оплаты» —
+экран фронта `#/pro/mock-checkout?payment=<id>` с кнопками «Оплатить» и «Отменить», денег нет.
+На проде без настройки оплата выключена (`none`).
+
+```ts
+type PlanPeriod = 'month' | 'year';
+
+interface ProPlan {
+  id: PlanPeriod;
+  title: string; // «Месяц», «Год»
+  priceKopecks: number; // цена задаётся сервером
+  days: number; // на сколько продлевает Pro
+}
+
+type PaymentStatus = 'pending' | 'succeeded' | 'canceled';
+
+interface Payment {
+  id: string; // uuid
+  period: PlanPeriod;
+  amountKopecks: number;
+  status: PaymentStatus;
+  createdAt: string;
+  paidAt: string | null;
+}
+```
+
+### `GET /api/billing/plans`
+→ `200 { "plans": ProPlan[], "provider": "mock" | "none" }` (без входа).
+
+### `POST /api/billing/checkout` (Bearer)
+Тело: `{ "period": PlanPeriod }` → `201 { "payment": Payment, "confirmationUrl": string }` —
+фронт переходит по `confirmationUrl` (страница оплаты). После оплаты сервис возвращает на
+`<APP_URL>#/pro/return?payment=<id>`. · `400 VALIDATION_ERROR` · `401` ·
+`503 PAYMENTS_UNAVAILABLE`.
+
+### `GET /api/billing/payments/:id` (Bearer)
+Свой платёж (чужой и несуществующий — `404`). Страница возврата опрашивает его, пока
+статус `pending`. → `200 { "payment": Payment }` · `401` · `404`
+
+### `POST /api/billing/mock/payments/:id/complete` (Bearer, только `PAYMENT_PROVIDER=mock`)
+Тело: `{ "result": "succeeded" | "canceled" }` — то, что настоящий сервис сообщил бы
+вебхуком. Повторный вызов ничего не меняет (платёж проводится один раз). →
+`200 { "payment": Payment, "user": User }` · `400` · `401` · `404` (и при другом провайдере —
+маршрута нет).
 
 ## Лимиты
 

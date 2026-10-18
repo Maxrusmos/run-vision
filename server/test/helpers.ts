@@ -24,7 +24,7 @@ export function useTestApp(overrides: Partial<Config> = {}) {
   })
 
   beforeEach(async () => {
-    await ctx.db.query('TRUNCATE users, sessions, templates, password_resets CASCADE')
+    await ctx.db.query('TRUNCATE users, sessions, templates, password_resets, payments CASCADE')
     await ctx.app?.close()
     ctx.mailer = createMemoryMailer()
     ctx.app = await buildApp({ config: testConfig(overrides), db: ctx.db, logger: false, mailer: ctx.mailer })
