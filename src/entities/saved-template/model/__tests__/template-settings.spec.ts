@@ -27,4 +27,20 @@ describe('template-settings', () => {
     expect(isSameTemplateSettings(base, fromServer)).toBe(true);
     expect(isSameTemplateSettings({ ...base, routeColor: '#000000' }, fromServer)).toBe(false);
   });
+
+  it('фото точки видео в шаблон не попадает, стиль и цвет точки — попадают', () => {
+    const result = toTemplateSettings({
+      ...base,
+      videoDot: { style: 'neon', color: '#ff0000', photo: 'blob:face' },
+    });
+    expect(result.videoDot).toEqual({ style: 'neon', color: '#ff0000', photo: null });
+  });
+
+  it('старый шаблон без точки видео совпадает с карточкой с точкой по умолчанию', () => {
+    const withDot = {
+      ...base,
+      videoDot: { style: 'classic', color: null, photo: null },
+    } as ShareCardSettings;
+    expect(isSameTemplateSettings(withDot, base)).toBe(true);
+  });
 });

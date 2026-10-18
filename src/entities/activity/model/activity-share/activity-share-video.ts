@@ -8,6 +8,7 @@ import {
 } from './activity-share-elevation';
 import { resampleSeries } from './activity-share-telemetry';
 import type { RouteFlagPoint } from './route-flags';
+import { VIDEO_DOT } from './video-dot';
 
 /** Длительность видео на выбор, секунды. */
 export const VIDEO_DURATIONS = [5, 10, 15, 20] as const;
@@ -176,39 +177,10 @@ export function getActivityAtProgress(
   };
 }
 
-/**
- * Точка, бегущая по треку, в единицах слоя трека: ореол, кольцо цвета текста и
- * сердцевина цвета трека. Одни размеры у SVG на карточке и у кадров видео (холст).
- */
-export const VIDEO_DOT = { radius: 17, ring: 6, halo: 40, haloOpacity: 0.3 } as const;
+export { VIDEO_DOT } from './video-dot';
 
+/** Цвета точки: свой цвет точки и кольцо (цвет текста карточки). */
 export type VideoDotColors = { route: string; ring: string };
-
-/** Рисует точку на холсте: `unit` — сколько пикселей холста в единице слоя трека. */
-export function drawVideoDot(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  unit: number,
-  colors: VideoDotColors,
-) {
-  context.save();
-  context.globalAlpha = VIDEO_DOT.haloOpacity;
-  context.fillStyle = colors.route;
-  context.beginPath();
-  context.arc(x, y, VIDEO_DOT.halo * unit, 0, Math.PI * 2);
-  context.fill();
-  context.globalAlpha = 1;
-  context.fillStyle = colors.ring;
-  context.beginPath();
-  context.arc(x, y, (VIDEO_DOT.radius + VIDEO_DOT.ring) * unit, 0, Math.PI * 2);
-  context.fill();
-  context.fillStyle = colors.route;
-  context.beginPath();
-  context.arc(x, y, VIDEO_DOT.radius * unit, 0, Math.PI * 2);
-  context.fill();
-  context.restore();
-}
 
 /**
  * Маркер на графике (высота, темп, пульс): черта поперёк графика и точка на линии,

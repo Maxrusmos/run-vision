@@ -3,7 +3,6 @@ import { toCanvas } from 'html-to-image';
 import {
   VIDEO_FPS,
   drawChartMarker,
-  drawVideoDot,
   getRouteProgressAt,
   getStatProgress,
   getTimeSinceReach,
@@ -11,6 +10,12 @@ import {
   type VideoDotColors,
   type VideoMarks,
 } from '@/entities/activity/model/activity-share/activity-share-video';
+import {
+  drawVideoDotLayers,
+  type VideoDotLayer,
+  type VideoDotPaints,
+  type VideoDotPhoto,
+} from '@/entities/activity/model/activity-share/video-dot';
 import {
   drawFinishFlag,
   drawKmFlag,
@@ -50,6 +55,11 @@ type RenderVideoOptions = {
   getMarks: (progress: number) => VideoMarks;
   /** Цвета точки; кольцо (цвет текста) — и у маркеров графиков, их цвет — свой. */
   dotColors: VideoDotColors;
+  /**
+   * Точка на треке: слои по стилю (или «пузырёк» с фото), краски и уже загруженное
+   * фото — холст рисует его из `<img>` (`drawImage`), как фото фона.
+   */
+  dot: { layers: readonly VideoDotLayer[]; paints: VideoDotPaints; photo: VideoDotPhoto };
   /** Цвета флажков (текст и фон карточки). */
   flagColors: FlagColors;
   backgroundColor: string;
@@ -123,6 +133,7 @@ export function useShareVideoExport() {
     showStatsAt,
     getMarks,
     dotColors,
+    dot: dotStyle,
     flagColors,
     backgroundColor,
   }: RenderVideoOptions): Promise<VideoResult | null> {
@@ -196,12 +207,14 @@ export function useShareVideoExport() {
       }
       drawFlags(flags, time);
       if (dot) {
-        drawVideoDot(
+        drawVideoDotLayers(
           context,
+          dotStyle.layers,
           dot.x * pixelRatio,
           dot.y * pixelRatio,
           dot.unit * pixelRatio,
-          dotColors,
+          dotStyle.paints,
+          dotStyle.photo,
         );
       }
     };

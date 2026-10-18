@@ -82,6 +82,7 @@ export const useShareDraftsStore = defineStore('share-drafts', () => {
   function clear() {
     for (const draft of Object.values(drafts.value)) {
       if (draft?.backgroundImage) URL.revokeObjectURL(draft.backgroundImage);
+      if (draft?.videoDot?.photo) URL.revokeObjectURL(draft.videoDot.photo);
     }
     drafts.value = {};
     links.value = {};

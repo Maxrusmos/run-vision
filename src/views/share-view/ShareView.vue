@@ -35,7 +35,7 @@ function goToEditor() {
         title="Выбери стиль"
         description="Выбери один из готовых дизайнов — всё можно донастроить в редакторе"
       />
-      <PhotoTemplateCarousel v-model="photoTemplateId" :activity="activity" />
+      <PhotoTemplateCarousel v-model="photoTemplateId" :activity="activity" share-type="photo" />
     </template>
 
     <template v-else>
@@ -48,6 +48,7 @@ function goToEditor() {
       <PhotoTemplateCarousel
         v-model="videoTemplateId"
         :activity="activity"
+        share-type="video"
         :available-ids="VIDEO_TEMPLATE_IDS"
       />
     </template>

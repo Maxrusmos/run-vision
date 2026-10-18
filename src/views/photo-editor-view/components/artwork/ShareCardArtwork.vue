@@ -443,6 +443,7 @@ function removeRoute() {
         :background-color="settings.backgroundColor"
         :fit-padding="fullFitPadding"
         :progress="routeVisibleProgress"
+        :video-dot="settings.videoDot"
         :flag-pop="flagPop"
       />
       <div class="share-artwork__map-scrim" aria-hidden="true" />
@@ -506,6 +507,7 @@ function removeRoute() {
           :background-color="settings.backgroundColor"
           :fit-padding="BLOCK_MAP_FIT_PADDING"
           :progress="routeVisibleProgress"
+          :video-dot="settings.videoDot"
           :flag-pop="flagPop"
         />
         <div v-else ref="mapArea" class="share-artwork__map-area" />
@@ -578,6 +580,7 @@ function removeRoute() {
         :selected="selected === 'route'"
         :slot-element="routeSlot"
         :progress="liveProgress"
+        :video-dot="settings.videoDot"
         :flag-pop="flagPop"
         @select="selected = 'route'"
         @set-scale="emit('setRouteScale', $event)"

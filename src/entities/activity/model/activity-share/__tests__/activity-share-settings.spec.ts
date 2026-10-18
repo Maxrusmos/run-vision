@@ -1,10 +1,15 @@
+import { DEFAULT_VIDEO_DOT } from '../video-dot';
 import { describe, expect, it } from 'vitest';
 import type { ShareCardSettings } from '../activity-share.types';
 import { normalizeShareCardSettings } from '../activity-share-settings';
 import { createShareTelemetrySettings } from '../activity-share-widgets';
 
 function withTelemetry(telemetry: Record<string, unknown> | null) {
-  return { title: null, telemetry } as unknown as ShareCardSettings;
+  return {
+    title: null,
+    telemetry,
+    videoDot: { ...DEFAULT_VIDEO_DOT },
+  } as unknown as ShareCardSettings;
 }
 
 describe('normalizeShareCardSettings', () => {
@@ -38,5 +43,10 @@ describe('normalizeShareCardSettings', () => {
     expect(normalizeShareCardSettings(withTelemetry(telemetry)).telemetry).toEqual(telemetry);
     const plain = withTelemetry(null);
     expect(normalizeShareCardSettings(plain)).toBe(plain);
+  });
+
+  it('у старых черновиков без точки видео — точка по умолчанию', () => {
+    const old = { title: null, telemetry: null } as unknown as ShareCardSettings;
+    expect(normalizeShareCardSettings(old).videoDot).toEqual(DEFAULT_VIDEO_DOT);
   });
 });

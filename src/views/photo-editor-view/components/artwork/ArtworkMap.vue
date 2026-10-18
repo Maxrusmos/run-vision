@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ShareVideoDotSettings } from '@/entities/activity/model/activity-share/activity-share.types';
 import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import { maplibregl } from '@/shared/lib/map/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -59,6 +60,8 @@ const props = defineProps<{
   /** Поля, в которые трек не заходит, в долях ширины/высоты карты (место под название и показатели). */
   fitPadding: MapFitPadding;
   /** Видео: точка на треке прошла эту долю дистанции; null — точки нет (фото). */
+  /** Видео: стиль, цвет и фото точки. */
+  videoDot?: ShareVideoDotSettings;
   progress?: number | null;
   /**
    * Видео: масштаб флажка по его доле дистанции (0 — точка не дошла, потом «выпрыгивает»);
@@ -350,8 +353,10 @@ defineExpose({
         v-if="dotPoint"
         :x="dotPoint.x"
         :y="dotPoint.y"
-        :route-color="routeColor"
+        :route-color="videoDot?.color ?? routeColor"
         :ring-color="textColor"
+        :background-color="backgroundColor"
+        :dot="videoDot"
         :unit="unit"
       />
     </svg>

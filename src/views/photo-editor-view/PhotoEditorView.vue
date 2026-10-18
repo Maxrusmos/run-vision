@@ -57,6 +57,11 @@ import MapPanel from '@/views/photo-editor-view/components/panels/MapPanel.vue';
 import BackgroundPanel from '@/views/photo-editor-view/components/panels/BackgroundPanel.vue';
 import PresetsPanel from '@/views/photo-editor-view/components/panels/PresetsPanel.vue';
 import TrackPanel from '@/views/photo-editor-view/components/panels/TrackPanel.vue';
+import {
+  getVideoDotColor,
+  getVideoDotLayers,
+} from '@/entities/activity/model/activity-share/video-dot';
+import { loadImage } from '@/shared/lib/image/load-image';
 import StatsAppearancePanel from '@/views/photo-editor-view/components/panels/StatsAppearancePanel.vue';
 
 /** Время на анимацию снятия выделения с показателя перед рендером. */
@@ -125,6 +130,10 @@ const {
   setRouteBearing,
   setRoutePitch,
   setRouteFlags,
+  setVideoDotStyle,
+  setVideoDotColor,
+  setVideoDotPhoto,
+  removeVideoDotPhoto,
   setRouteStyle,
   setRoutePosition,
   setTitle,
@@ -267,10 +276,11 @@ watch(disabledTools, (tools) => {
 });
 
 /**
- * Панель «Добавить» на две строки (~56px каждая) ниже остальных — карточке остаётся
- * больше места; список внутри прокручивается.
+ * Панель «Добавить» на три строки (~56px каждая) ниже остальных — карточке остаётся
+ * больше места; список внутри прокручивается. На низком экране (iPhone SE) без нижней
+ * границы оставалась одна кнопка «Добавить все» — под ней виден хотя бы кусок списка.
  */
-const ADD_PANEL_MAX_HEIGHT = 'calc(42dvh - 112px)';
+const ADD_PANEL_MAX_HEIGHT = 'max(144px, calc(42dvh - 168px))';
 
 // Тап по пустому месту вокруг карточки снимает выделение.
 function handleCanvasClick(event: MouseEvent) {
@@ -412,6 +422,9 @@ async function createVideo() {
 
     const element = artwork.value?.getElement();
     if (!element) return;
+    // Фото точки холст рисует из уже декодированного <img> (как фото фона).
+    const photoUrl = settings.value.videoDot.photo;
+    const dotPhoto = photoUrl ? await loadImage(photoUrl) : null;
 
     isResultOpen.value = await renderVideo({
       element,
@@ -435,6 +448,15 @@ async function createVideo() {
         return settings.value.routeVisible ? marks : { ...marks, dot: null };
       },
       dotColors: { route: settings.value.routeColor, ring: settings.value.textColor },
+      dot: {
+        layers: getVideoDotLayers(settings.value.videoDot),
+        paints: {
+          dot: getVideoDotColor(settings.value.videoDot, settings.value.routeColor),
+          ring: settings.value.textColor,
+          background: settings.value.backgroundColor,
+        },
+        photo: dotPhoto,
+      },
       flagColors: { text: settings.value.textColor, background: settings.value.backgroundColor },
       backgroundColor: settings.value.backgroundColor,
     });
@@ -652,11 +674,16 @@ function goBack() {
             v-else-if="displayedTool === 'track'"
             :settings="settings"
             :track="activity.track"
+            :video="isVideoMode"
             @set-route-color="setColor('routeColor', $event)"
             @set-route-style="setRouteStyle"
             @set-route-bearing="setRouteBearing"
             @set-route-pitch="setRoutePitch"
             @set-route-flags="setRouteFlags"
+            @set-video-dot-style="setVideoDotStyle"
+            @set-video-dot-color="setVideoDotColor"
+            @set-video-dot-photo="setVideoDotPhoto"
+            @remove-video-dot-photo="removeVideoDotPhoto"
           />
           <StatsAppearancePanel
             v-else-if="displayedTool === 'stats'"

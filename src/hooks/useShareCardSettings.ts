@@ -19,7 +19,9 @@ import type {
   ShareStatPosition,
   ShareStatStyle,
   ShareStatWidth,
+  ShareVideoDotStyle,
 } from '@/entities/activity/model/activity-share/activity-share.types';
+import { DEFAULT_VIDEO_DOT } from '@/entities/activity/model/activity-share/video-dot';
 import {
   DEFAULT_SHARE_PRESET_ID,
   findSharePreset,
@@ -115,6 +117,7 @@ function createSettings(
         }
       : null,
     telemetry: withTelemetry ? createShareTelemetrySettings(options.hasHeartRate ?? false) : null,
+    videoDot: { ...DEFAULT_VIDEO_DOT },
   };
 }
 
@@ -149,20 +152,23 @@ export function useShareCardSettings(
     );
   }
 
-  // Object URL всех загруженных фото: отмена может вернуть любое из них.
-  const backgroundImageUrls = new Set<string>();
-  if (settings.value.backgroundImage) backgroundImageUrls.add(settings.value.backgroundImage);
+  // Object URL всех загруженных фото (фон и точка видео): отмена может вернуть любое из них.
+  const imageUrls = new Set<string>();
+  if (settings.value.backgroundImage) imageUrls.add(settings.value.backgroundImage);
+  if (settings.value.videoDot.photo) imageUrls.add(settings.value.videoDot.photo);
 
   function removeBackgroundImage() {
     settings.value.backgroundImage = null;
   }
 
-  // Текущее фото не освобождаем — его забирает черновик карточки.
+  // Текущие фото не освобождаем — их забирает черновик карточки.
   onScopeDispose(() => {
-    backgroundImageUrls.forEach((url) => {
-      if (url !== settings.value.backgroundImage) URL.revokeObjectURL(url);
+    imageUrls.forEach((url) => {
+      if (url !== settings.value.backgroundImage && url !== settings.value.videoDot.photo) {
+        URL.revokeObjectURL(url);
+      }
     });
-    backgroundImageUrls.clear();
+    imageUrls.clear();
   });
 
   function applyPreset(preset: ShareColorPreset) {
@@ -276,7 +282,7 @@ export function useShareCardSettings(
     if (!file.type.startsWith('image/')) return;
 
     const url = URL.createObjectURL(file);
-    backgroundImageUrls.add(url);
+    imageUrls.add(url);
     settings.value.backgroundImage = url;
     settings.value.transparentBackground = false;
   }
@@ -446,6 +452,28 @@ export function useShareCardSettings(
     }
   }
 
+  function setVideoDotStyle(style: ShareVideoDotStyle) {
+    settings.value.videoDot = { ...settings.value.videoDot, style };
+  }
+
+  /** null — цвет трека. */
+  function setVideoDotColor(color: string | null) {
+    if (color !== null && !HEX_COLOR_PATTERN.test(color)) return;
+    settings.value.videoDot = { ...settings.value.videoDot, color };
+  }
+
+  /** Фото «пузырьком» вместо точки. */
+  function setVideoDotPhoto(file: File) {
+    if (!file.type.startsWith('image/')) return;
+    const url = URL.createObjectURL(file);
+    imageUrls.add(url);
+    settings.value.videoDot = { ...settings.value.videoDot, photo: url };
+  }
+
+  function removeVideoDotPhoto() {
+    settings.value.videoDot = { ...settings.value.videoDot, photo: null };
+  }
+
   function setTelemetrySize(size: ShareTelemetrySettings['size']) {
     updateTelemetry({ size });
   }
@@ -526,6 +554,10 @@ export function useShareCardSettings(
     setTransparentBackground,
     setBackgroundImage,
     removeBackgroundImage,
+    setVideoDotStyle,
+    setVideoDotColor,
+    setVideoDotPhoto,
+    removeVideoDotPhoto,
     undo: history.undo,
     redo: history.redo,
     canUndo: history.canUndo,

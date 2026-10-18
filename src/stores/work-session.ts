@@ -95,11 +95,13 @@ export async function persistWorkSession(): Promise<void> {
 
   const drafts = draftsStore.drafts;
   const images: Record<string, Blob> = {};
+  // Фото фона и фото точки видео — файлами: object URL после перезагрузки недействительны.
   for (const draft of Object.values(drafts)) {
-    const url = draft?.backgroundImage;
-    if (!url || images[url]) continue;
-    const blob = await readImage(url);
-    if (blob) images[url] = blob;
+    for (const url of [draft?.backgroundImage, draft?.videoDot?.photo]) {
+      if (!url || images[url]) continue;
+      const blob = await readImage(url);
+      if (blob) images[url] = blob;
+    }
   }
 
   const record: WorkSessionRecord = {
@@ -147,7 +149,12 @@ async function runRestore(): Promise<boolean> {
   for (const [id, draft] of Object.entries(record.drafts ?? {})) {
     if (!draft) continue;
     const image = draft.backgroundImage ? (urls.get(draft.backgroundImage) ?? null) : null;
-    drafts[id as PhotoTemplateId] = { ...draft, backgroundImage: image };
+    const dotPhoto = draft.videoDot?.photo ? (urls.get(draft.videoDot.photo) ?? null) : null;
+    drafts[id as PhotoTemplateId] = {
+      ...draft,
+      backgroundImage: image,
+      ...(draft.videoDot ? { videoDot: { ...draft.videoDot, photo: dotPhoto } } : {}),
+    };
   }
   useShareDraftsStore(pinia).setDrafts(drafts, record.links ?? {});
   return true;

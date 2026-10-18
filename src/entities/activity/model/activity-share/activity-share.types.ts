@@ -183,6 +183,18 @@ export type ShareColorPreset = {
   text: string;
 };
 
+/** Видео: стиль точки на треке (`VIDEO_DOT_STYLES` в `video-dot.ts`). */
+export type ShareVideoDotStyle = 'classic' | 'solid' | 'ring' | 'neon' | 'target';
+
+/** Видео: точка, бегущая по треку. */
+export type ShareVideoDotSettings = {
+  style: ShareVideoDotStyle;
+  /** null — цвет трека. */
+  color: string | null;
+  /** Фото «пузырьком» вместо точки (object URL, как фото фона); null — точка по стилю. */
+  photo: string | null;
+};
+
 export type ShareCardSettings = {
   /** Название на карточке; null — название тренировки из GPX. */
   title: string | null;
@@ -226,6 +238,8 @@ export type ShareCardSettings = {
   elevation: ShareElevationSettings | null;
   /** Виджеты (только у «Телеметрии»). */
   telemetry: ShareTelemetrySettings | null;
+  /** Видео: точка на треке (у фото не видна, но черновик общий). */
+  videoDot: ShareVideoDotSettings;
 };
 
 export type ShareStatOption = {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ShareVideoDotSettings } from '@/entities/activity/model/activity-share/activity-share.types';
 import { computed, ref, useTemplateRef } from 'vue';
 import type { CSSProperties } from 'vue';
 import type { ITrackPoint } from '@/entities/activity/model/activity.types';
@@ -74,6 +75,8 @@ const props = defineProps<{
   /** Место под трек в раскладке карточки — задаёт размер M и исходное положение. */
   slotElement: HTMLElement | null;
   /** Видео: точка прошла эту долю дистанции; null — точки нет (фото). */
+  /** Видео: стиль, цвет и фото точки. */
+  videoDot?: ShareVideoDotSettings;
   progress?: number | null;
   /**
    * Видео: масштаб флажка по его доле дистанции (0 — точка не дошла, потом «выпрыгивает»);
@@ -436,8 +439,10 @@ function handleWheel(event: WheelEvent) {
         v-if="dotPoint"
         :x="dotPoint.x"
         :y="dotPoint.y"
-        :route-color="color"
+        :route-color="videoDot?.color ?? color"
         :ring-color="textColor"
+        :background-color="backgroundColor"
+        :dot="videoDot"
         :unit="1"
       />
     </svg>

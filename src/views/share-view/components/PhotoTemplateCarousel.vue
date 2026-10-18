@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { IActivity } from '@/entities/activity/model/activity.types';
-import type { PhotoTemplateId } from '@/entities/activity/model/activity-share/activity-share.types';
+import type {
+  PhotoTemplateId,
+  ShareType,
+} from '@/entities/activity/model/activity-share/activity-share.types';
 import { PHOTO_TEMPLATES } from '@/entities/activity/model/activity-share/photo-templates';
 import { useTemplatePreview } from '@/hooks/useTemplatePreview';
 import PhotoTemplateCard from '@/views/share-view/components/PhotoTemplateCard.vue';
@@ -9,6 +12,8 @@ import { useShareDraftsStore } from '@/stores/share-drafts.store';
 
 const props = defineProps<{
   activity: IActivity;
+  /** Фото или видео — значок на превью каждого стиля. */
+  shareType: ShareType;
   /** Какие стили можно выбрать (видео); остальные — «скоро». Без списка — все. */
   availableIds?: readonly PhotoTemplateId[];
 }>();
@@ -57,6 +62,7 @@ const {
         :selected="selected === template.id"
         :edited="Boolean(draftsStore.drafts[template.id])"
         :soon="!isAvailable(template.id)"
+        :share-type="shareType"
         @select="isAvailable(template.id) && (selected = template.id)"
       >
         <template #preview>

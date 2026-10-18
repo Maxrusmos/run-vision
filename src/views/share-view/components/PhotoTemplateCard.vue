@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ShareType } from '@/entities/activity/model/activity-share/activity-share.types';
+
 defineProps<{
   title: string;
   description: string;
@@ -7,6 +9,8 @@ defineProps<{
   edited?: boolean;
   /** Стиля пока нет (видео) — не выбрать. */
   soon?: boolean;
+  /** Значок слева сверху — фото или видео (как на плитках «Моих шаблонов»). */
+  shareType: ShareType;
 }>();
 
 const emit = defineEmits<{
@@ -25,6 +29,17 @@ const emit = defineEmits<{
   >
     <div class="template-card__preview">
       <slot name="preview" />
+
+      <span
+        class="template-card__type"
+        :title="shareType === 'video' ? 'Стиль видео' : 'Стиль фото'"
+        aria-hidden="true"
+      >
+        <v-icon
+          :icon="shareType === 'video' ? 'mdi-movie-open-outline' : 'mdi-image-outline'"
+          size="18"
+        />
+      </span>
 
       <v-icon
         v-if="selected"
@@ -79,6 +94,22 @@ const emit = defineEmits<{
 .template-card--selected .template-card__preview {
   outline: 2px solid var(--app-primary);
   outline-offset: -2px;
+}
+
+/* Тип — слева сверху, как на плитках «Моих шаблонов»: кружок с подложкой. */
+.template-card__type {
+  position: absolute;
+  z-index: 3;
+  top: 6px;
+  left: 6px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: #fff;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 45%);
+  pointer-events: none;
 }
 
 .template-card__check {
