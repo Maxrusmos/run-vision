@@ -202,11 +202,9 @@ export type ShareColorPreset = {
 /** Видео: стиль точки на треке (`VIDEO_DOT_STYLES` в `video-dot.ts`). */
 export type ShareVideoDotStyle = 'classic' | 'solid' | 'ring' | 'neon' | 'target';
 
-/** Видео: точка, бегущая по треку. */
+/** Видео: точка, бегущая по треку (цвет — всегда цвет трека). */
 export type ShareVideoDotSettings = {
   style: ShareVideoDotStyle;
-  /** null — цвет трека. */
-  color: string | null;
   /** Фото «пузырьком» вместо точки (object URL, как фото фона); null — точка по стилю. */
   photo: string | null;
 };

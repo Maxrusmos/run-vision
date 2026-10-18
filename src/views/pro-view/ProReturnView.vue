@@ -24,8 +24,16 @@ const payment = ref<Payment | null>(null);
 const error = ref('');
 const isTimedOut = ref(false);
 let timer: number | undefined;
-/** Куда вернуться после оплаты (из редактора — к карточке), иначе — создать карточку. */
+/**
+ * Куда вернуться после оплаты: на страницу, откуда открыли Pro (редактор, выбор стиля,
+ * «Мои шаблоны»…). Пути нет — к выбору стиля: там восстановится начатая работа, а без
+ * GPX роутер сам уведёт на загрузку.
+ */
 const returnTo = ref<string | null>(null);
+const continueTo = computed(() => returnTo.value ?? { name: ROUTE_NAMES.share });
+const continueLabel = computed(() =>
+  returnTo.value?.startsWith('/share/') ? 'Вернуться к карточке' : 'Продолжить',
+);
 const startedAt = Date.now();
 
 const until = computed(() =>
@@ -67,15 +75,8 @@ onBeforeUnmount(() => window.clearTimeout(timer));
         <v-icon icon="mdi-check-circle" size="56" color="success" class="pro-return__icon" />
         <h1 class="pro-return__title">Pro подключён</h1>
         <p class="pro-return__text">Спасибо! Pro действует {{ until || 'с этого момента' }}.</p>
-        <v-btn
-          color="primary"
-          variant="flat"
-          size="large"
-          block
-          :to="returnTo ?? { name: ROUTE_NAMES.import }"
-          replace
-        >
-          {{ returnTo ? 'Вернуться к карточке' : 'Создать карточку' }}
+        <v-btn color="primary" variant="flat" size="large" block :to="continueTo" replace>
+          {{ continueLabel }}
         </v-btn>
       </template>
 

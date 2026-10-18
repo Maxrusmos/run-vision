@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { PLAN_LABELS } from '@/entities/user';
 import { formatPlanUntil } from '@/entities/billing';
@@ -7,6 +8,7 @@ import { ROUTE_NAMES } from '@/router/routes';
 import DeleteAccountDialog from '@/views/layouts/components/DeleteAccountDialog.vue';
 
 const authStore = useAuthStore();
+const route = useRoute();
 const isOpen = ref(false);
 const isDeleteOpen = ref(false);
 
@@ -17,6 +19,16 @@ const isOffline = computed(() => !user.value && authStore.status === 'offline');
 const planLabel = computed(() => (user.value ? PLAN_LABELS[user.value.plan] : ''));
 const proSubtitle = computed(() =>
   user.value?.plan === 'pro' ? formatPlanUntil(user.value.planExpiresAt) : 'Подключить',
+);
+
+/**
+ * «RunVision Pro» — с путём текущей страницы: после оплаты вернём туда же (к выбору стиля,
+ * к шаблонам и т.п.), а не на загрузку GPX.
+ */
+const proLink = computed(() =>
+  route.path.startsWith('/pro')
+    ? { name: ROUTE_NAMES.pro }
+    : { name: ROUTE_NAMES.pro, query: { redirect: route.fullPath } },
 );
 
 function retry() {
@@ -89,7 +101,7 @@ async function logout() {
         prepend-icon="mdi-crown-outline"
         title="RunVision Pro"
         :subtitle="proSubtitle"
-        :to="{ name: ROUTE_NAMES.pro }"
+        :to="proLink"
         @click="isOpen = false"
       />
       <v-list-item
@@ -133,7 +145,7 @@ async function logout() {
 .user-menu__crown {
   position: absolute;
   top: -7px;
-  right: -5px;
+  right: -1px;
   color: #ffd24a;
   transform: rotate(28deg);
   /* Тёмная обводка — корону видно и на светлом, и на синем аватаре. */

@@ -7,10 +7,7 @@ import type {
   ShareRouteStyle,
   ShareVideoDotStyle,
 } from '@/entities/activity/model/activity-share/activity-share.types';
-import {
-  VIDEO_DOT_STYLES,
-  getVideoDotColor,
-} from '@/entities/activity/model/activity-share/video-dot';
+import { VIDEO_DOT_STYLES } from '@/entities/activity/model/activity-share/video-dot';
 import {
   PRO_ROUTE_STYLES,
   SHARE_ROUTE_STYLES,
@@ -46,7 +43,7 @@ const DOT_PREVIEW_PATH = 'M-40 14 C-24 12 -14 -2 0 0 S 22 -14 40 -10';
 const props = defineProps<{
   settings: ShareCardSettings;
   track: ITrackPoint[];
-  /** Видео: сверху выбор, что настраиваем, — трек или бегущую по нему точку. */
+  /** Видео: в ряду с наклоном и флажками — выбор, чьи плитки внизу: трека или точки. */
   video?: boolean;
 }>();
 
@@ -57,8 +54,6 @@ const emit = defineEmits<{
   setRoutePitch: [pitch: ShareRoutePitch];
   setRouteFlags: [value: boolean];
   setVideoDotStyle: [style: ShareVideoDotStyle];
-  /** null — цвет трека. */
-  setVideoDotColor: [color: string | null];
   setVideoDotPhoto: [file: File];
   removeVideoDotPhoto: [];
 }>();
@@ -66,7 +61,7 @@ const emit = defineEmits<{
 /** Все стили трека: сначала обычные, за ними Pro (с короной на плитке). */
 const routeStyles = [...SHARE_ROUTE_STYLES, ...PRO_ROUTE_STYLES];
 
-/** Что настраиваем (только видео; переключатель — на всю ширину); по умолчанию — трек. */
+/** Чьи плитки внизу (только видео); по умолчанию — трек. Наклон, флажки и поворот — всегда. */
 const target = ref<'route' | 'dot'>('route');
 const targetOptions = [
   { value: 'route' as const, label: 'Трек', title: 'Настройки трека' },
@@ -74,16 +69,6 @@ const targetOptions = [
 ];
 
 const dot = computed(() => props.settings.videoDot);
-const dotColor = computed(() => getVideoDotColor(dot.value, props.settings.routeColor));
-
-// Свой цвет выбирается плиткой «Цвет»; эта кнопка возвращает цвет трека.
-const dotColorSource = computed({
-  get: () => (dot.value.color ? 'own' : 'route'),
-  set: () => emit('setVideoDotColor', null),
-});
-const dotColorSourceOptions = [
-  { value: 'route' as const, label: 'Цвет трека', title: 'Цвет точки как у трека' },
-];
 
 function handleDotPhotoChange(event: Event) {
   const input = event.target as HTMLInputElement;
@@ -137,33 +122,66 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
 
 <template>
   <div class="track-panel">
-    <div v-if="video" class="track-panel__controls">
+    <!-- Наклон, флажки и поворот — для всех шаблонов (с картой — заодно и карты), в видео —
+         и при настройке точки. На карточке поворот — двумя пальцами. -->
+    <div class="track-panel__controls">
       <SegmentedGroup
+        v-if="video"
         v-model="target"
         :options="targetOptions"
         group-label="Что настраиваем"
-        grow
       />
-      <SegmentedGroup
-        v-if="target === 'dot'"
-        v-model="dotColorSource"
-        :options="dotColorSourceOptions"
-        group-label="Цвет точки"
+      <SegmentedGroup v-model="pitch" :options="pitchOptions" group-label="Наклон трека" grow />
+      <ToggleGroup
+        :options="flagOptions"
+        group-label="Флажки на треке"
+        @toggle="emit('setRouteFlags', !settings.routeFlags)"
       />
     </div>
 
-    <!-- Точка видео: цвет, фото «пузырьком» и стили. Под фото стиль не виден — плитки
-         неактивны (как цвет фона под фото в «Фоне»). -->
-    <OptionTileRow v-if="video && target === 'dot'">
-      <template #fixed>
-        <ColorOptionTile
-          label="Цвет"
-          input-label="Цвет точки"
-          :color="dotColor"
-          @change="emit('setVideoDotColor', $event)"
+    <!-- Поворот — такой же ползунок, как перемотка видео; края — по линии рядов выше и ниже. -->
+    <div class="track-panel__rotation">
+      <v-icon
+        class="track-panel__rotation-icon"
+        icon="mdi-rotate-3d-variant"
+        size="20"
+        aria-hidden="true"
+      />
+      <v-slider
+        class="track-panel__range"
+        :model-value="settings.routeBearing"
+        :min="0"
+        :max="355"
+        :step="5"
+        color="primary"
+        track-color="rgb(var(--v-theme-on-surface))"
+        thumb-size="14"
+        track-size="4"
+        hide-details
+        density="compact"
+        aria-label="Поворот трека"
+        @update:model-value="emit('setRouteBearing', Number($event))"
+      />
+      <span class="track-panel__bearing">{{ settings.routeBearing }}°</span>
+      <button
+        type="button"
+        class="track-panel__reset"
+        :disabled="!settings.routeBearing"
+        aria-label="Север сверху"
+        title="Север сверху"
+        @click="emit('setRouteBearing', 0)"
+      >
+        <v-icon
+          icon="mdi-navigation-variant"
+          size="20"
+          :style="{ transform: `rotate(${-settings.routeBearing}deg)` }"
         />
-      </template>
+      </button>
+    </div>
 
+    <!-- Точка видео (всегда цвета трека): фото «пузырьком» и стили. Под фото стиль не
+         виден — плитки неактивны (как цвет фона под фото в «Фоне»). -->
+    <OptionTileRow v-if="video && target === 'dot'">
       <!-- Фото: тап — загрузить или заменить, крестик — удалить. -->
       <OptionTile tag="label" label="Фото" :active="Boolean(dot.photo)">
         <template #preview>
@@ -213,108 +231,55 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
             <VideoDotMark
               :x="0"
               :y="0"
-              :route-color="dotColor"
+              :route-color="settings.routeColor"
               :ring-color="settings.textColor"
               :background-color="settings.backgroundColor"
               :unit="DOT_PREVIEW_UNIT"
-              :dot="{ style: style.id, color: dot.color, photo: null }"
+              :dot="{ style: style.id, photo: null }"
             />
           </svg>
         </template>
       </OptionTile>
     </OptionTileRow>
 
-    <template v-else>
-      <!-- Наклон, флажки и поворот — для всех шаблонов (с картой — заодно и карты).
-         На карточке поворот — двумя пальцами. -->
-      <div class="track-panel__controls" :class="{ 'track-panel__controls--below': video }">
-        <SegmentedGroup v-model="pitch" :options="pitchOptions" group-label="Наклон трека" grow />
-        <ToggleGroup
-          :options="flagOptions"
-          group-label="Флажки на треке"
-          @toggle="emit('setRouteFlags', !settings.routeFlags)"
+    <OptionTileRow v-else>
+      <template #fixed>
+        <ColorOptionTile
+          label="Цвет"
+          input-label="Цвет трека"
+          :color="settings.routeColor"
+          @change="emit('setRouteColor', $event)"
         />
-      </div>
+      </template>
 
-      <!-- Поворот — такой же ползунок, как перемотка видео; края — по линии рядов выше и ниже. -->
-      <div class="track-panel__rotation">
-        <v-icon
-          class="track-panel__rotation-icon"
-          icon="mdi-rotate-3d-variant"
-          size="20"
-          aria-hidden="true"
-        />
-        <v-slider
-          class="track-panel__range"
-          :model-value="settings.routeBearing"
-          :min="0"
-          :max="355"
-          :step="5"
-          color="primary"
-          track-color="rgb(var(--v-theme-on-surface))"
-          thumb-size="14"
-          track-size="4"
-          hide-details
-          density="compact"
-          aria-label="Поворот трека"
-          @update:model-value="emit('setRouteBearing', Number($event))"
-        />
-        <span class="track-panel__bearing">{{ settings.routeBearing }}°</span>
-        <button
-          type="button"
-          class="track-panel__reset"
-          :disabled="!settings.routeBearing"
-          aria-label="Север сверху"
-          title="Север сверху"
-          @click="emit('setRouteBearing', 0)"
-        >
-          <v-icon
-            icon="mdi-navigation-variant"
-            size="20"
-            :style="{ transform: `rotate(${-settings.routeBearing}deg)` }"
-          />
-        </button>
-      </div>
-
-      <OptionTileRow>
-        <template #fixed>
-          <ColorOptionTile
-            label="Цвет"
-            input-label="Цвет трека"
-            :color="settings.routeColor"
-            @change="emit('setRouteColor', $event)"
-          />
+      <OptionTile
+        v-for="style in routeStyles"
+        :key="style.id"
+        :label="style.name"
+        :active="settings.routeStyle === style.id"
+        @click="emit('setRouteStyle', style.id)"
+      >
+        <template #preview>
+          <svg
+            class="track-preview"
+            :viewBox="viewBox"
+            :style="{ background: settings.backgroundColor }"
+            aria-hidden="true"
+          >
+            <RouteStyleLayers
+              :points="points"
+              :start="start"
+              :style-id="style.id"
+              :route-color="settings.routeColor"
+              :text-color="settings.textColor"
+              :background-color="settings.backgroundColor"
+              :unit="PREVIEW_UNIT"
+            />
+          </svg>
+          <ProTileBadge v-if="style.pro" />
         </template>
-
-        <OptionTile
-          v-for="style in routeStyles"
-          :key="style.id"
-          :label="style.name"
-          :active="settings.routeStyle === style.id"
-          @click="emit('setRouteStyle', style.id)"
-        >
-          <template #preview>
-            <svg
-              class="track-preview"
-              :viewBox="viewBox"
-              :style="{ background: settings.backgroundColor }"
-              aria-hidden="true"
-            >
-              <RouteStyleLayers
-                :points="points"
-                :start="start"
-                :style-id="style.id"
-                :route-color="settings.routeColor"
-                :text-color="settings.textColor"
-                :background-color="settings.backgroundColor"
-                :unit="PREVIEW_UNIT"
-              />
-            </svg>
-            <ProTileBadge v-if="style.pro" />
-          </template>
-        </OptionTile>
-      </OptionTileRow>
-    </template>
+      </OptionTile>
+    </OptionTileRow>
   </div>
 </template>
 
@@ -330,11 +295,6 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
 .track-panel__controls {
   display: flex;
   gap: 8px;
-}
-
-.track-panel__controls--below {
-  /* Под переключателем «Трек / Точка»: между рядами кнопок — те же 12px (gap 4px + 8px). */
-  margin-top: 8px;
 }
 
 .track-panel__rotation {

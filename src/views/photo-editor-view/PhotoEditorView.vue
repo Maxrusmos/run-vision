@@ -57,10 +57,7 @@ import MapPanel from '@/views/photo-editor-view/components/panels/MapPanel.vue';
 import BackgroundPanel from '@/views/photo-editor-view/components/panels/BackgroundPanel.vue';
 import PresetsPanel from '@/views/photo-editor-view/components/panels/PresetsPanel.vue';
 import TrackPanel from '@/views/photo-editor-view/components/panels/TrackPanel.vue';
-import {
-  getVideoDotColor,
-  getVideoDotLayers,
-} from '@/entities/activity/model/activity-share/video-dot';
+import { getVideoDotLayers } from '@/entities/activity/model/activity-share/video-dot';
 import { loadImage } from '@/shared/lib/image/load-image';
 import StatsAppearancePanel from '@/views/photo-editor-view/components/panels/StatsAppearancePanel.vue';
 import ProRequiredDialog from '@/views/photo-editor-view/components/ProRequiredDialog.vue';
@@ -135,7 +132,6 @@ const {
   setRouteFlags,
   removeProFeatures,
   setVideoDotStyle,
-  setVideoDotColor,
   setVideoDotPhoto,
   removeVideoDotPhoto,
   setRouteStyle,
@@ -459,7 +455,7 @@ async function createVideo() {
       dot: {
         layers: getVideoDotLayers(settings.value.videoDot),
         paints: {
-          dot: getVideoDotColor(settings.value.videoDot, settings.value.routeColor),
+          dot: settings.value.routeColor,
           ring: settings.value.textColor,
           background: settings.value.backgroundColor,
         },
@@ -710,7 +706,6 @@ function goBack() {
             @set-route-pitch="setRoutePitch"
             @set-route-flags="setRouteFlags"
             @set-video-dot-style="setVideoDotStyle"
-            @set-video-dot-color="setVideoDotColor"
             @set-video-dot-photo="setVideoDotPhoto"
             @remove-video-dot-photo="removeVideoDotPhoto"
           />

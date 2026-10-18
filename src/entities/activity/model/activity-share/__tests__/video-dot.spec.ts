@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  VIDEO_DOT_BUBBLE,
-  VIDEO_DOT_STYLES,
-  getVideoDotColor,
-  getVideoDotLayers,
-} from '../video-dot';
+import { VIDEO_DOT_BUBBLE, VIDEO_DOT_STYLES, getVideoDotLayers } from '../video-dot';
 
 describe('getVideoDotLayers', () => {
   it('у каждого стиля свои слои с центром на треке', () => {
@@ -28,14 +23,5 @@ describe('getVideoDotLayers', () => {
     expect(Math.hypot(left![0], left![1] - photo.cy)).toBeCloseTo(outer);
     // Последний слой — фото: поверх обводки.
     expect(layers[layers.length - 1]?.kind).toBe('photo');
-  });
-
-  it('цвет точки — свой или цвет трека', () => {
-    expect(getVideoDotColor({ style: 'classic', color: null, photo: null }, '#123456')).toBe(
-      '#123456',
-    );
-    expect(getVideoDotColor({ style: 'classic', color: '#ff0000', photo: null }, '#123456')).toBe(
-      '#ff0000',
-    );
   });
 });

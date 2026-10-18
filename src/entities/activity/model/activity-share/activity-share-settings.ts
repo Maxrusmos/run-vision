@@ -28,11 +28,22 @@ function normalizeRouteFlags(settings: ShareCardSettings): ShareCardSettings {
   return { ...rest, routeFlags: Boolean(routeKmMarkers || routeStartFinish) };
 }
 
-/** Точка видео появилась позже: у старых черновиков и шаблонов — по умолчанию. */
+/**
+ * Точка видео появилась позже: у старых черновиков и шаблонов — по умолчанию.
+ * Свой цвет точки (`color`) убран — точка всегда цвета трека, старое поле отбрасываем.
+ */
 function normalizeVideoDot(settings: ShareCardSettings): ShareCardSettings {
-  const dot = settings.videoDot as Partial<ShareCardSettings['videoDot']> | undefined;
-  if (dot && Object.keys(DEFAULT_VIDEO_DOT).every((key) => key in dot)) return settings;
-  return { ...settings, videoDot: { ...DEFAULT_VIDEO_DOT, ...dot } };
+  const dot = settings.videoDot as
+    (Partial<ShareCardSettings['videoDot']> & { color?: unknown }) | undefined;
+  const keys = Object.keys(DEFAULT_VIDEO_DOT);
+  if (dot && !('color' in dot) && keys.every((key) => key in dot)) return settings;
+  return {
+    ...settings,
+    videoDot: {
+      style: dot?.style ?? DEFAULT_VIDEO_DOT.style,
+      photo: dot?.photo ?? DEFAULT_VIDEO_DOT.photo,
+    },
+  };
 }
 
 /** Фон-оформление (Pro) появилось позже: у старых черновиков и шаблонов — без него. */

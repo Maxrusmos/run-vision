@@ -29,7 +29,6 @@ export const VIDEO_DOT_STYLES: readonly { id: ShareVideoDotStyle; name: string }
 
 export const DEFAULT_VIDEO_DOT: ShareVideoDotSettings = {
   style: 'classic',
-  color: null,
   photo: null,
 };
 
@@ -116,11 +115,6 @@ export function getVideoDotLayers(
 ): readonly VideoDotLayer[] {
   if (dot.photo) return getBubbleLayers();
   return STYLE_LAYERS[dot.style] ?? STYLE_LAYERS.classic;
-}
-
-/** Цвет точки: свой или (null) — цвет трека. */
-export function getVideoDotColor(dot: ShareVideoDotSettings, routeColor: string): string {
-  return dot.color ?? routeColor;
 }
 
 /** Фото, уже загруженное в `<img>`: холст рисует его через `drawImage`. */
