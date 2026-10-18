@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeEmail, validateEmail, validatePassword } from '../auth-validation';
+import { normalizeLogin, validateLogin, validatePassword } from '../auth-validation';
 
 describe('auth-validation', () => {
-  it('email: обрезка, регистр, формат, длина', () => {
-    expect(normalizeEmail('  A@B.Co ')).toBe('a@b.co');
-    expect(validateEmail(' User@Mail.ru ')).toBeNull();
-    expect(validateEmail('')).not.toBeNull();
-    expect(validateEmail('user@mail')).not.toBeNull();
-    expect(validateEmail('us er@mail.ru')).not.toBeNull();
-    expect(validateEmail(`${'a'.repeat(250)}@b.cd`)).not.toBeNull();
+  it('логин: обрезка, регистр, символы, длина', () => {
+    expect(normalizeLogin('  RuNNer ')).toBe('runner');
+    expect(validateLogin(' Runner_42 ')).toBeNull();
+    expect(validateLogin('run.ner-x')).toBeNull();
+    expect(validateLogin('')).not.toBeNull();
+    expect(validateLogin('ab')).not.toBeNull();
+    expect(validateLogin('a'.repeat(33))).not.toBeNull();
+    expect(validateLogin('бегун')).not.toBeNull();
+    expect(validateLogin('run ner')).not.toBeNull();
+    expect(validateLogin('user@mail.ru')).toBe('Нужен логин, а не email');
+    expect(validateLogin('_runner')).not.toBeNull();
   });
 
   it('пароль: 8–128 символов, пробелы по краям считаются', () => {

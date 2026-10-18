@@ -3,8 +3,8 @@ export type Plan = 'free' | 'pro';
 
 export interface User {
   id: string;
-  /** В нижнем регистре. */
-  email: string;
+  /** Уникальный, в нижнем регистре. */
+  login: string;
   /** Действующий тариф: `pro`, только если подписка не истекла. */
   plan: Plan;
   /** Когда закончится подписка (null — бессрочно или подписки нет). */
@@ -18,7 +18,7 @@ export interface AuthResponse {
 }
 
 export interface AuthCredentials {
-  email: string;
+  login: string;
   password: string;
 }
 

@@ -20,7 +20,7 @@ describe('authenticate + requirePlan', () => {
       await ctx.app.inject({
         method: 'POST',
         url: '/api/auth/register',
-        payload: { email: 'p@example.com', password: '12345678' },
+        payload: { login: 'pro-runner', password: '12345678' },
       })
     ).json()
     const call = (auth?: string) =>

@@ -6,10 +6,10 @@ import { ROUTE_NAMES } from '@/router/routes';
 import { getSafeRedirect } from '@/router/redirect';
 import { useAuthStore } from '@/stores/auth.store';
 import { isApiError, UNKNOWN_ERROR_MESSAGE } from '@/shared/api';
-import { validateEmail, validatePassword } from '@/entities/user';
+import { validateLogin, validatePassword } from '@/entities/user';
 
 type AuthMode = 'login' | 'register';
-type FieldName = 'email' | 'password' | 'passwordConfirm';
+type FieldName = 'login' | 'password' | 'passwordConfirm';
 
 const props = defineProps<{ mode: AuthMode }>();
 
@@ -19,9 +19,9 @@ const authStore = useAuthStore();
 
 const isRegister = computed(() => props.mode === 'register');
 
-const form = reactive({ email: '', password: '', passwordConfirm: '' });
+const form = reactive({ login: '', password: '', passwordConfirm: '' });
 const fieldErrors = reactive<Record<FieldName, string>>({
-  email: '',
+  login: '',
   password: '',
   passwordConfirm: '',
 });
@@ -42,7 +42,8 @@ const texts = computed(() =>
   isRegister.value
     ? {
         title: 'Регистрация',
-        subtitle: 'Аккаунт пригодится, чтобы сохранять карточки и настройки.',
+        subtitle:
+          'Аккаунт пригодится, чтобы сохранять карточки и настройки. Почта не нужна — только логин и пароль.',
         submit: 'Зарегистрироваться',
         switchQuestion: 'Уже есть аккаунт?',
         switchAction: 'Войти',
@@ -57,7 +58,7 @@ const texts = computed(() =>
 );
 
 function validateField(field: FieldName): string {
-  if (field === 'email') return validateEmail(form.email) ?? '';
+  if (field === 'login') return validateLogin(form.login) ?? '';
   if (field === 'password') {
     // При входе длину не проверяем: пусть сервер скажет «неверный пароль», а не правила.
     if (!isRegister.value) return form.password ? '' : 'Введите пароль';
@@ -69,14 +70,14 @@ function validateField(field: FieldName): string {
 }
 
 function validateAll(): boolean {
-  const fields: FieldName[] = ['email', 'password', 'passwordConfirm'];
+  const fields: FieldName[] = ['login', 'password', 'passwordConfirm'];
   for (const field of fields) fieldErrors[field] = validateField(field);
   return fields.every((field) => !fieldErrors[field]);
 }
 
 // После первой отправки ошибки обновляются на ходу (и снимаются серверные).
 watch(
-  () => [form.email, form.password, form.passwordConfirm],
+  () => [form.login, form.password, form.passwordConfirm],
   () => {
     formError.value = '';
     if (wasSubmitted.value) validateAll();
@@ -91,13 +92,13 @@ function applyServerError(error: unknown) {
 
   let hasFieldError = false;
   for (const [field, message] of Object.entries(error.fields)) {
-    if (field === 'email' || field === 'password') {
+    if (field === 'login' || field === 'password') {
       fieldErrors[field] = message;
       hasFieldError = true;
     }
   }
-  if (error.code === 'EMAIL_TAKEN') {
-    fieldErrors.email = error.message;
+  if (error.code === 'LOGIN_TAKEN') {
+    fieldErrors.login = error.message;
     hasFieldError = true;
   }
 
@@ -108,7 +109,7 @@ function applyServerError(error: unknown) {
 // событием input: подпись оставалась внутри поля поверх текста. Ловим его по анимации
 // из CSS (`rv-autofill`), забираем значение в форму — подпись уходит наверх.
 const AUTOFILL_FIELDS: Record<string, FieldName> = {
-  email: 'email',
+  username: 'login',
   password: 'password',
   'password-confirm': 'passwordConfirm',
 };
@@ -136,7 +137,7 @@ async function submit() {
 
   isSubmitting.value = true;
   try {
-    const credentials = { email: form.email, password: form.password };
+    const credentials = { login: form.login, password: form.password };
     if (isRegister.value) await authStore.register(credentials);
     else await authStore.login(credentials);
 
@@ -176,18 +177,18 @@ watch(
         @animationstart="handleAutofill"
       >
         <v-text-field
-          v-model="form.email"
-          label="Email"
-          type="email"
-          name="email"
+          v-model="form.login"
+          label="Логин"
+          type="text"
+          name="username"
           autocomplete="username"
-          inputmode="email"
           autocapitalize="off"
           autocorrect="off"
           spellcheck="false"
           variant="outlined"
           density="comfortable"
-          :error-messages="fieldErrors.email || undefined"
+          :hint="isRegister ? 'Латиница, цифры и _ . - · от 3 до 32 символов' : undefined"
+          :error-messages="fieldErrors.login || undefined"
           :disabled="isSubmitting"
         />
 
@@ -202,7 +203,11 @@ watch(
           spellcheck="false"
           variant="outlined"
           density="comfortable"
-          :hint="isRegister ? 'От 8 до 128 символов' : undefined"
+          :hint="
+            isRegister
+              ? 'От 8 до 128 символов. Запомните его: без почты восстановить пароль нельзя'
+              : undefined
+          "
           :error-messages="fieldErrors.password || undefined"
           :disabled="isSubmitting"
         >

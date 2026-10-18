@@ -3,15 +3,15 @@ import { useTestApp } from './helpers.js'
 
 const ctx = useTestApp()
 
-const EMAIL = 'runner@example.com'
+const LOGIN = 'runner'
 const PASSWORD = 'correct horse'
 
-function register(email = EMAIL, password = PASSWORD) {
-  return ctx.app.inject({ method: 'POST', url: '/api/auth/register', payload: { email, password } })
+function register(login = LOGIN, password = PASSWORD) {
+  return ctx.app.inject({ method: 'POST', url: '/api/auth/register', payload: { login, password } })
 }
 
-function login(email = EMAIL, password = PASSWORD) {
-  return ctx.app.inject({ method: 'POST', url: '/api/auth/login', payload: { email, password } })
+function login(name = LOGIN, password = PASSWORD) {
+  return ctx.app.inject({ method: 'POST', url: '/api/auth/login', payload: { login: name, password } })
 }
 
 function me(token?: string) {
@@ -40,7 +40,7 @@ describe('health и общее', () => {
       method: 'POST',
       url: '/api/auth/login',
       headers: { 'content-type': 'application/json' },
-      payload: '{"email":',
+      payload: '{"login":',
     })
     expect(res.statusCode).toBe(400)
     expect(res.json().error.code).toBe('VALIDATION_ERROR')
@@ -70,7 +70,7 @@ describe('регистрация', () => {
     expect(body.token).toEqual(expect.any(String))
     expect(body.user).toEqual({
       id: expect.any(String),
-      email: EMAIL,
+      login: LOGIN,
       plan: 'free',
       planExpiresAt: null,
       createdAt: expect.any(String),
@@ -84,43 +84,70 @@ describe('регистрация', () => {
     expect(sessions.rows[0].token_hash).not.toBe(body.token)
   })
 
-  it('повторный email → 409 EMAIL_TAKEN (и в другом регистре)', async () => {
+  it('повторный логин → 409 LOGIN_TAKEN (и в другом регистре)', async () => {
     await register()
-    const res = await register('  Runner@Example.COM ')
+    const res = await register('  RuNNer ')
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toEqual({ error: { code: 'EMAIL_TAKEN', message: expect.any(String) } })
+    expect(res.json()).toEqual({ error: { code: 'LOGIN_TAKEN', message: expect.any(String) } })
   })
 
-  it('одновременная регистрация одного email: один 201, остальные 409', async () => {
+  it('одновременная регистрация одного логина: один 201, остальные 409', async () => {
     const results = await Promise.all([register(), register(), register()])
     const codes = results.map((r) => r.statusCode).sort()
     expect(codes).toEqual([201, 409, 409])
   })
 
   it('невалидные поля → 400 VALIDATION_ERROR с fields', async () => {
-    const res = await register('not-an-email', 'short')
+    const res = await register('a!', 'short')
     expect(res.statusCode).toBe(400)
     const { error } = res.json()
     expect(error.code).toBe('VALIDATION_ERROR')
-    expect(Object.keys(error.fields).sort()).toEqual(['email', 'password'])
+    expect(Object.keys(error.fields).sort()).toEqual(['login', 'password'])
+  })
+
+  it('логин: 3–32 символа, латиница, цифры и _ . -, начинается с буквы или цифры', async () => {
+    // У каждой попытки свой IP — иначе упрёмся в лимит 10 попыток в минуту.
+    const attempt = (login: string, index: number) =>
+      ctx.app.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        remoteAddress: `10.0.1.${index}`,
+        payload: { login, password: PASSWORD },
+      })
+    const bad = ['ab', 'a'.repeat(33), 'бегун', 'run ner', 'run@ner', '_runner', '.runner']
+    for (const [index, value] of bad.entries()) {
+      const res = await attempt(value, index)
+      expect(res.statusCode, value).toBe(400)
+      expect(res.json().error.fields, value).toHaveProperty('login')
+    }
+    const good = ['abc', 'a'.repeat(32), 'run.ner_2-x', '42km']
+    for (const [index, value] of good.entries()) {
+      expect((await attempt(value, 100 + index)).statusCode, value).toBe(201)
+    }
   })
 
   it('пустое тело и слишком длинные значения → 400', async () => {
     const empty = await ctx.app.inject({ method: 'POST', url: '/api/auth/register' })
     expect(empty.statusCode).toBe(400)
-    expect(empty.json().error.fields).toHaveProperty('email')
+    expect(empty.json().error.fields).toHaveProperty('login')
 
-    const longEmail = await register(`${'a'.repeat(250)}@x.ru`)
-    expect(longEmail.json().error.fields).toHaveProperty('email')
-    const longPassword = await register(EMAIL, 'p'.repeat(129))
+    const longPassword = await register(LOGIN, 'p'.repeat(129))
     expect(longPassword.json().error.fields).toHaveProperty('password')
   })
 
-  it('email приводится к нижнему регистру, пароль — без обрезки пробелов', async () => {
-    const res = await register('  MiXeD@Example.com ', '  spaced pass  ')
-    expect(res.json().user.email).toBe('mixed@example.com')
-    expect((await login('mixed@EXAMPLE.com', '  spaced pass  ')).statusCode).toBe(200)
-    expect((await login('mixed@example.com', 'spaced pass')).statusCode).toBe(401)
+  it('логин приводится к нижнему регистру, пароль — без обрезки пробелов', async () => {
+    const res = await register('  MiXeD ', '  spaced pass  ')
+    expect(res.json().user.login).toBe('mixed')
+    expect((await login('MIXED', '  spaced pass  ')).statusCode).toBe(200)
+    expect((await login('mixed', 'spaced pass')).statusCode).toBe(401)
+  })
+
+  it('в БД нет email — только логин', async () => {
+    await register()
+    const { rows } = await ctx.db.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'users'`,
+    )
+    expect(rows.map((row) => row.column_name)).not.toContain('email')
   })
 })
 
@@ -137,13 +164,13 @@ describe('вход', () => {
 
   it('неверный пароль → 401 INVALID_CREDENTIALS', async () => {
     await register()
-    const res = await login(EMAIL, 'wrong password')
+    const res = await login(LOGIN, 'wrong password')
     expect(res.statusCode).toBe(401)
     expect(res.json().error.code).toBe('INVALID_CREDENTIALS')
   })
 
-  it('неизвестный email → тот же 401 INVALID_CREDENTIALS', async () => {
-    const res = await login('ghost@example.com')
+  it('неизвестный логин → тот же 401 INVALID_CREDENTIALS', async () => {
+    const res = await login('ghost')
     expect(res.statusCode).toBe(401)
     expect(res.json().error.code).toBe('INVALID_CREDENTIALS')
   })
@@ -224,9 +251,9 @@ describe('logout', () => {
 describe('лимит попыток', () => {
   it('11-я попытка входа за минуту → 429 RATE_LIMITED', async () => {
     for (let i = 0; i < 10; i++) {
-      expect((await login('ghost@example.com')).statusCode).toBe(401)
+      expect((await login('ghost')).statusCode).toBe(401)
     }
-    const res = await login('ghost@example.com')
+    const res = await login('ghost')
     expect(res.statusCode).toBe(429)
     expect(res.json()).toEqual({ error: { code: 'RATE_LIMITED', message: expect.any(String) } })
   })
@@ -238,7 +265,7 @@ describe('лимит попыток', () => {
       method: 'POST',
       url: '/api/auth/register',
       remoteAddress: '10.0.0.2',
-      payload: { email: EMAIL, password: PASSWORD },
+      payload: { login: LOGIN, password: PASSWORD },
     })
     expect(other.statusCode).toBe(201)
   })

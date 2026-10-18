@@ -13,7 +13,7 @@ export type Plan = 'free' | 'pro'
 /** Пользователь в том виде, в каком его отдаёт API (см. User в docs/api.md). */
 export interface PublicUser {
   id: string
-  email: string
+  login: string
   plan: Plan
   planExpiresAt: string | null
   createdAt: string
@@ -26,7 +26,7 @@ export interface AuthResult {
 
 interface UserRow {
   id: string
-  email: string
+  login: string
   password_hash: string
   plan: Plan
   plan_expires_at: Date | null
@@ -45,14 +45,14 @@ export function effectivePlan(plan: Plan, expiresAt: Date | null, now = new Date
 export function toPublicUser(row: UserRow): PublicUser {
   return {
     id: row.id,
-    email: row.email,
+    login: row.login,
     plan: effectivePlan(row.plan, row.plan_expires_at),
     planExpiresAt: row.plan_expires_at ? row.plan_expires_at.toISOString() : null,
     createdAt: row.created_at.toISOString(),
   }
 }
 
-const USER_COLUMNS = 'u.id, u.email, u.password_hash, u.plan, u.plan_expires_at, u.created_at'
+const USER_COLUMNS = 'u.id, u.login, u.password_hash, u.plan, u.plan_expires_at, u.created_at'
 
 const PG_UNIQUE_VIOLATION = '23505'
 
@@ -73,30 +73,30 @@ export class AuthService {
     return token
   }
 
-  async register({ email, password }: Credentials): Promise<AuthResult> {
+  async register({ login, password }: Credentials): Promise<AuthResult> {
     const passwordHash = await hashPassword(password)
     try {
       return await withTransaction(this.db, async (client) => {
         const { rows } = await client.query<UserRow>(
-          `INSERT INTO users AS u (email, password_hash) VALUES ($1, $2) RETURNING ${USER_COLUMNS}`,
-          [email, passwordHash],
+          `INSERT INTO users AS u (login, password_hash) VALUES ($1, $2) RETURNING ${USER_COLUMNS}`,
+          [login, passwordHash],
         )
         const user = rows[0]!
         const token = await this.createSession(client, user.id)
         return { token, user: toPublicUser(user) }
       })
     } catch (err) {
-      // Два одновременных запроса с одним email: второй упрётся в UNIQUE — это не 500, а EMAIL_TAKEN.
-      if ((err as { code?: string }).code === PG_UNIQUE_VIOLATION) throw errors.emailTaken()
+      // Два одновременных запроса с одним логином: второй упрётся в UNIQUE — это не 500, а LOGIN_TAKEN.
+      if ((err as { code?: string }).code === PG_UNIQUE_VIOLATION) throw errors.loginTaken()
       throw err
     }
   }
 
-  async login({ email, password }: Credentials): Promise<AuthResult> {
-    const { rows } = await this.db.query<UserRow>(`SELECT ${USER_COLUMNS} FROM users u WHERE u.email = $1`, [email])
+  async login({ login, password }: Credentials): Promise<AuthResult> {
+    const { rows } = await this.db.query<UserRow>(`SELECT ${USER_COLUMNS} FROM users u WHERE u.login = $1`, [login])
     const user = rows[0]
     // Хэш считаем всегда, даже если пользователя нет, — чтобы время ответа не выдавало,
-    // зарегистрирован ли email.
+    // занят ли логин.
     const ok = await verifyPassword(password, user?.password_hash ?? (await getDummyHash()))
     if (!user || !ok) throw errors.invalidCredentials()
 

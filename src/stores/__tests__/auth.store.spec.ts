@@ -9,7 +9,7 @@ const fetchMock = vi.fn<typeof fetch>();
 
 const USER: User = {
   id: '00000000-0000-0000-0000-000000000001',
-  email: 'runner@example.com',
+  login: 'runner',
   plan: 'free',
   planExpiresAt: null,
   createdAt: '2026-10-01T00:00:00.000Z',
@@ -60,7 +60,7 @@ describe('auth.store', () => {
     await store.init();
 
     expect(lastAuthorization()).toBe('Bearer tok');
-    expect(store.user?.email).toBe(USER.email);
+    expect(store.user?.login).toBe(USER.login);
     expect(store.isAuthenticated).toBe(true);
     expect(store.accessLevel).toBe('pro');
   });
@@ -102,14 +102,14 @@ describe('auth.store', () => {
     expect(store.status).toBe('offline');
   });
 
-  it('login сохраняет токен и пользователя, email нормализует', async () => {
+  it('login сохраняет токен и пользователя, логин нормализует', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, { token: 'new', user: USER }));
 
     const store = useAuthStore();
-    await store.login({ email: '  Runner@Example.com ', password: ' secret pass ' });
+    await store.login({ login: '  RuNNer ', password: ' secret pass ' });
 
     const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body as string);
-    expect(body).toEqual({ email: 'runner@example.com', password: ' secret pass ' });
+    expect(body).toEqual({ login: 'runner', password: ' secret pass ' });
     expect(store.token).toBe('new');
     expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBe('new');
     expect(store.accessLevel).toBe('free');
@@ -117,11 +117,13 @@ describe('auth.store', () => {
 
   it('неудачный login не меняет состояние и пробрасывает ошибку', async () => {
     fetchMock.mockResolvedValue(
-      jsonResponse(401, { error: { code: 'INVALID_CREDENTIALS', message: 'Неверный email' } }),
+      jsonResponse(401, {
+        error: { code: 'INVALID_CREDENTIALS', message: 'Неверный логин или пароль' },
+      }),
     );
 
     const store = useAuthStore();
-    await expect(store.login({ email: 'a@b.c', password: '12345678' })).rejects.toMatchObject({
+    await expect(store.login({ login: 'abc', password: '12345678' })).rejects.toMatchObject({
       code: 'INVALID_CREDENTIALS',
     });
     expect(store.token).toBeNull();
@@ -130,7 +132,7 @@ describe('auth.store', () => {
   it('logout чистит сессию, даже если сервер не ответил', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(201, { token: 'tok', user: USER }));
     const store = useAuthStore();
-    await store.register({ email: USER.email, password: '12345678' });
+    await store.register({ login: USER.login, password: '12345678' });
 
     fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
     await store.logout();
@@ -145,7 +147,7 @@ describe('auth.store', () => {
   it('любой 401 UNAUTHORIZED на запрос с текущим токеном разлогинивает', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { token: 'tok', user: USER }));
     const store = useAuthStore();
-    await store.login({ email: USER.email, password: '12345678' });
+    await store.login({ login: USER.login, password: '12345678' });
 
     fetchMock.mockResolvedValueOnce(unauthorized());
     await expect(apiRequest('/api/anything', { auth: true })).rejects.toBeTruthy();
@@ -157,7 +159,7 @@ describe('auth.store', () => {
   it('401 на запрос со старым токеном не трогает новую сессию', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { token: 'new', user: USER }));
     const store = useAuthStore();
-    await store.login({ email: USER.email, password: '12345678' });
+    await store.login({ login: USER.login, password: '12345678' });
 
     fetchMock.mockResolvedValueOnce(unauthorized());
     await expect(apiRequest('/api/anything', { token: 'old' })).rejects.toBeTruthy();
@@ -176,7 +178,7 @@ describe('auth.store', () => {
     fetchMock.mockResolvedValue(jsonResponse(200, { token: 'tok', user: USER }));
 
     const store = useAuthStore();
-    await store.login({ email: USER.email, password: '12345678' });
+    await store.login({ login: USER.login, password: '12345678' });
     expect(store.isAuthenticated).toBe(true);
 
     vi.restoreAllMocks();

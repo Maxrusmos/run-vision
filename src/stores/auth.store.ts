@@ -5,7 +5,7 @@ import { configureApiAuth, isApiError } from '@/shared/api';
 import { readStorage, writeStorage } from '@/shared/lib/storage/safe-storage';
 import {
   authApi,
-  normalizeEmail,
+  normalizeLogin,
   type AccessLevel,
   type AuthCredentials,
   type AuthResponse,
@@ -97,7 +97,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(credentials: AuthCredentials) {
     const response = await authApi.login({
-      email: normalizeEmail(credentials.email),
+      login: normalizeLogin(credentials.login),
       password: credentials.password,
     });
     setSession(response);
@@ -106,7 +106,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function register(credentials: AuthCredentials) {
     const response = await authApi.register({
-      email: normalizeEmail(credentials.email),
+      login: normalizeLogin(credentials.login),
       password: credentials.password,
     });
     setSession(response);

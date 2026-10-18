@@ -7,11 +7,11 @@ const SETTINGS = { presetId: 'sunset', routeColor: '#ffca91', backgroundImage: '
 describe('/api/templates', () => {
   const ctx = useTestApp()
 
-  async function register(email = 'runner@example.com') {
+  async function register(login = 'runner') {
     const response = await ctx.app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { email, password: 'password123' },
+      payload: { login, password: 'password123' },
     })
     return response.json().token as string
   }
@@ -101,8 +101,8 @@ describe('/api/templates', () => {
   })
 
   it('чужие шаблоны не видны и не меняются', async () => {
-    const owner = await register('owner@example.com')
-    const stranger = await register('stranger@example.com')
+    const owner = await register('owner')
+    const stranger = await register('stranger')
     const { template } = (
       await call(owner, 'POST', '/api/templates', { name: 'Мой', baseTemplate: 'topographic', settings: {} })
     ).json()

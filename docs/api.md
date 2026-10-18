@@ -20,7 +20,7 @@ type Plan = 'free' | 'pro';
 
 interface User {
   id: string; // uuid
-  email: string; // в нижнем регистре
+  login: string; // уникальный, в нижнем регистре
   plan: Plan; // действующий тариф: 'pro', только если подписка не истекла
   planExpiresAt: string | null; // когда закончится подписка (null — бессрочно или нет подписки)
   createdAt: string;
@@ -31,6 +31,10 @@ interface AuthResponse {
   user: User;
 }
 ```
+
+Вход — по логину и паролю. Email (и любые другие контакты) не собираем и не храним: так
+сервис не обрабатывает персональных данных сверх необходимого. Обратная сторона — пароль
+не восстановить по почте.
 
 Гость (без токена) — отдельного объекта нет, фронт считает его уровнем `guest`.
 Уровни доступа: `guest` < `free` < `pro`.
@@ -50,10 +54,10 @@ interface ApiErrorBody {
 
 type ApiErrorCode =
   | 'VALIDATION_ERROR' // 400 — неверные данные формы
-  | 'INVALID_CREDENTIALS' // 401 — неверный email или пароль (не уточняем, что именно)
+  | 'INVALID_CREDENTIALS' // 401 — неверный логин или пароль (не уточняем, что именно)
   | 'UNAUTHORIZED' // 401 — нет токена, токен неверный или истёк
   | 'PLAN_REQUIRED' // 403 — нужен тариф выше (пока ни один эндпоинт не отдаёт, задел под подписку)
-  | 'EMAIL_TAKEN' // 409 — email уже зарегистрирован
+  | 'LOGIN_TAKEN' // 409 — логин уже занят (без учёта регистра)
   | 'LIMIT_REACHED' // 409 — достигнут лимит (например, сохранённых шаблонов)
   | 'RATE_LIMITED' // 429 — слишком много попыток
   | 'NOT_FOUND' // 404
@@ -62,7 +66,9 @@ type ApiErrorCode =
 
 ## Правила полей
 
-- `email`: обрезаем пробелы, приводим к нижнему регистру, формат `x@y.z`, не длиннее 254.
+- `login`: обрезаем пробелы, приводим к нижнему регистру; от 3 до 32 символов — латинские
+  буквы, цифры, `_`, `.`, `-`; начинается с буквы или цифры. Два одинаковых логина
+  (в том числе отличающихся только регистром) невозможны.
 - `password`: от 8 до 128 символов (пробелы по краям не обрезаем).
 
 ## Эндпоинты
@@ -71,11 +77,11 @@ type ApiErrorCode =
 → `200 { "ok": true }`
 
 ### `POST /api/auth/register`
-Тело: `{ "email": string, "password": string }`
-→ `201 AuthResponse` (сразу входит) · `400 VALIDATION_ERROR` · `409 EMAIL_TAKEN` · `429`
+Тело: `{ "login": string, "password": string }`
+→ `201 AuthResponse` (сразу входит) · `400 VALIDATION_ERROR` · `409 LOGIN_TAKEN` · `429`
 
 ### `POST /api/auth/login`
-Тело: `{ "email": string, "password": string }`
+Тело: `{ "login": string, "password": string }`
 → `200 AuthResponse` · `400 VALIDATION_ERROR` · `401 INVALID_CREDENTIALS` · `429`
 
 ### `GET /api/auth/me` (Bearer)

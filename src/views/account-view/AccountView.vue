@@ -37,7 +37,7 @@ const errorMessage = computed(() => {
 
 const accountLine = computed(() => {
   const user = authStore.user;
-  return user ? `${user.email} · ${PLAN_LABELS[user.plan]}` : 'Нет связи с сервером';
+  return user ? `${user.login} · ${PLAN_LABELS[user.plan]}` : 'Нет связи с сервером';
 });
 
 const isFirstLoad = computed(

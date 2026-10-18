@@ -84,6 +84,7 @@ PostgreSQL не установлен — поставьте его команд�
 ```
 migrations/001_users_sessions.sql  схема БД (users, sessions)
 migrations/002_templates.sql       сохранённые шаблоны оформления (templates)
+migrations/004_login_instead_of_email.sql  вход по логину: логин из email, email удалён
 src/
   server.ts          запуск: конфиг → БД → слушаем порт
   app.ts             buildApp(): плагины, обработчик ошибок, маршруты (в тестах — без порта)
@@ -94,7 +95,7 @@ src/
   modules/auth/
     routes.ts        /api/auth/* — только HTTP
     service.ts       логика: регистрация, вход, сессии, действующий тариф
-    schemas.ts       проверка email/пароля (zod)
+    schemas.ts       проверка логина/пароля (zod)
     password.ts      хэш паролей (scrypt)
     tokens.ts        токены сессий
     authenticate.ts  хук app.authenticate и requirePlan('pro') для закрытых эндпоинтов
@@ -122,14 +123,19 @@ test/                тесты на настоящей БД
   на другом домене. Для браузера такая кука «сторонняя», а iOS Safari сторонние куки режет —
   вход бы слетал на iPhone. Заголовок работает везде; фронт хранит токен в `localStorage`.
 - Защита от подбора: не больше 10 попыток регистрации/входа в минуту с IP (429), вход
-  с неизвестным email тратит то же время, что и с известным (по времени ответа не узнать,
-  есть ли такой пользователь), ошибка одна — «неверный email или пароль».
+  с неизвестным логином тратит то же время, что и с известным (по времени ответа не узнать,
+  занят ли логин), ошибка одна — «неверный логин или пароль».
+- **Вход по логину, без email.** Почту (и любые контакты) не собираем — меньше персональных
+  данных. Логин уникален без учёта регистра (хранится в нижнем, `UNIQUE` + `CHECK` в БД).
+  Миграция 004 сделала логины уже зарегистрированным из части email до «@» (совпадения — с
+  номером: `anna`, `anna2`) и удалила колонку `email`. Цена решения — пароль не восстановить
+  по почте (план — коды восстановления, см. `docs/pro-payments.md`).
 
 Новый закрытый эндпоинт:
 
 ```ts
 app.get('/api/что-то', { preHandler: app.authenticate }, async (request) => {
-  const user = currentUser(request) // { id, email, plan, ... }
+  const user = currentUser(request) // { id, login, plan, ... }
 })
 // только для Pro (иначе 403 PLAN_REQUIRED):
 app.get('/api/pro-фича', { preHandler: [app.authenticate, requirePlan('pro')] }, ...)
@@ -142,10 +148,11 @@ app.get('/api/pro-фича', { preHandler: [app.authenticate, requirePlan('pro')
 `plan = 'pro'` и срок не прошёл. Выдать Pro вручную:
 
 ```sql
-UPDATE users SET plan = 'pro', plan_expires_at = now() + interval '1 month' WHERE email = '...';
+UPDATE users SET plan = 'pro', plan_expires_at = now() + interval '1 month' WHERE login = '...';
 ```
 
-Когда появится оплата, схема вырастет так:
+Как продавать Pro (провайдер, таблица платежей, вебхук) — **[`docs/pro-payments.md`](../docs/pro-payments.md)**.
+Кратко, схема вырастет так:
 
 - таблица `subscriptions` (user_id, провайдер — например ЮKassa/Stripe, id подписки у провайдера,
   статус, текущий период, отмена в конце периода);

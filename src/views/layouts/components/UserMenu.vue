@@ -8,7 +8,7 @@ const authStore = useAuthStore();
 const isOpen = ref(false);
 
 const user = computed(() => authStore.user);
-const initial = computed(() => user.value?.email.charAt(0).toUpperCase() ?? '');
+const initial = computed(() => user.value?.login.charAt(0).toUpperCase() ?? '');
 const isChecking = computed(() => !user.value && authStore.status !== 'offline');
 const isOffline = computed(() => !user.value && authStore.status === 'offline');
 const planLabel = computed(() => (user.value ? PLAN_LABELS[user.value.plan] : ''));
@@ -31,7 +31,7 @@ async function logout() {
         icon
         variant="text"
         class="user-menu__button"
-        :aria-label="user ? `Аккаунт ${user.email}` : 'Аккаунт'"
+        :aria-label="user ? `Аккаунт ${user.login}` : 'Аккаунт'"
       >
         <v-progress-circular v-if="isChecking" indeterminate size="20" width="2" />
         <v-icon v-else-if="isOffline" icon="mdi-account-alert-outline" />
@@ -44,8 +44,8 @@ async function logout() {
     <v-list density="comfortable" class="user-menu__list" nav>
       <template v-if="user">
         <v-list-item class="user-menu__account">
-          <v-list-item-title class="user-menu__email" :title="user.email">
-            {{ user.email }}
+          <v-list-item-title class="user-menu__login" :title="user.login">
+            {{ user.login }}
           </v-list-item-title>
           <v-list-item-subtitle>
             Тариф: <span class="user-menu__plan">{{ planLabel }}</span>
@@ -79,12 +79,12 @@ async function logout() {
   font-weight: 600;
 }
 
-/* Меню не шире экрана: на 320px длинный email обрезается многоточием. */
+/* Меню не шире экрана: на 320px длинный логин обрезается многоточием. */
 .user-menu__list {
   width: min(300px, calc(100vw - 16px));
 }
 
-.user-menu__email {
+.user-menu__login {
   overflow: hidden;
   font-weight: 600;
   text-overflow: ellipsis;

@@ -39,7 +39,7 @@ npx vite build
    `SavedTemplateView`. Гостя — на вход с `?redirect=`; без связи с сервером — пускаем.
 5. `/login`, `/register` — `AuthView` (один компонент на оба режима, `meta.guestOnly`:
    вошедшего уводит на `/`). После входа — назад по `?redirect=` (только внутренние пути,
-   `router/redirect.ts`). В `AppHeader` справа «Войти» или `UserMenu` (email, тариф, «Выйти»).
+   `router/redirect.ts`). В `AppHeader` справа «Войти» или `UserMenu` (логин, тариф, «Выйти»).
 
 Страницы с `meta.requiresActivity` без загруженного GPX редиректят на `/`.
 Старая 3D-карта (`views/activity-view`) оставлена в коде, но маршрут не зарегистрирован.
@@ -290,6 +290,16 @@ npx vite build
 - Авторизация — непрозрачный токен сессии (30 дней, в БД только SHA-256) в заголовке
   `Authorization: Bearer`. Не куки: фронт на GitHub Pages, бэк на другом домене, iOS Safari
   режет сторонние куки. Пароли — scrypt. Лимит 10 попыток/мин с IP на вход и регистрацию.
+- **Вход по логину, email не собираем** (решение пользователя: не обрабатывать персональные
+  данные сверх нужного). Логин — 3–32 символа, латиница/цифры/`_ . -`, первая — буква или
+  цифра, хранится в нижнем регистре, уникален (`UNIQUE` + `CHECK` в БД, `409 LOGIN_TAKEN`).
+  Ввод email в поле логина — подсказка «Нужен логин, а не email» (`validateLogin`).
+  Миграция 004 сделала логины старым аккаунтам из части email до «@» (`anna`, `anna2`, с
+  тестом `migration-login.test.ts`) и удалила `email`. Пароль по почте не восстановить.
+- **Покупка Pro — план в `docs/pro-payments.md`** (ещё не сделано): самозанятость + ЮKassa
+  (или Robokassa), разовые платежи «месяц / год» без автосписаний, платёжная страница
+  провайдера (контакты для чека там, у нас — только id платежа), вебхук продлевает
+  `plan_expires_at`, таблица `payments`; до оплаты — коды восстановления и Pro-фичи.
 - Тарифы: `users.plan` (`free`/`pro`) + `plan_expires_at`; в API отдаётся действующий тариф.
   Уровни доступа `guest` < `free` < `pro`: на бэке `app.authenticate` + `requirePlan('pro')`
   (403 `PLAN_REQUIRED`), на фронте `useAccess()` и реестр фич `shared/config/features.ts`
@@ -536,7 +546,7 @@ Render и Pages). Сливаем по просьбе пользователя.
 `bugfix/video-dot-on-track`, `feature/video-telemetry`, `feature/video-flag-pop`,
 `feature/route-flags-toggle`, `feature/menu-spacing`, `bugfix/topo-route-offscreen` слиты в `main`
 (до появления `develop`). В `develop`, затем `develop` → `main`: `bugfix/tile-row-divider`,
-`feature/video-templates`, `docs/next-session-plans`. В `develop` (ещё не в `main`): `feature/vertical-widgets`, `feature/video-dot-styles`.
+`feature/video-templates`, `docs/next-session-plans`. В `develop` (ещё не в `main`): `feature/vertical-widgets`, `feature/video-dot-styles`, `feature/login-auth` (вход по логину — в проде миграция 004 сама переведёт аккаунты).
 
 ## Идеи на потом (обсуждали, не сделано)
 
@@ -563,7 +573,7 @@ Render и Pages). Сливаем по просьбе пользователя.
 - **`docs/product-ideas.md`** — что дать гостю / после регистрации / в Pro, новые шаблоны,
   показатели и виджеты, правила ненавязчивых предложений входа и подписки. Пользователю
   понравилось, но «продавать ещё рано» — возвращаемся, когда дойдём до аккаунтов и подписки.
-- Аккаунт: смена/сброс пароля, подтверждение email, чистка просроченных сессий по
+- Аккаунт: смена пароля, коды восстановления (почты нет — см. `docs/pro-payments.md`), чистка просроченных сессий по
   расписанию, подписка и платежи (схема в `server/README.md`), лимит попыток входа в
   Redis при нескольких экземплярах сервера.
 - Прод: платный тариф Render ($7/мес), чтобы сервер не засыпал.
