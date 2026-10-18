@@ -5,6 +5,7 @@ import {
   getHeartRateZones,
   getPaceSeries,
   getSplits,
+  getTapeSeries,
   normalizeSeries,
   resampleSeries,
 } from '../activity-share-telemetry';
@@ -135,5 +136,34 @@ describe('без времени', () => {
         ),
       ),
     ).toBeNull();
+  });
+});
+
+describe('getTapeSeries', () => {
+  // Плавный подъём 0,2…0,8 и мелкая «пила» поверх.
+  const values = Array.from(
+    { length: 400 },
+    (_, index) => 0.2 + 0.6 * (index / 399) + (index % 2 ? 0.1 : -0.1),
+  );
+
+  it('убирает «пилу» и растягивает ряд на 0…1', () => {
+    const tape = getTapeSeries(values, 140);
+    expect(Math.min(...tape.values)).toBeCloseTo(0);
+    expect(Math.max(...tape.values)).toBeCloseTo(1);
+    const jumps = tape.values.slice(1).map((value, index) => Math.abs(value - tape.values[index]!));
+    expect(Math.max(...jumps)).toBeLessThan(0.02);
+  });
+
+  it('края шкалы — в долях исходного ряда', () => {
+    const tape = getTapeSeries(values, 140);
+    expect(tape.from).toBeGreaterThan(0.15);
+    expect(tape.to).toBeLessThan(0.85);
+    expect(tape.from).toBeLessThan(tape.to);
+  });
+
+  it('ровный ряд — посередине, пустой и без длины — как есть', () => {
+    expect(new Set(getTapeSeries([0.3, 0.3, 0.3], 100).values)).toEqual(new Set([0.5]));
+    expect(getTapeSeries([], 100).values).toEqual([]);
+    expect(getTapeSeries([0.1, 0.9], 0).values).toEqual([0.1, 0.9]);
   });
 });

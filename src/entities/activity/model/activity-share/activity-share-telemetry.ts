@@ -76,6 +76,37 @@ export function smoothSeries(values: number[], radius = SMOOTH_RADIUS): number[]
   return pass(pass(values));
 }
 
+/** Вертикальная «лента»: радиус сглаживания — столько пикселей длины колонки. */
+export const TAPE_SMOOTH_PX = 4;
+
+export type TapeSeries = {
+  /** Сглаженный ряд, снова растянутый на 0…1. */
+  values: number[];
+  /** Какие доли исходного ряда стали краями 0 и 1 — для подписей шкалы. */
+  from: number;
+  to: number;
+};
+
+/**
+ * Ряд графика (0…1) для вертикальной «ленты» длиной `length` пикселей. В узкой колонке
+ * подробный ряд превращался в «пилу»: сглаживаем по длине колонки (чем короче, тем
+ * сильнее) и растягиваем обратно на всю ширину — шкала подписывается по `from`/`to`.
+ */
+export function getTapeSeries(values: number[], length: number): TapeSeries {
+  if (!values.length || !(length > 0)) return { values, from: 0, to: 1 };
+  const radius = Math.max(1, Math.round((values.length * TAPE_SMOOTH_PX) / length));
+  const smoothed = smoothSeries(values, radius);
+  let from = Infinity;
+  let to = -Infinity;
+  for (const value of smoothed) {
+    if (value < from) from = value;
+    if (value > to) to = value;
+  }
+  const range = to - from;
+  if (!(range > 1e-6)) return { values: smoothed.map(() => 0.5), from, to };
+  return { values: smoothed.map((value) => (value - from) / range), from, to };
+}
+
 /** Пересчёт ряда в `count` точек: среднее по корзинам (для столбцов) или интерполяция. */
 export function resampleSeries(values: number[], count: number): number[] {
   if (!values.length || count <= 0) return [];

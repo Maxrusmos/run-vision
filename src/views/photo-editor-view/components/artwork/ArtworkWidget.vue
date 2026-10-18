@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useId, useTemplateRef } from 'vue';
 import type { ITrackPoint } from '@/entities/activity/model/activity.types';
 import type {
   ShareTelemetrySettings,
@@ -15,12 +15,14 @@ import {
   getHeartRateZones,
   getPaceSeries,
   getSplits,
+  getTapeSeries,
   normalizeSeries,
 } from '@/entities/activity/model/activity-share/activity-share-telemetry';
 import {
   SHARE_WIDGET_PLACEMENTS,
   findShareWidget,
 } from '@/entities/activity/model/activity-share/activity-share-widgets';
+import { getKmMarkerStep } from '@/entities/activity/model/activity-share/activity-share-map';
 import { ROUTE_LAYER_WIDTH } from '@/entities/activity/model/activity-share/activity-share-route';
 import { formatPace } from '@/shared/lib/formatters/formatters';
 import ArtworkElementToolbar from '@/views/photo-editor-view/components/artwork/ArtworkElementToolbar.vue';
@@ -35,6 +37,12 @@ import {
 
 /** Самый медленный сплит — не ниже этой доли высоты, иначе столбик пропадает. */
 const SPLIT_FLOOR = 0.22;
+/** «Лента»: полоса у края карточки под шкалу километров (пиксели раскладки). */
+const TAPE_LANE = 14;
+/** «Лента»: подписи километров не ближе этого друг к другу и к концу колонки. */
+const TAPE_KM_GAP = 12;
+/** «Лента»: на сколько линия (ореол «Свечения») может выйти за свою область к треку. */
+const TAPE_OVERFLOW = 24;
 
 const props = defineProps<{
   kind: ShareWidgetKind;
@@ -128,6 +136,90 @@ const splitBars = computed(() => {
   }));
 });
 
+/**
+ * Вертикальная «лента»: ряд сглажен под длину колонки (иначе «пила»), у края карточки —
+ * шкала километров (полоса `lane`), под заголовком — значения на краях шкалы.
+ * Тот же ряд у графика и у маркера видео.
+ */
+const tape = computed(() =>
+  vertical.value && series.value && box.value.height
+    ? getTapeSeries(series.value, box.value.height)
+    : null,
+);
+const chartSeries = computed(() => tape.value?.values ?? series.value);
+const showScale = computed(() => props.telemetry.labels && !props.preview);
+const lane = computed(() => (vertical.value && showScale.value ? TAPE_LANE : 0));
+/** Глубина графика «ленты» — от шкалы километров до трека. */
+const tapeDepth = computed(() => Math.max(0, box.value.width - lane.value));
+
+/** Доля ряда (0…1) → значение в единицах показателя (так же, как ряд нормировали). */
+function formatSeriesValue(fraction: number): string {
+  const range = (values: number[]) => {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const value of values) {
+      if (value < min) min = value;
+      if (value > max) max = value;
+    }
+    return { min, max };
+  };
+  if (pace.value) {
+    const { min, max } = range(pace.value.values);
+    return formatPace(max - fraction * (max - min));
+  }
+  if (heartRate.value) {
+    const { min, max } = range(heartRate.value.values);
+    return String(Math.round(min + fraction * (max - min)));
+  }
+  if (elevation.value) {
+    const { min, max } = elevation.value;
+    return `${Math.round(min + fraction * (max - min))} м`;
+  }
+  return '';
+}
+
+/** Значения на краях шкалы: у края карточки (низ графика) и у трека (верх). */
+const tapeScale = computed(() => {
+  if (!tape.value || !showScale.value || elevation.value?.flat) return null;
+  return { low: formatSeriesValue(tape.value.from), high: formatSeriesValue(tape.value.to) };
+});
+
+const trackKm = computed(() =>
+  vertical.value && series.value
+    ? (props.kind === 'splits' ? splits.value : getSplits(props.track)).reduce(
+        (total, split) => total + split.length,
+        0,
+      )
+    : 0,
+);
+
+/** Отметки километров вдоль «ленты»: 0 сверху (старт), шаг — как у флажков на треке. */
+const tapeKm = computed(() => {
+  const length = box.value.height;
+  if (!lane.value || !(trackKm.value > 0) || !length) return [];
+  const step = getKmMarkerStep(trackKm.value);
+  const marks: { km: number; y: number; label: boolean }[] = [];
+  let lastLabel = -Infinity;
+  for (let km = 0; km < trackKm.value; km += step) {
+    const y = (km / trackKm.value) * length;
+    const label = y - lastLabel >= TAPE_KM_GAP && length - y >= TAPE_KM_GAP / 2;
+    if (label) lastLabel = y;
+    marks.push({ km, y, label });
+  }
+  return marks;
+});
+
+/** Ось «ленты» (край графика у карточки) в пикселях области. */
+const tapeAxisX = computed(() => (props.side === 'left' ? lane.value : tapeDepth.value));
+
+const clipId = `widget-tape-${useId()}`;
+/** Обрезка графика «ленты» по своей области: копии «Изолиний» уходили за край карточки. */
+const tapeClip = computed(() => {
+  const { height } = box.value;
+  const x = props.side === 'left' ? lane.value : -TAPE_OVERFLOW;
+  return { x, y: -4, width: tapeDepth.value + TAPE_OVERFLOW, height: height + 8 };
+});
+
 const hasData = computed(() => {
   if (props.kind === 'splits') return splits.value.length > 0;
   if (props.kind === 'zones') return zones.value !== null;
@@ -212,11 +304,11 @@ const splitGap = computed(() => (splitBars.value.length > 24 ? 1 : 3));
  * график повёрнут (`tapeTransform`): маркер считается в его координатах и поворачивается так же.
  */
 function getMarker(progress: number): ChartMarker | null {
-  if (!series.value) return null;
+  if (!chartSeries.value) return null;
   const { width, height } = box.value;
   if (!vertical.value) {
     return getProfileChartMarker(
-      series.value,
+      chartSeries.value,
       props.telemetry.chartStyle,
       progress,
       width,
@@ -225,14 +317,15 @@ function getMarker(progress: number): ChartMarker | null {
     );
   }
   const marker = getProfileChartMarker(
-    series.value,
+    chartSeries.value,
     props.telemetry.chartStyle,
     progress,
     height,
-    width,
+    tapeDepth.value,
     unit.value,
   );
   // Те же матрицы, что у `tapeTransform`: слева — (x, y) → (width − y, x), справа — (y, x).
+  // Глубина графика — без полосы шкалы: слева низ графика (y = глубина) встаёт на x = lane.
   return mapChartMarker(marker, ({ x, y }) =>
     props.side === 'left' ? { x: width - y, y: x } : { x: y, y: x },
   );
@@ -270,30 +363,78 @@ defineExpose({
       <span v-if="summary" class="artwork-widget__summary">{{ summary }}</span>
     </div>
 
+    <!-- «Лента»: значения на краях шкалы — у края карточки и у трека. -->
+    <div v-if="tapeScale" class="artwork-widget__scale">
+      <span>{{ tapeScale.low }}</span>
+      <span class="artwork-widget__scale-line" />
+      <span>{{ tapeScale.high }}</span>
+    </div>
+
     <div ref="body" class="artwork-widget__body">
       <p v-if="!hasData" class="artwork-widget__empty">Нет данных в GPX</p>
 
       <svg
-        v-else-if="series && box.width && box.height"
+        v-else-if="chartSeries && box.width && box.height"
         :viewBox="`0 0 ${box.width} ${box.height}`"
         :width="box.width"
         :height="box.height"
         aria-hidden="true"
       >
-        <g v-if="vertical" :transform="tapeTransform">
-          <ProfileChart
-            :series="series"
-            :style-id="telemetry.chartStyle"
-            :color="color"
-            :accent-color="textColor"
-            :width="box.height"
-            :height="box.width"
-            :unit="unit"
-          />
-        </g>
+        <template v-if="vertical">
+          <defs>
+            <clipPath :id="clipId">
+              <rect v-bind="tapeClip" />
+            </clipPath>
+          </defs>
+          <g :clip-path="`url(#${clipId})`">
+            <g :transform="tapeTransform">
+              <ProfileChart
+                :series="chartSeries"
+                :style-id="telemetry.chartStyle"
+                :color="color"
+                :accent-color="textColor"
+                :width="box.height"
+                :height="tapeDepth"
+                :unit="unit"
+              />
+            </g>
+          </g>
+          <!-- Шкала километров у края карточки: 0 сверху — старт. Оформление — атрибутами:
+               CSS-правила для элементов SVG html-to-image в PNG не переносит. -->
+          <g
+            v-if="lane"
+            :stroke="textColor"
+            :fill="textColor"
+            stroke-width="1"
+            font-size="7"
+            font-weight="600"
+          >
+            <line :x1="tapeAxisX" :x2="tapeAxisX" :y1="0" :y2="box.height" opacity="0.35" />
+            <template v-for="mark in tapeKm" :key="mark.km">
+              <line
+                :x1="tapeAxisX"
+                :x2="side === 'left' ? tapeAxisX - 3 : tapeAxisX + 3"
+                :y1="mark.y"
+                :y2="mark.y"
+                opacity="0.35"
+              />
+              <text
+                v-if="mark.label"
+                :x="side === 'left' ? tapeAxisX - 4 : tapeAxisX + 4"
+                :y="mark.y"
+                :text-anchor="side === 'left' ? 'end' : 'start'"
+                dominant-baseline="hanging"
+                stroke="none"
+                opacity="0.7"
+              >
+                {{ mark.km }}
+              </text>
+            </template>
+          </g>
+        </template>
         <ProfileChart
           v-else
-          :series="series"
+          :series="chartSeries"
           :style-id="telemetry.chartStyle"
           :color="color"
           :accent-color="textColor"
@@ -525,6 +666,40 @@ defineExpose({
   width: 28px;
   font-weight: 700;
   text-align: right;
+}
+
+/* Шкала значений «ленты»: у края карточки — низ графика, у трека — верх. */
+.artwork-widget__scale {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: -1px;
+  font-size: 8px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+.artwork-widget--right .artwork-widget__scale {
+  flex-direction: row-reverse;
+}
+
+/* Стрелка от меньшего к большему: значение растёт к треку. */
+.artwork-widget__scale-line {
+  flex: 1 1 auto;
+  min-width: 6px;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--share-text) 15%, transparent),
+    color-mix(in srgb, var(--share-text) 60%, transparent)
+  );
+}
+
+.artwork-widget--right .artwork-widget__scale-line {
+  transform: scaleX(-1);
 }
 
 /* Вертикальная «лента»: заголовок в две строки, полосы и шкала — от края карточки. */
