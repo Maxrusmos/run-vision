@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ShareCardSettings } from '../activity-share.types';
-import { getProDesignInUse, isDecorVisible } from '../activity-share-pro';
+import { getProDesignInUse, getProItemsInUse, isDecorVisible } from '../activity-share-pro';
+import { PRO_ROUTE_STYLES, findRouteStyle } from '../activity-share-route-styles';
 import { PRO_COLOR_PRESETS, findSharePresetByColors } from '../activity-share-presets';
 import { SHARE_BACKGROUND_DECORS, getDecorStyle } from '../activity-share-decor';
 
@@ -10,6 +11,8 @@ const card = (patch: Partial<ShareCardSettings>) =>
     backgroundImage: null,
     transparentBackground: false,
     map: null,
+    routeVisible: true,
+    routeStyle: 'solid',
     ...patch,
   }) as ShareCardSettings;
 
@@ -52,5 +55,25 @@ describe('Pro-оформления', () => {
     expect(style.backgroundImage).toContain('6.5px');
     expect(style.backgroundImage!.split('gradient(').length - 1).toBe(2);
     expect(style.backgroundSize!.split(',').length).toBe(2);
+  });
+
+  it('Pro-стиль трека: в счёт, только если трек на карточке', () => {
+    expect(getProItemsInUse(card({ routeStyle: 'pro-rainbow' }))).toEqual([
+      { feature: 'proRouteStyles', name: 'Радуга' },
+    ]);
+    expect(getProItemsInUse(card({ routeStyle: 'pro-rainbow', routeVisible: false }))).toEqual([]);
+    expect(getProItemsInUse(card({ routeStyle: 'glow' }))).toEqual([]);
+    expect(
+      getProItemsInUse(card({ routeStyle: 'pro-road', backgroundDecor: 'gold' })).map(
+        (item) => item.feature,
+      ),
+    ).toEqual(['proDesigns', 'proRouteStyles']);
+  });
+
+  it('Pro-стили трека находятся по id и помечены Pro', () => {
+    for (const style of PRO_ROUTE_STYLES) {
+      expect(style.pro).toBe(true);
+      expect(findRouteStyle(style.id)).toBe(style);
+    }
   });
 });

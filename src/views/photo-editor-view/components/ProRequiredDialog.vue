@@ -1,12 +1,24 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import type { ProItemInUse } from '@/entities/activity/model/activity-share/activity-share-pro';
+
 /**
  * «Сохранить» на карточке с Pro-оформлением без подписки: подключить Pro или вернуть
  * обычное оформление шаблона. Посмотреть Pro-оформление можно, сохранить — нет.
  */
-defineProps<{
-  /** Название Pro-оформления на карточке. */
-  designName: string;
+const props = defineProps<{
+  /** Pro-возможности на карточке: оформление, стиль трека. */
+  items: ProItemInUse[];
 }>();
+
+/** «Оформление «Аврора»», «трек «Радуга»» — по-русски через «и». */
+const title = computed(() => {
+  const parts = props.items.map((item) =>
+    item.feature === 'proDesigns' ? `оформление «${item.name}»` : `трек «${item.name}»`,
+  );
+  const text = parts.join(' и ');
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)} — из Pro`;
+});
 
 const isOpen = defineModel<boolean>({ required: true });
 
@@ -22,18 +34,16 @@ const emit = defineEmits<{
       <div class="pro-required-dialog__crown" aria-hidden="true">
         <v-icon icon="mdi-crown" size="26" />
       </div>
-      <div class="pro-required-dialog__title">«{{ designName }}» — оформление Pro</div>
+      <div class="pro-required-dialog__title">{{ title }}</div>
       <div class="pro-required-dialog__text">
-        Посмотреть, как выглядит карточка, можно и так, а сохранить её с этим оформлением — с
-        подпиской Pro. Или верните обычное оформление шаблона — всё остальное останется как есть.
+        Посмотреть, как выглядит карточка, можно и так, а сохранить её — с подпиской Pro. Или
+        верните обычные оформление и трек шаблона — всё остальное останется как есть.
       </div>
       <div class="pro-required-dialog__actions">
         <v-btn color="primary" variant="flat" size="large" block @click="emit('upgrade')">
           Подключить Pro
         </v-btn>
-        <v-btn variant="tonal" size="large" block @click="emit('revert')">
-          Вернуть обычное оформление
-        </v-btn>
+        <v-btn variant="tonal" size="large" block @click="emit('revert')"> Вернуть обычные </v-btn>
         <v-btn variant="text" block @click="isOpen = false">Отмена</v-btn>
       </div>
     </v-card>

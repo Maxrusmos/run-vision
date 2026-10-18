@@ -64,7 +64,7 @@ import {
 import { loadImage } from '@/shared/lib/image/load-image';
 import StatsAppearancePanel from '@/views/photo-editor-view/components/panels/StatsAppearancePanel.vue';
 import ProRequiredDialog from '@/views/photo-editor-view/components/ProRequiredDialog.vue';
-import { getProDesignInUse } from '@/entities/activity/model/activity-share/activity-share-pro';
+import { getProItemsInUse } from '@/entities/activity/model/activity-share/activity-share-pro';
 import { useAccess } from '@/hooks/useAccess';
 
 /** Время на анимацию снятия выделения с показателя перед рендером. */
@@ -133,6 +133,7 @@ const {
   setRouteBearing,
   setRoutePitch,
   setRouteFlags,
+  removeProFeatures,
   setVideoDotStyle,
   setVideoDotColor,
   setVideoDotPhoto,
@@ -166,7 +167,7 @@ const {
   // Шаблон из кабинета — или карточка, на которой остановились (в рамках сессии).
   initialSettings: editedTemplateOnEnter
     ? JSON.parse(JSON.stringify(editedTemplateOnEnter.settings))
-    : draftsStore.getDraft(templateId),
+    : draftsStore.getDraft(isVideoMode ? 'video' : 'photo', templateId),
   hasHeartRate: activity.value?.track.some((point) => (point.heartRate ?? 0) > 0) ?? false,
   hasElevation: activity.value?.hasElevation ?? false,
   // Показатели без данных («—») на новую карточку не ставим.
@@ -177,7 +178,11 @@ const {
 // перезагрузишь страницу — продолжишь с того же места. Как по шаблону — черновик не нужен.
 function saveDraft() {
   if (isTemplateMode) return;
-  draftsStore.saveDraft(templateId, isDefault() ? null : settings.value);
+  draftsStore.saveDraft(
+    isVideoMode ? 'video' : 'photo',
+    templateId,
+    isDefault() ? null : settings.value,
+  );
 }
 watch(settings, saveDraft, { deep: true });
 onBeforeUnmount(saveDraft);
@@ -476,14 +481,14 @@ function saveVideo() {
 // Pro-оформление без подписки: смотреть можно (с водяными знаками), сохранить — нет.
 // Шаблон (только настройки, без картинки) сохраняется и так.
 const { canUse } = useAccess();
-const lockedProDesign = computed(() =>
-  canUse('proDesigns') ? null : getProDesignInUse(settings.value),
+const lockedProItems = computed(() =>
+  getProItemsInUse(settings.value).filter((item) => !canUse(item.feature)),
 );
 const isProDialogOpen = ref(false);
 
 function handleSave() {
   if (isTemplateMode) void handleSaveTemplate();
-  else if (lockedProDesign.value) isProDialogOpen.value = true;
+  else if (lockedProItems.value.length) isProDialogOpen.value = true;
   else if (isVideoMode) void createVideo();
   else void createImage();
 }
@@ -494,10 +499,10 @@ function upgradeToPro() {
   void router.push({ name: ROUTE_NAMES.pro, query: { redirect: route.fullPath } });
 }
 
-/** Обычное оформление шаблона вместо Pro (остальные настройки не трогаем). */
-function revertProDesign() {
+/** Вместо Pro — оформление и стиль трека шаблона (остальные настройки не трогаем). */
+function revertProFeatures() {
   isProDialogOpen.value = false;
-  applyPresetById(getPhotoTemplatePresetId(templateId));
+  removeProFeatures();
 }
 
 function saveImage() {
@@ -769,11 +774,11 @@ function goBack() {
   />
 
   <ProRequiredDialog
-    v-if="lockedProDesign"
+    v-if="lockedProItems.length"
     v-model="isProDialogOpen"
-    :design-name="lockedProDesign.name"
+    :items="lockedProItems"
     @upgrade="upgradeToPro"
-    @revert="revertProDesign"
+    @revert="revertProFeatures"
   />
 </template>
 

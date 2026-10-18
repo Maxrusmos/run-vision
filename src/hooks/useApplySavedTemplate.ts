@@ -28,7 +28,7 @@ export function useApplySavedTemplate() {
 
   async function applyToActivity(template: SavedTemplate) {
     if (!activityStore.activity) return;
-    draftsStore.saveDraft(template.baseTemplate, template.settings);
+    draftsStore.saveDraft(template.shareType, template.baseTemplate, template.settings);
     draftsStore.setLink(template.shareType, template.baseTemplate, template.id);
     shareStore.setShareType(template.shareType);
     if (template.shareType === 'video') shareStore.setVideoTemplate(template.baseTemplate);

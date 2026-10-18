@@ -29,7 +29,10 @@ import {
 } from '@/entities/activity/model/activity-share/activity-share-presets';
 import { normalizeShareCardSettings } from '@/entities/activity/model/activity-share/activity-share-settings';
 import { DEFAULT_ROUTE_SCALE } from '@/entities/activity/model/activity-share/activity-share-route';
-import { DEFAULT_ROUTE_STYLE } from '@/entities/activity/model/activity-share/activity-share-route-styles';
+import {
+  DEFAULT_ROUTE_STYLE,
+  findRouteStyle,
+} from '@/entities/activity/model/activity-share/activity-share-route-styles';
 import { DEFAULT_STAT_STYLE } from '@/entities/activity/model/activity-share/activity-share-stat-styles';
 import {
   createShareMapSettings,
@@ -456,6 +459,21 @@ export function useShareCardSettings(
     }
   }
 
+  /**
+   * Убрать Pro-возможности (сохранить без подписки): Pro-оформление → пресет шаблона,
+   * Pro-стиль трека → стиль трека шаблона. Остальные настройки не трогаем.
+   */
+  function removeProFeatures() {
+    if (settings.value.backgroundDecor || findSharePreset(settings.value.presetId)?.pro) {
+      applyPreset(initialPreset);
+    }
+    if (findRouteStyle(settings.value.routeStyle).pro) {
+      settings.value.routeStyle = options.template
+        ? TEMPLATE_STYLES[options.template].route
+        : DEFAULT_ROUTE_STYLE;
+    }
+  }
+
   function setVideoDotStyle(style: ShareVideoDotStyle) {
     settings.value.videoDot = { ...settings.value.videoDot, style };
   }
@@ -558,6 +576,7 @@ export function useShareCardSettings(
     setTransparentBackground,
     setBackgroundImage,
     removeBackgroundImage,
+    removeProFeatures,
     setVideoDotStyle,
     setVideoDotColor,
     setVideoDotPhoto,

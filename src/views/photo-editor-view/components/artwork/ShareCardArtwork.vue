@@ -30,7 +30,7 @@ import BackgroundPattern from '@/views/photo-editor-view/components/artwork/Back
 import CardDecor from '@/views/photo-editor-view/components/artwork/CardDecor.vue';
 import ProWatermark from '@/views/photo-editor-view/components/artwork/ProWatermark.vue';
 import {
-  getProDesignInUse,
+  getProItemsInUse,
   isDecorVisible,
 } from '@/entities/activity/model/activity-share/activity-share-pro';
 import { useAccess } from '@/hooks/useAccess';
@@ -385,8 +385,8 @@ const stats = computed<ShareStat[]>(() =>
 // Pro-оформление без подписки — посмотреть можно, но поверх карточки водяные знаки.
 const { canUse } = useAccess();
 const showDecor = computed(() => isDecorVisible(props.settings));
-const showProWatermark = computed(
-  () => getProDesignInUse(props.settings) !== null && !canUse('proDesigns'),
+const showProWatermark = computed(() =>
+  getProItemsInUse(props.settings).some((item) => !canUse(item.feature)),
 );
 
 const cssVariables = computed(() => {

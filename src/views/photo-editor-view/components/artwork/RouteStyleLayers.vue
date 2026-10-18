@@ -32,7 +32,26 @@ const props = defineProps<{
 const gradientId = `route-gradient-${useId()}`;
 
 const style = computed(() => findRouteStyle(props.styleId));
-const hasGradient = computed(() => style.value.layers.some((layer) => layer.gradient));
+
+/** Градиенты слоёв: у каждого слоя свой (цвета Pro-стилей разные), id — по номеру слоя. */
+const gradients = computed(() =>
+  style.value.layers.flatMap((layer, index) => {
+    if (!layer.gradient) return [];
+    const colors =
+      layer.gradient === true
+        ? [props.routeColor, props.textColor]
+        : layer.gradient.map((color) => resolveColor(color));
+    return [
+      {
+        id: `${gradientId}-${index}`,
+        stops: colors.map((color, stop) => ({
+          offset: colors.length > 1 ? stop / (colors.length - 1) : 0,
+          color,
+        })),
+      },
+    ];
+  }),
+);
 
 function resolveColor(color: RouteLayerColor = 'route'): string {
   if (color === 'route') return props.routeColor;
@@ -57,8 +76,8 @@ function extrudeOffsets(layer: RouteStrokeLayer): { dx: number; dy: number }[] {
   });
 }
 
-function layerStroke(layer: RouteStrokeLayer): string {
-  return layer.gradient ? `url(#${gradientId})` : resolveColor(layer.color);
+function layerStroke(layer: RouteStrokeLayer, index: number): string {
+  return layer.gradient ? `url(#${gradientId}-${index})` : resolveColor(layer.color);
 }
 
 function layerDash(layer: RouteStrokeLayer): string | undefined {
@@ -68,10 +87,22 @@ function layerDash(layer: RouteStrokeLayer): string | undefined {
 
 <template>
   <g>
-    <defs v-if="hasGradient">
-      <linearGradient :id="gradientId" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" :stop-color="routeColor" />
-        <stop offset="1" :stop-color="textColor" />
+    <defs v-if="gradients.length">
+      <linearGradient
+        v-for="gradient in gradients"
+        :id="gradient.id"
+        :key="gradient.id"
+        x1="0"
+        y1="0"
+        x2="1"
+        y2="1"
+      >
+        <stop
+          v-for="stop in gradient.stops"
+          :key="stop.offset"
+          :offset="stop.offset"
+          :stop-color="stop.color"
+        />
       </linearGradient>
     </defs>
 
@@ -86,7 +117,7 @@ function layerDash(layer: RouteStrokeLayer): string | undefined {
           :transform="`translate(${offset.dx} ${offset.dy})`"
           :points="points"
           fill="none"
-          :stroke="layerStroke(layer)"
+          :stroke="layerStroke(layer, index)"
           :stroke-width="BASE_STROKE * (layer.width ?? 1) * unit"
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -97,7 +128,7 @@ function layerDash(layer: RouteStrokeLayer): string | undefined {
         :transform="layerTransform(layer)"
         :points="points"
         fill="none"
-        :stroke="layerStroke(layer)"
+        :stroke="layerStroke(layer, index)"
         :opacity="layer.opacity ?? 1"
         :stroke-width="BASE_STROKE * (layer.width ?? 1) * unit"
         :stroke-dasharray="layerDash(layer)"

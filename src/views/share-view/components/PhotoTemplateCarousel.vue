@@ -26,9 +26,9 @@ const selected = defineModel<PhotoTemplateId>({ required: true });
 
 const draftsStore = useShareDraftsStore();
 
-/** Шаблон уже настраивали — превью в цветах черновика (оформление и цвет трека). */
+/** Шаблон уже настраивали (в фото или в видео — у каждого свой черновик) — превью в его цветах. */
 function getDraftColors(templateId: PhotoTemplateId) {
-  const draft = draftsStore.drafts[templateId];
+  const draft = draftsStore.peekDraft(props.shareType, templateId);
   return draft
     ? { background: draft.backgroundColor, route: draft.routeColor, text: draft.textColor }
     : null;
@@ -60,7 +60,7 @@ const {
         :title="template.title"
         :description="template.description"
         :selected="selected === template.id"
-        :edited="Boolean(draftsStore.drafts[template.id])"
+        :edited="Boolean(draftsStore.peekDraft(shareType, template.id))"
         :soon="!isAvailable(template.id)"
         :share-type="shareType"
         @select="isAvailable(template.id) && (selected = template.id)"

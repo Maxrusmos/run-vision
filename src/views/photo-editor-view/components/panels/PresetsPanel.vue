@@ -1,19 +1,28 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue';
 import type { ShareCardSettings } from '@/entities/activity/model/activity-share/activity-share.types';
 import {
   PRO_COLOR_PRESETS,
   SHARE_COLOR_PRESETS,
 } from '@/entities/activity/model/activity-share/activity-share-presets';
 import CardDecor from '@/views/photo-editor-view/components/artwork/CardDecor.vue';
+import VariantSetSwitch, {
+  type VariantSet,
+} from '@/views/photo-editor-view/components/settings/VariantSetSwitch.vue';
 import OptionTile from '@/views/photo-editor-view/components/settings/OptionTile.vue';
 import OptionTileRow from '@/views/photo-editor-view/components/settings/OptionTileRow.vue';
 
-defineProps<{
+const props = defineProps<{
   settings: ShareCardSettings;
 }>();
 
-// Pro-оформления — первыми: их видно сразу (без Pro — посмотреть с водяными знаками).
-const PRESETS = [...PRO_COLOR_PRESETS, ...SHARE_COLOR_PRESETS];
+// Обычные или Pro — переключателем слева; открывается на наборе выбранного пресета.
+const variantSet = ref<VariantSet>(
+  PRO_COLOR_PRESETS.some((preset) => preset.id === props.settings.presetId) ? 'pro' : 'regular',
+);
+const presets = computed(() =>
+  variantSet.value === 'pro' ? PRO_COLOR_PRESETS : SHARE_COLOR_PRESETS,
+);
 
 const emit = defineEmits<{
   applyPreset: [id: string];
@@ -21,9 +30,13 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <OptionTileRow>
+  <!-- key: другой набор — ряд заново, с прокруткой к выбранной плитке. -->
+  <OptionTileRow :key="variantSet">
+    <template #fixed>
+      <VariantSetSwitch v-model="variantSet" />
+    </template>
     <OptionTile
-      v-for="preset in PRESETS"
+      v-for="preset in presets"
       :key="preset.id"
       :label="preset.name"
       :active="settings.presetId === preset.id"

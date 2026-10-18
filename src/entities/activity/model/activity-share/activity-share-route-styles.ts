@@ -17,8 +17,11 @@ export type RouteStrokeLayer = {
   opacity?: number;
   color?: RouteLayerColor;
   dash?: 'dash' | 'dot';
-  /** Градиент от цвета трека к цвету текста. */
-  gradient?: boolean;
+  /**
+   * Градиент вдоль трека (по диагонали рамки): `true` — от цвета трека к цвету текста,
+   * список — свои цвета по порядку (Pro-стили: радуга, закат, огонь…).
+   */
+  gradient?: boolean | readonly RouteLayerColor[];
   /**
    * Объём «выдавливанием»: `steps` непрозрачных копий со сдвигом (dx, dy) на шаг,
    * прозрачность — у группы целиком. Так грань сплошная: полупрозрачные копии
@@ -30,6 +33,8 @@ export type RouteStrokeLayer = {
 export type ShareRouteStyleOption = {
   id: ShareRouteStyle;
   name: string;
+  /** Только с подпиской Pro (без неё — посмотреть с водяными знаками, сохранить нельзя). */
+  pro?: boolean;
   /** Слои снизу вверх; последний — основной, на нём точка старта. */
   layers: readonly RouteStrokeLayer[];
 };
@@ -128,6 +133,100 @@ export const SHARE_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
   },
 ];
 
+const RAINBOW = [
+  '#FF3B30',
+  '#FF9500',
+  '#FFCC00',
+  '#34C759',
+  '#00C7FF',
+  '#5856D6',
+  '#AF52DE',
+] as const;
+
+/**
+ * Pro-стили трека: многоцветные градиенты, неон, «шоссе» с разметкой, металл. Отдельный
+ * набор — правило «16 стилей у трека, показателей и графика» касается обычных.
+ */
+export const PRO_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
+  {
+    id: 'pro-rainbow',
+    name: 'Радуга',
+    pro: true,
+    layers: [
+      { width: 3.2, gradient: RAINBOW, opacity: 0.18 },
+      { width: 1.3, gradient: RAINBOW },
+    ],
+  },
+  {
+    id: 'pro-sunset',
+    name: 'Закат',
+    pro: true,
+    layers: [
+      { dx: 5, dy: 8, width: 1.3, color: '#000000', opacity: 0.3 },
+      { width: 1.4, gradient: ['#FFD166', '#F78C6B', '#EF476F', '#7B2CBF'] },
+    ],
+  },
+  {
+    id: 'pro-fire',
+    name: 'Пламя',
+    pro: true,
+    layers: [
+      { width: 5, gradient: ['#FFB000', '#FF3D00', '#8B0000'], opacity: 0.16 },
+      { width: 2.8, gradient: ['#FFB000', '#FF3D00', '#8B0000'], opacity: 0.35 },
+      { width: 1.4, gradient: ['#FFF3B0', '#FF9100', '#E53935'] },
+      { width: 0.35, color: '#FFFDE7', opacity: 0.9 },
+    ],
+  },
+  {
+    id: 'pro-plasma',
+    name: 'Плазма',
+    pro: true,
+    layers: [
+      { width: 6, gradient: true, opacity: 0.1 },
+      { width: 3.6, gradient: true, opacity: 0.22 },
+      { width: 1.6, gradient: true },
+      { width: 0.45, color: '#ffffff', opacity: 0.95 },
+    ],
+  },
+  {
+    id: 'pro-road',
+    name: 'Шоссе',
+    pro: true,
+    layers: [
+      { dy: 6, width: 3.2, color: '#000000', opacity: 0.3 },
+      { width: 3, color: '#2F3236' },
+      { width: 2.6, color: '#45494F' },
+      { width: 0.28, color: '#FFD60A', dash: 'dash' },
+    ],
+  },
+  {
+    id: 'pro-chrome',
+    name: 'Хром',
+    pro: true,
+    layers: [
+      { dx: 4, dy: 7, width: 2, color: '#000000', opacity: 0.35 },
+      { width: 2, color: '#5F6670' },
+      { width: 1.5, gradient: ['#F5F7FA', '#9AA4B1', '#E9EDF2', '#7C8794'] },
+      { dy: -2, width: 0.4, color: '#ffffff', opacity: 0.9 },
+    ],
+  },
+  {
+    id: 'pro-hologram',
+    name: 'Голограмма',
+    pro: true,
+    layers: [
+      { dx: -7, dy: 3, width: 1.1, color: '#00F5D4', opacity: 0.55 },
+      { dx: 7, dy: -3, width: 1.1, color: '#F15BB5', opacity: 0.55 },
+      { width: 1.3, gradient: ['#00F5D4', '#9B5DE5', '#F15BB5'] },
+      { width: 0.35, color: '#ffffff', opacity: 0.85 },
+    ],
+  },
+];
+
 export function findRouteStyle(id: ShareRouteStyle): ShareRouteStyleOption {
-  return SHARE_ROUTE_STYLES.find((style) => style.id === id) ?? SHARE_ROUTE_STYLES[0]!;
+  return (
+    SHARE_ROUTE_STYLES.find((style) => style.id === id) ??
+    PRO_ROUTE_STYLES.find((style) => style.id === id) ??
+    SHARE_ROUTE_STYLES[0]!
+  );
 }

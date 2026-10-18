@@ -64,7 +64,7 @@ describe('work-session', () => {
   it('после перезагрузки возвращает тренировку, шаблон и черновики с фото', async () => {
     expect(await useActivityStore().importGpx(gpxFile())).toBe(true);
     useShareStore().setPhotoTemplate('topographic');
-    useShareDraftsStore().saveDraft('topographic', draft('blob:old/photo'));
+    useShareDraftsStore().saveDraft('photo', 'topographic', draft('blob:old/photo'));
     useShareDraftsStore().setLink('photo', 'topographic', 'saved-1');
     await persistWorkSession();
 
@@ -74,7 +74,7 @@ describe('work-session', () => {
 
     expect(useActivityStore().activity?.name).toBe('Утренний бег');
     expect(useShareStore().photoTemplateId).toBe('topographic');
-    const restored = useShareDraftsStore().getDraft('topographic');
+    const restored = useShareDraftsStore().getDraft('photo', 'topographic');
     expect(restored?.title).toBe('Утро');
     // Старый object URL после перезагрузки мёртв — фото получает новый.
     expect(restored?.backgroundImage).toMatch(/^blob:test\//);
@@ -120,7 +120,7 @@ describe('work-session', () => {
 
   it('новый GPX сбрасывает черновики', async () => {
     await useActivityStore().importGpx(gpxFile());
-    useShareDraftsStore().saveDraft('minimal', draft());
+    useShareDraftsStore().saveDraft('photo', 'minimal', draft());
     await useActivityStore().importGpx(gpxFile());
     expect(useShareDraftsStore().drafts).toEqual({});
   });

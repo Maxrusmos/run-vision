@@ -14,6 +14,8 @@ import type { AccessLevel } from '@/entities/user';
 export const FEATURES = {
   /** Pro-оформления (градиент + узор): без Pro — с водяными знаками, сохранить нельзя. */
   proDesigns: 'pro',
+  /** Pro-стили трека (многоцветные, неон, «шоссе», хром…) — так же. */
+  proRouteStyles: 'pro',
 } as const satisfies Record<string, AccessLevel>;
 
 export type FeatureId = keyof typeof FEATURES;

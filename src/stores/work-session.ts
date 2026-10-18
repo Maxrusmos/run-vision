@@ -150,7 +150,7 @@ async function runRestore(): Promise<boolean> {
     if (!draft) continue;
     const image = draft.backgroundImage ? (urls.get(draft.backgroundImage) ?? null) : null;
     const dotPhoto = draft.videoDot?.photo ? (urls.get(draft.videoDot.photo) ?? null) : null;
-    drafts[id as PhotoTemplateId] = {
+    drafts[id] = {
       ...draft,
       backgroundImage: image,
       ...(draft.videoDot ? { videoDot: { ...draft.videoDot, photo: dotPhoto } } : {}),

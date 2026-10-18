@@ -22,7 +22,7 @@ const TILE = (() => {
   <div class="pro-watermark" :style="TILE" aria-hidden="true">
     <span class="pro-watermark__badge">
       <v-icon icon="mdi-crown" size="14" />
-      Pro-оформление · сохранить можно с Pro
+      Pro-стиль · сохранить можно с Pro
     </span>
   </div>
 </template>

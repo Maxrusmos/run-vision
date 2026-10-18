@@ -58,7 +58,15 @@ export type ShareRouteStyle =
   | 'wall'
   | 'iso'
   | 'tube'
-  | 'ribbon';
+  | 'ribbon'
+  // Pro (`PRO_ROUTE_STYLES`)
+  | 'pro-rainbow'
+  | 'pro-sunset'
+  | 'pro-fire'
+  | 'pro-plasma'
+  | 'pro-road'
+  | 'pro-chrome'
+  | 'pro-hologram';
 
 /** Ячейка показателя в сетке из 6 колонок: строка и первая колонка. */
 export type ShareStatPosition = {

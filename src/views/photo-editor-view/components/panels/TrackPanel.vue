@@ -11,7 +11,13 @@ import {
   VIDEO_DOT_STYLES,
   getVideoDotColor,
 } from '@/entities/activity/model/activity-share/video-dot';
-import { SHARE_ROUTE_STYLES } from '@/entities/activity/model/activity-share/activity-share-route-styles';
+import {
+  PRO_ROUTE_STYLES,
+  SHARE_ROUTE_STYLES,
+} from '@/entities/activity/model/activity-share/activity-share-route-styles';
+import VariantSetSwitch, {
+  type VariantSet,
+} from '@/views/photo-editor-view/components/settings/VariantSetSwitch.vue';
 import { SHARE_ROUTE_PITCHES } from '@/entities/activity/model/activity-share/activity-share-map';
 import {
   orientRoute,
@@ -58,6 +64,14 @@ const emit = defineEmits<{
   setVideoDotPhoto: [file: File];
   removeVideoDotPhoto: [];
 }>();
+
+/** Стили трека — обычные или Pro (открывается на наборе выбранного стиля). */
+const routeVariantSet = ref<VariantSet>(
+  PRO_ROUTE_STYLES.some((style) => style.id === props.settings.routeStyle) ? 'pro' : 'regular',
+);
+const routeStyles = computed(() =>
+  routeVariantSet.value === 'pro' ? PRO_ROUTE_STYLES : SHARE_ROUTE_STYLES,
+);
 
 /** Что настраиваем (только видео); по умолчанию — трек. */
 const target = ref<'route' | 'dot'>('route');
@@ -264,7 +278,7 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
         </button>
       </div>
 
-      <OptionTileRow>
+      <OptionTileRow :key="routeVariantSet">
         <template #fixed>
           <ColorOptionTile
             label="Цвет"
@@ -272,10 +286,11 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
             :color="settings.routeColor"
             @change="emit('setRouteColor', $event)"
           />
+          <VariantSetSwitch v-model="routeVariantSet" />
         </template>
 
         <OptionTile
-          v-for="style in SHARE_ROUTE_STYLES"
+          v-for="style in routeStyles"
           :key="style.id"
           :label="style.name"
           :active="settings.routeStyle === style.id"
