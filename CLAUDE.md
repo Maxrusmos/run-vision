@@ -330,11 +330,12 @@ npx vite build
   `refreshUser`). Вход — пункт «RunVision Pro» в меню аккаунта (подзаголовок — срок).
   Настоящий сервис = ещё один `PaymentProvider` + вебхук. Только для проверки — «Отменить
   подписку (тест)» на `/pro` (`POST /api/billing/mock/subscription/cancel`, только `mock`).
-- **Переключатель «Обычные / 👑 Pro»** (`VariantSetSwitch`) — закреплён слева в ряду плиток
-  (две кнопки столбиком высотой с плитку, панель не выше): в «Оформлении» и в стилях трека
-  (после «Цвета»). Открывается на наборе выбранного варианта; смена — ряд заново (`key`).
-- **Pro-стили трека** (`FEATURES.proRouteStyles`): `PRO_ROUTE_STYLES` — Радуга, Закат, Пламя,
-  Плазма, Шоссе, Хром, Голограмма (отдельный набор, правило «16 стилей» — про обычные).
+- **Pro-варианты — в общем ряду после обычных**, с короной на плитке (`ProTileBadge`) — в
+  «Оформлении» и в стилях трека. Переключатель «Обычные / Pro» пробовали — пользователю не
+  понравился: съедал место рядом с «Цветом» (убран).
+- **Pro-стили трека** (`FEATURES.proRouteStyles`): `PRO_ROUTE_STYLES` — Стена, Призрак
+  (были обычными, перенесены по просьбе пользователя), Радуга, Закат, Пламя, Плазма, Шоссе,
+  Хром, Голограмма. Обычных стилей трека теперь 14 — правило «16 стилей» относится к ним.
   Многоцветный градиент — `gradient: [цвета]` у слоя (у каждого слоя свой `linearGradient`
   в `RouteStyleLayers`). В счёт, только если трек на карточке.
 - **Что на карточке из Pro** — `getProItemsInUse` (`activity-share-pro.ts`, с тестами):
@@ -343,7 +344,7 @@ npx vite build
   `removeProFeatures` (пресет и стиль трека шаблона, остальное не трогаем).
 - **Pro-оформления** (`FEATURES.proDesigns`): 8 пресетов
   `PRO_COLOR_PRESETS` (Аврора, Синтвейв, Изолинии, Персик, Изумруд, Ледник, Лава, Золото) —
-  в «Оформлении» за переключателем Pro, с короной на плитке. Пресет = цвета + `decor`: фон-градиент с узором
+  в «Оформлении» после обычных, с короной на плитке. Пресет = цвета + `decor`: фон-градиент с узором
   (`SHARE_BACKGROUND_DECORS` в `activity-share-decor.ts`: только CSS-градиенты и data-URI
   SVG — переносятся в PNG и кадры видео; изолинии/волны/сетка «синтвейв» генерируются кодом),
   в настройках — `backgroundDecor` (слой `CardDecor.vue`, в плитке — `scale`). Под фото,
@@ -605,7 +606,7 @@ Render и Pages). Сливаем по просьбе пользователя.
 (до появления `develop`). В `develop`, затем `develop` → `main`: `bugfix/tile-row-divider`,
 `feature/video-templates`, `docs/next-session-plans`. В `develop` (ещё не в `main`): `feature/vertical-widgets`, `feature/video-dot-styles`,
 `feature/login-auth` (вход по логину — **отменён** следующей веткой, миграция 004 удалена),
-`feature/password-reset`, `bugfix/auth-notes-mail-log`, `feature/pro-purchase`, `feature/pro-designs`, `feature/pro-tracks-split-drafts`.
+`feature/password-reset`, `bugfix/auth-notes-mail-log`, `feature/pro-purchase`, `feature/pro-designs`, `feature/pro-tracks-split-drafts`, `feature/pro-variants-inline`.
 
 ## Идеи на потом (обсуждали, не сделано)
 

@@ -72,6 +72,8 @@ withDefaults(
 }
 
 .option-tile__preview {
+  /* Для значков поверх превью (корона Pro). */
+  position: relative;
   display: grid;
   width: 100%;
   height: 46px;

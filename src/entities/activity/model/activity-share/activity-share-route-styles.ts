@@ -80,11 +80,6 @@ export const SHARE_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
     layers: [{ dy: 39, opacity: 0.15 }, { dy: 26, opacity: 0.3 }, { dy: 13, opacity: 0.55 }, {}],
   },
   {
-    id: 'ghost',
-    name: 'Призрак',
-    layers: [{ scale: 1.14, opacity: 0.15 }, { scale: 1.07, opacity: 0.32 }, {}],
-  },
-  {
     id: 'glitch',
     name: 'Глитч',
     layers: [
@@ -96,17 +91,6 @@ export const SHARE_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
   { id: 'gradient', name: 'Градиент', layers: [{ width: 1.2, gradient: true }] },
   { id: 'dashed', name: 'Пунктир', layers: [{ dash: 'dash' }] },
   { id: 'dotted', name: 'Точки', layers: [{ width: 1.4, dash: 'dot' }] },
-  {
-    id: 'wall',
-    name: 'Стена',
-    layers: [
-      // Тень у основания, грань стены, верх с бликом.
-      { dy: 44, width: 1.4, color: '#000000', opacity: 0.3 },
-      extrude(14, 0, 3, 0.45),
-      {},
-      { width: 0.35, color: '#ffffff', opacity: 0.85 },
-    ],
-  },
   {
     id: 'iso',
     name: 'Изометрия',
@@ -144,10 +128,28 @@ const RAINBOW = [
 ] as const;
 
 /**
- * Pro-стили трека: многоцветные градиенты, неон, «шоссе» с разметкой, металл. Отдельный
- * набор — правило «16 стилей у трека, показателей и графика» касается обычных.
+ * Pro-стили трека: объём («Стена»), «Призрак», многоцветные градиенты, неон, «шоссе»
+ * с разметкой, металл. В меню — после обычных, с короной.
  */
 export const PRO_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
+  {
+    id: 'wall',
+    name: 'Стена',
+    pro: true,
+    layers: [
+      // Тень у основания, грань стены, верх с бликом.
+      { dy: 44, width: 1.4, color: '#000000', opacity: 0.3 },
+      extrude(14, 0, 3, 0.45),
+      {},
+      { width: 0.35, color: '#ffffff', opacity: 0.85 },
+    ],
+  },
+  {
+    id: 'ghost',
+    name: 'Призрак',
+    pro: true,
+    layers: [{ scale: 1.14, opacity: 0.15 }, { scale: 1.07, opacity: 0.32 }, {}],
+  },
   {
     id: 'pro-rainbow',
     name: 'Радуга',

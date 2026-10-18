@@ -15,9 +15,6 @@ import {
   PRO_ROUTE_STYLES,
   SHARE_ROUTE_STYLES,
 } from '@/entities/activity/model/activity-share/activity-share-route-styles';
-import VariantSetSwitch, {
-  type VariantSet,
-} from '@/views/photo-editor-view/components/settings/VariantSetSwitch.vue';
 import { SHARE_ROUTE_PITCHES } from '@/entities/activity/model/activity-share/activity-share-map';
 import {
   orientRoute,
@@ -29,6 +26,7 @@ import ToggleGroup from '@/views/photo-editor-view/components/settings/ToggleGro
 import OptionTile from '@/views/photo-editor-view/components/settings/OptionTile.vue';
 import OptionTileRow from '@/views/photo-editor-view/components/settings/OptionTileRow.vue';
 import ColorOptionTile from '@/views/photo-editor-view/components/settings/ColorOptionTile.vue';
+import ProTileBadge from '@/views/photo-editor-view/components/settings/ProTileBadge.vue';
 import RouteStyleLayers from '@/views/photo-editor-view/components/artwork/RouteStyleLayers.vue';
 import VideoDotMark from '@/views/photo-editor-view/components/artwork/VideoDotMark.vue';
 
@@ -65,15 +63,10 @@ const emit = defineEmits<{
   removeVideoDotPhoto: [];
 }>();
 
-/** Стили трека — обычные или Pro (открывается на наборе выбранного стиля). */
-const routeVariantSet = ref<VariantSet>(
-  PRO_ROUTE_STYLES.some((style) => style.id === props.settings.routeStyle) ? 'pro' : 'regular',
-);
-const routeStyles = computed(() =>
-  routeVariantSet.value === 'pro' ? PRO_ROUTE_STYLES : SHARE_ROUTE_STYLES,
-);
+/** Все стили трека: сначала обычные, за ними Pro (с короной на плитке). */
+const routeStyles = [...SHARE_ROUTE_STYLES, ...PRO_ROUTE_STYLES];
 
-/** Что настраиваем (только видео); по умолчанию — трек. */
+/** Что настраиваем (только видео; переключатель — на всю ширину); по умолчанию — трек. */
 const target = ref<'route' | 'dot'>('route');
 const targetOptions = [
   { value: 'route' as const, label: 'Трек', title: 'Настройки трека' },
@@ -145,7 +138,12 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
 <template>
   <div class="track-panel">
     <div v-if="video" class="track-panel__controls">
-      <SegmentedGroup v-model="target" :options="targetOptions" group-label="Что настраиваем" />
+      <SegmentedGroup
+        v-model="target"
+        :options="targetOptions"
+        group-label="Что настраиваем"
+        grow
+      />
       <SegmentedGroup
         v-if="target === 'dot'"
         v-model="dotColorSource"
@@ -278,7 +276,7 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
         </button>
       </div>
 
-      <OptionTileRow :key="routeVariantSet">
+      <OptionTileRow>
         <template #fixed>
           <ColorOptionTile
             label="Цвет"
@@ -286,7 +284,6 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
             :color="settings.routeColor"
             @change="emit('setRouteColor', $event)"
           />
-          <VariantSetSwitch v-model="routeVariantSet" />
         </template>
 
         <OptionTile
@@ -313,6 +310,7 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
                 :unit="PREVIEW_UNIT"
               />
             </svg>
+            <ProTileBadge v-if="style.pro" />
           </template>
         </OptionTile>
       </OptionTileRow>
