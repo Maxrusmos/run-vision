@@ -63,6 +63,9 @@ import {
 } from '@/entities/activity/model/activity-share/video-dot';
 import { loadImage } from '@/shared/lib/image/load-image';
 import StatsAppearancePanel from '@/views/photo-editor-view/components/panels/StatsAppearancePanel.vue';
+import ProRequiredDialog from '@/views/photo-editor-view/components/ProRequiredDialog.vue';
+import { getProDesignInUse } from '@/entities/activity/model/activity-share/activity-share-pro';
+import { useAccess } from '@/hooks/useAccess';
 
 /** Время на анимацию снятия выделения с показателя перед рендером. */
 const DESELECT_ANIMATION_MS = 160;
@@ -470,10 +473,31 @@ function saveVideo() {
   if (activity.value) void saveVideoFile(activity.value.name);
 }
 
+// Pro-оформление без подписки: смотреть можно (с водяными знаками), сохранить — нет.
+// Шаблон (только настройки, без картинки) сохраняется и так.
+const { canUse } = useAccess();
+const lockedProDesign = computed(() =>
+  canUse('proDesigns') ? null : getProDesignInUse(settings.value),
+);
+const isProDialogOpen = ref(false);
+
 function handleSave() {
   if (isTemplateMode) void handleSaveTemplate();
+  else if (lockedProDesign.value) isProDialogOpen.value = true;
   else if (isVideoMode) void createVideo();
   else void createImage();
+}
+
+/** «Подключить Pro» — после оплаты вернёмся сюда же, к этой карточке. */
+function upgradeToPro() {
+  isProDialogOpen.value = false;
+  void router.push({ name: ROUTE_NAMES.pro, query: { redirect: route.fullPath } });
+}
+
+/** Обычное оформление шаблона вместо Pro (остальные настройки не трогаем). */
+function revertProDesign() {
+  isProDialogOpen.value = false;
+  applyPresetById(getPhotoTemplatePresetId(templateId));
 }
 
 function saveImage() {
@@ -742,6 +766,14 @@ function goBack() {
     :video="isVideoMode ? video?.url : undefined"
     :loading="isVideoMode ? isVideoSaving : isSaving"
     @save="isVideoMode ? saveVideo() : saveImage()"
+  />
+
+  <ProRequiredDialog
+    v-if="lockedProDesign"
+    v-model="isProDialogOpen"
+    :design-name="lockedProDesign.name"
+    @upgrade="upgradeToPro"
+    @revert="revertProDesign"
   />
 </template>
 

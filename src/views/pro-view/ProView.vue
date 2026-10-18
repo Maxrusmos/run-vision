@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import StepPage from '@/shared/ui/StepPage.vue';
 import PageTopRow from '@/views/account-view/components/PageTopRow.vue';
@@ -12,6 +12,7 @@ import {
   formatPlanUntil,
   formatRubles,
   getMonthlyEquivalentKopecks,
+  rememberProReturn,
   getYearSavingPercent,
   type PaymentProviderId,
   type PlanPeriod,
@@ -22,8 +23,12 @@ import {
  * «RunVision Pro»: статус, тарифы «месяц / год» и оплата. Оплата — на странице платёжного
  * сервиса (сейчас тестового, без денег), после неё — `#/pro/return`.
  */
+const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+
+// Пришли из редактора («Подключить Pro» на Pro-оформлении) — после оплаты вернём туда.
+if (route.query.redirect) rememberProReturn(route.query.redirect);
 
 const plans = ref<ProPlan[]>([]);
 const provider = ref<PaymentProviderId>('none');
@@ -75,10 +80,26 @@ function goBack() {
   else void router.replace('/');
 }
 
+const isCanceling = ref(false);
+
+/** Только тестовая оплата: снять Pro, чтобы проверить экраны без подписки. */
+async function cancelTestSubscription() {
+  if (isCanceling.value) return;
+  isCanceling.value = true;
+  payError.value = '';
+  try {
+    authStore.setUser(await billingApi.cancelMockSubscription());
+  } catch (error) {
+    payError.value = isApiError(error) ? error.message : UNKNOWN_ERROR_MESSAGE;
+  } finally {
+    isCanceling.value = false;
+  }
+}
+
 async function pay() {
   if (isPaying.value || !selectedPlan.value) return;
   if (!user.value) {
-    void router.push({ name: ROUTE_NAMES.login, query: { redirect: '/pro' } });
+    void router.push({ name: ROUTE_NAMES.login, query: { redirect: route.fullPath } });
     return;
   }
   isPaying.value = true;
@@ -164,6 +185,20 @@ async function pay() {
       момент.
     </p>
 
+    <!-- Только тестовый режим: в настоящей оплате отмены нет — Pro кончается сам. -->
+    <div v-if="provider === 'mock' && isPro" class="pro-view__test-cancel">
+      <v-btn
+        variant="tonal"
+        color="error"
+        prepend-icon="mdi-flask-outline"
+        :loading="isCanceling"
+        @click="cancelTestSubscription"
+      >
+        Отменить подписку (тест)
+      </v-btn>
+      <span>Снимает Pro сразу — чтобы проверить приложение без подписки.</span>
+    </div>
+
     <template #footer>
       <v-alert
         v-if="payError || provider === 'none'"
@@ -223,6 +258,23 @@ async function pay() {
 
 .pro-view__fine {
   font-size: 12px;
+}
+
+.pro-view__test-cancel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px;
+  border: 1px dashed color-mix(in srgb, rgb(var(--v-theme-error)) 45%, transparent);
+  border-radius: 12px;
+  color: color-mix(in srgb, var(--app-on-surface) 60%, transparent);
+  font-size: 12px;
+}
+
+.pro-view__test-cancel > .v-btn {
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .pro-view__plans {

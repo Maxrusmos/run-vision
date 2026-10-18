@@ -327,7 +327,23 @@ npx vite build
   `/pro/mock-checkout?payment=` (`MockCheckoutView`, «Оплатить / Отменить оплату») и
   `/pro/return?payment=` (`ProReturnView`: опрос платежа, пока `pending`, потом
   `refreshUser`). Вход — пункт «RunVision Pro» в меню аккаунта (подзаголовок — срок).
-  Настоящий сервис = ещё один `PaymentProvider` + вебхук.
+  Настоящий сервис = ещё один `PaymentProvider` + вебхук. Только для проверки — «Отменить
+  подписку (тест)» на `/pro` (`POST /api/billing/mock/subscription/cancel`, только `mock`).
+- **Pro-оформления** (первая Pro-функция, `FEATURES.proDesigns`): 8 пресетов
+  `PRO_COLOR_PRESETS` (Аврора, Синтвейв, Изолинии, Персик, Изумруд, Ледник, Лава, Золото) —
+  первыми в «Оформлении», с короной на плитке. Пресет = цвета + `decor`: фон-градиент с узором
+  (`SHARE_BACKGROUND_DECORS` в `activity-share-decor.ts`: только CSS-градиенты и data-URI
+  SVG — переносятся в PNG и кадры видео; изолинии/волны/сетка «синтвейв» генерируются кодом),
+  в настройках — `backgroundDecor` (слой `CardDecor.vue`, в плитке — `scale`). Под фото,
+  прозрачным фоном и картой во весь фон узор не виден — и Pro не требуется
+  (`isDecorVisible`, `getProDesignInUse` в `activity-share-pro.ts`, с тестами). Цвет фона из
+  «Фона» убирает узор. Без Pro: поверх карточки водяные знаки «RunVision PRO»
+  (`ProWatermark.vue`, сама карточка через `useAccess`), «Сохранить» (фото и видео) — диалог
+  `ProRequiredDialog`: «Подключить Pro» (→ `/pro?redirect=`, путь в sessionStorage
+  `rememberProReturn`, после оплаты «Вернуться к карточке» — `takeProReturn`) или «Вернуть
+  обычное оформление» (пресет шаблона). Шаблон с Pro-оформлением сохранить можно.
+- Активный Pro — корона на аватаре (`UserMenu`, `mdi-crown` 15px, наклон 28°; у кнопки
+  `overflow: visible`, иначе корону обрезало).
 - Тарифы: `users.plan` (`free`/`pro`) + `plan_expires_at`; в API отдаётся действующий тариф.
   Уровни доступа `guest` < `free` < `pro`: на бэке `app.authenticate` + `requirePlan('pro')`
   (403 `PLAN_REQUIRED`), на фронте `useAccess()` и реестр фич `shared/config/features.ts`
@@ -576,7 +592,7 @@ Render и Pages). Сливаем по просьбе пользователя.
 (до появления `develop`). В `develop`, затем `develop` → `main`: `bugfix/tile-row-divider`,
 `feature/video-templates`, `docs/next-session-plans`. В `develop` (ещё не в `main`): `feature/vertical-widgets`, `feature/video-dot-styles`,
 `feature/login-auth` (вход по логину — **отменён** следующей веткой, миграция 004 удалена),
-`feature/password-reset`, `bugfix/auth-notes-mail-log`, `feature/pro-purchase`.
+`feature/password-reset`, `bugfix/auth-notes-mail-log`, `feature/pro-purchase`, `feature/pro-designs`.
 
 ## Идеи на потом (обсуждали, не сделано)
 

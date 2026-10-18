@@ -42,13 +42,25 @@ async function logout() {
         icon
         variant="text"
         class="user-menu__button"
-        :aria-label="user ? `Аккаунт ${user.email}` : 'Аккаунт'"
+        :aria-label="
+          user ? `Аккаунт ${user.email}${user.plan === 'pro' ? ', Pro' : ''}` : 'Аккаунт'
+        "
       >
         <v-progress-circular v-if="isChecking" indeterminate size="20" width="2" />
         <v-icon v-else-if="isOffline" icon="mdi-account-alert-outline" />
-        <v-avatar v-else color="primary" size="38" class="user-menu__avatar">
-          {{ initial }}
-        </v-avatar>
+        <span v-else class="user-menu__avatar-wrap">
+          <v-avatar color="primary" size="38" class="user-menu__avatar">
+            {{ initial }}
+          </v-avatar>
+          <!-- Активный Pro — корона, чуть наклонена, на краю аватара. -->
+          <v-icon
+            v-if="user?.plan === 'pro'"
+            icon="mdi-crown"
+            size="15"
+            class="user-menu__crown"
+            aria-hidden="true"
+          />
+        </span>
       </v-btn>
     </template>
 
@@ -108,6 +120,27 @@ async function logout() {
 </template>
 
 <style scoped>
+/* Кнопка обрезает содержимое по кругу — корона на краю аватара должна выходить за него. */
+.user-menu__button {
+  overflow: visible;
+}
+
+.user-menu__avatar-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.user-menu__crown {
+  position: absolute;
+  top: -7px;
+  right: -5px;
+  color: #ffd24a;
+  transform: rotate(28deg);
+  /* Тёмная обводка — корону видно и на светлом, и на синем аватаре. */
+  filter: drop-shadow(0 0 1px rgb(0 0 0 / 85%)) drop-shadow(0 1px 1px rgb(0 0 0 / 40%));
+  pointer-events: none;
+}
+
 .user-menu__avatar {
   font-size: 17px;
   font-weight: 600;

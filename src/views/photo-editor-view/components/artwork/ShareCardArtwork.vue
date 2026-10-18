@@ -27,6 +27,13 @@ import ArtworkMap from '@/views/photo-editor-view/components/artwork/ArtworkMap.
 import ArtworkElevation from '@/views/photo-editor-view/components/artwork/ArtworkElevation.vue';
 import { dragTrash } from '@/hooks/useDragTrash';
 import BackgroundPattern from '@/views/photo-editor-view/components/artwork/BackgroundPattern.vue';
+import CardDecor from '@/views/photo-editor-view/components/artwork/CardDecor.vue';
+import ProWatermark from '@/views/photo-editor-view/components/artwork/ProWatermark.vue';
+import {
+  getProDesignInUse,
+  isDecorVisible,
+} from '@/entities/activity/model/activity-share/activity-share-pro';
+import { useAccess } from '@/hooks/useAccess';
 import ArtworkWidget from '@/views/photo-editor-view/components/artwork/ArtworkWidget.vue';
 import {
   getWidgetKey,
@@ -375,6 +382,13 @@ const stats = computed<ShareStat[]>(() =>
   })),
 );
 
+// Pro-оформление без подписки — посмотреть можно, но поверх карточки водяные знаки.
+const { canUse } = useAccess();
+const showDecor = computed(() => isDecorVisible(props.settings));
+const showProWatermark = computed(
+  () => getProDesignInUse(props.settings) !== null && !canUse('proDesigns'),
+);
+
 const cssVariables = computed(() => {
   const spacing = props.settings.statSpacing;
 
@@ -456,6 +470,11 @@ function removeRoute() {
       :image-fit="settings.backgroundImageFit"
       :image-position="settings.backgroundImagePosition"
     />
+
+    <!-- Pro-оформление: фон-градиент с узором вместо сплошного цвета. -->
+    <CardDecor v-if="showDecor && settings.backgroundDecor" :decor="settings.backgroundDecor" />
+
+    <ProWatermark v-if="showProWatermark" />
 
     <!-- «Телеметрия»: тонкая сетка-разметка, как на приборной панели. -->
     <BackgroundPattern

@@ -36,5 +36,10 @@ export async function billingRoutes(app: FastifyInstance, opts: { service: Billi
       const { result } = parseBody(mockCompleteSchema, request.body)
       return service.completeMockPayment(currentUser(request).id, parsePaymentId(request.params), result)
     })
+
+    // Только для проверки: в настоящей оплате Pro заканчивается в конце срока сам.
+    app.post('/api/billing/mock/subscription/cancel', { preHandler: app.authenticate }, async (request) => {
+      return { user: await service.cancelMockSubscription(currentUser(request).id) }
+    })
   }
 }

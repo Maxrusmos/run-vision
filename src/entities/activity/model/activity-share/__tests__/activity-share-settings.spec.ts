@@ -9,6 +9,7 @@ function withTelemetry(telemetry: Record<string, unknown> | null) {
     title: null,
     telemetry,
     videoDot: { ...DEFAULT_VIDEO_DOT },
+    backgroundDecor: null,
   } as unknown as ShareCardSettings;
 }
 

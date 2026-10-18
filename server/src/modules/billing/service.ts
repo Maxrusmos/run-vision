@@ -139,6 +139,16 @@ export class BillingService {
     )
   }
 
+  /** Тестовый сервис: снять Pro сразу (проверить экраны без подписки). */
+  async cancelMockSubscription(userId: string): Promise<PublicUser> {
+    const { rows } = await this.db.query<Parameters<typeof toPublicUser>[0]>(
+      `UPDATE users SET plan = 'free', plan_expires_at = NULL WHERE id = $1 RETURNING *`,
+      [userId],
+    )
+    if (!rows[0]) throw errors.unauthorized()
+    return toPublicUser(rows[0])
+  }
+
   /** Тестовый сервис: итог своего платежа (вместо вебхука). */
   async completeMockPayment(
     userId: string,

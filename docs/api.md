@@ -211,6 +211,11 @@ interface Payment {
 `200 { "payment": Payment, "user": User }` · `400` · `401` · `404` (и при другом провайдере —
 маршрута нет).
 
+### `POST /api/billing/mock/subscription/cancel` (Bearer, только `PAYMENT_PROVIDER=mock`)
+Только для проверки: снимает Pro сразу (тариф `free`, срок `null`), история платежей
+остаётся. В настоящей оплате такой кнопки нет — Pro просто заканчивается в конце срока.
+→ `200 { "user": User }` · `401` (при другом провайдере — маршрута нет).
+
 ## Лимиты
 
 `register`, `login`, `password/forgot` и `password/reset` — не больше 10 запросов в минуту

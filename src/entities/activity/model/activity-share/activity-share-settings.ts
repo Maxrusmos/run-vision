@@ -7,7 +7,7 @@ import { DEFAULT_VIDEO_DOT } from './video-dot';
  * поля, которые с тех пор поменялись, переводятся в новые.
  */
 export function normalizeShareCardSettings(settings: ShareCardSettings): ShareCardSettings {
-  const withFlags = normalizeVideoDot(normalizeRouteFlags(settings));
+  const withFlags = normalizeBackgroundDecor(normalizeVideoDot(normalizeRouteFlags(settings)));
   return withFlags.telemetry
     ? { ...withFlags, telemetry: normalizeTelemetrySettings(withFlags.telemetry) }
     : withFlags;
@@ -33,4 +33,9 @@ function normalizeVideoDot(settings: ShareCardSettings): ShareCardSettings {
   const dot = settings.videoDot as Partial<ShareCardSettings['videoDot']> | undefined;
   if (dot && Object.keys(DEFAULT_VIDEO_DOT).every((key) => key in dot)) return settings;
   return { ...settings, videoDot: { ...DEFAULT_VIDEO_DOT, ...dot } };
+}
+
+/** Фон-оформление (Pro) появилось позже: у старых черновиков и шаблонов — без него. */
+function normalizeBackgroundDecor(settings: ShareCardSettings): ShareCardSettings {
+  return settings.backgroundDecor === undefined ? { ...settings, backgroundDecor: null } : settings;
 }

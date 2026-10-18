@@ -32,3 +32,12 @@ export function completeMockPayment(
     body: { result },
   });
 }
+
+/** Тестовая оплата: снять Pro сразу (в настоящей оплате такой кнопки нет). */
+export async function cancelMockSubscription(): Promise<User> {
+  const { user } = await apiRequest<{ user: User }>('/api/billing/mock/subscription/cancel', {
+    method: 'POST',
+    auth: true,
+  });
+  return user;
+}

@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import type { ShareCardSettings } from '@/entities/activity/model/activity-share/activity-share.types';
-import { SHARE_COLOR_PRESETS } from '@/entities/activity/model/activity-share/activity-share-presets';
+import {
+  PRO_COLOR_PRESETS,
+  SHARE_COLOR_PRESETS,
+} from '@/entities/activity/model/activity-share/activity-share-presets';
+import CardDecor from '@/views/photo-editor-view/components/artwork/CardDecor.vue';
 import OptionTile from '@/views/photo-editor-view/components/settings/OptionTile.vue';
 import OptionTileRow from '@/views/photo-editor-view/components/settings/OptionTileRow.vue';
 
 defineProps<{
   settings: ShareCardSettings;
 }>();
+
+// Pro-оформления — первыми: их видно сразу (без Pro — посмотреть с водяными знаками).
+const PRESETS = [...PRO_COLOR_PRESETS, ...SHARE_COLOR_PRESETS];
 
 const emit = defineEmits<{
   applyPreset: [id: string];
@@ -16,7 +23,7 @@ const emit = defineEmits<{
 <template>
   <OptionTileRow>
     <OptionTile
-      v-for="preset in SHARE_COLOR_PRESETS"
+      v-for="preset in PRESETS"
       :key="preset.id"
       :label="preset.name"
       :active="settings.presetId === preset.id"
@@ -34,6 +41,11 @@ const emit = defineEmits<{
                 : preset.background,
           }"
         >
+          <CardDecor
+            v-if="preset.decor && !settings.backgroundImage && !settings.transparentBackground"
+            :decor="preset.decor"
+            :scale="0.45"
+          />
           <img
             v-if="settings.backgroundImage"
             class="preset-preview__image"
@@ -42,6 +54,9 @@ const emit = defineEmits<{
           />
           <span class="preset-preview__line" :style="{ backgroundColor: preset.route }" />
           <span class="preset-preview__dot" :style="{ backgroundColor: preset.text }" />
+          <span v-if="preset.pro" class="preset-preview__pro" title="Pro-оформление">
+            <v-icon icon="mdi-crown" size="11" />
+          </span>
         </span>
       </template>
     </OptionTile>
@@ -73,6 +88,19 @@ const emit = defineEmits<{
   height: 4px;
   border-radius: 4px;
   transform: rotate(-20deg);
+}
+
+.preset-preview__pro {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  color: #ffd76a;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 55%);
 }
 
 .preset-preview__dot {

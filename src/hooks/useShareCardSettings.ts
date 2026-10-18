@@ -118,6 +118,7 @@ function createSettings(
       : null,
     telemetry: withTelemetry ? createShareTelemetrySettings(options.hasHeartRate ?? false) : null,
     videoDot: { ...DEFAULT_VIDEO_DOT },
+    backgroundDecor: null,
   };
 }
 
@@ -175,6 +176,7 @@ export function useShareCardSettings(
     settings.value.routeColor = preset.route;
     settings.value.textColor = preset.text;
     settings.value.backgroundColor = preset.background;
+    settings.value.backgroundDecor = preset.decor ?? null;
     settings.value.presetId = preset.id;
   }
 
@@ -195,11 +197,13 @@ export function useShareCardSettings(
         background: settings.value.backgroundColor,
         route: settings.value.routeColor,
         text: settings.value.textColor,
+        decor: settings.value.backgroundDecor,
       })?.id ?? null;
   }
 
-  /** Цвет фона из меню; выбор цвета выключает прозрачность. */
+  /** Цвет фона из меню; выбор цвета выключает прозрачность и фон-оформление (градиент). */
   function setBackgroundColor(value: string) {
+    settings.value.backgroundDecor = null;
     setColor('backgroundColor', value);
     settings.value.transparentBackground = false;
   }

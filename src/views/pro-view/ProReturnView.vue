@@ -5,7 +5,7 @@ import { useRoute } from 'vue-router';
 import { ROUTE_NAMES } from '@/router/routes';
 import { useAuthStore } from '@/stores/auth.store';
 import { isApiError, UNKNOWN_ERROR_MESSAGE } from '@/shared/api';
-import { billingApi, formatPlanUntil, type Payment } from '@/entities/billing';
+import { billingApi, formatPlanUntil, takeProReturn, type Payment } from '@/entities/billing';
 
 /**
  * Возврат после оплаты (`#/pro/return?payment=…`). Уведомление сервиса может прийти чуть
@@ -24,6 +24,8 @@ const payment = ref<Payment | null>(null);
 const error = ref('');
 const isTimedOut = ref(false);
 let timer: number | undefined;
+/** Куда вернуться после оплаты (из редактора — к карточке), иначе — создать карточку. */
+const returnTo = ref<string | null>(null);
 const startedAt = Date.now();
 
 const until = computed(() =>
@@ -38,6 +40,7 @@ async function poll() {
     return;
   }
   if (payment.value.status === 'succeeded') {
+    returnTo.value = takeProReturn();
     await authStore.refreshUser();
     return;
   }
@@ -69,10 +72,10 @@ onBeforeUnmount(() => window.clearTimeout(timer));
           variant="flat"
           size="large"
           block
-          :to="{ name: ROUTE_NAMES.import }"
+          :to="returnTo ?? { name: ROUTE_NAMES.import }"
           replace
         >
-          Создать карточку
+          {{ returnTo ? 'Вернуться к карточке' : 'Создать карточку' }}
         </v-btn>
       </template>
 

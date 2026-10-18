@@ -175,12 +175,20 @@ export type ShareElevationSettings = {
   row: number | null;
 };
 
+/** Фон Pro-оформления: градиент + узор (`SHARE_BACKGROUND_DECORS`). */
+export type ShareBackgroundDecor =
+  'aurora' | 'synthwave' | 'topo' | 'peach' | 'emerald' | 'glacier' | 'lava' | 'gold';
+
 export type ShareColorPreset = {
   id: string;
   name: string;
   background: string;
   route: string;
   text: string;
+  /** Фон-оформление вместо сплошного цвета. */
+  decor?: ShareBackgroundDecor;
+  /** Только с подпиской Pro (без неё — посмотреть с водяными знаками, сохранить нельзя). */
+  pro?: boolean;
 };
 
 /** Видео: стиль точки на треке (`VIDEO_DOT_STYLES` в `video-dot.ts`). */
@@ -240,6 +248,11 @@ export type ShareCardSettings = {
   telemetry: ShareTelemetrySettings | null;
   /** Видео: точка на треке (у фото не видна, но черновик общий). */
   videoDot: ShareVideoDotSettings;
+  /**
+   * Фон Pro-оформления (градиент + узор) поверх цвета фона; null — сплошной цвет.
+   * Под фото, прозрачным фоном и картой во весь фон не виден.
+   */
+  backgroundDecor: ShareBackgroundDecor | null;
 };
 
 export type ShareStatOption = {

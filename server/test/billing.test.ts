@@ -114,6 +114,17 @@ describe('покупка Pro — тестовый сервис (PAYMENT_PROVIDER
     expect(guest.statusCode).toBe(401)
   })
 
+  it('тестовая отмена подписки: Pro снят сразу, платежи остались', async () => {
+    const token = await register()
+    await complete(token, (await checkout(token)).json().payment.id)
+    const res = await call(token, 'POST', '/api/billing/mock/subscription/cancel')
+    expect(res.statusCode).toBe(200)
+    expect(res.json().user).toMatchObject({ plan: 'free', planExpiresAt: null })
+    expect((await call(token, 'GET', '/api/auth/me')).json().user.plan).toBe('free')
+    const { rows } = await ctx.db.query('SELECT status FROM payments')
+    expect(rows).toEqual([{ status: 'succeeded' }])
+  })
+
   it('неверный период и итог → 400', async () => {
     const token = await register()
     expect((await checkout(token, 'week')).json().error.fields).toHaveProperty('period')
@@ -144,5 +155,7 @@ describe('оплата выключена (PAYMENT_PROVIDER=none, по умол�
       payload: { result: 'succeeded' },
     })
     expect(mock.statusCode).toBe(404)
+    const cancel = await ctx.app.inject({ method: 'POST', url: '/api/billing/mock/subscription/cancel', headers })
+    expect(cancel.statusCode).toBe(404)
   })
 })

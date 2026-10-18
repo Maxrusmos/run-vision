@@ -31,19 +31,103 @@ export const SHARE_COLOR_PRESETS: readonly ShareColorPreset[] = [
   { id: 'coral', name: 'Коралл', background: '#FF6B6B', route: '#FFF1D6', text: '#FFFFFF' },
 ];
 
+/**
+ * Pro-оформления: фон-градиент с узором (`activity-share-decor.ts`) и подобранные к нему
+ * цвета трека и текста. `background` — основной цвет фона (углы кадра видео и т.п.).
+ */
+export const PRO_COLOR_PRESETS: readonly ShareColorPreset[] = [
+  {
+    id: 'pro-aurora',
+    name: 'Аврора',
+    background: '#0B1026',
+    route: '#5EEAD4',
+    text: '#F5F3FF',
+    decor: 'aurora',
+    pro: true,
+  },
+  {
+    id: 'pro-synthwave',
+    name: 'Синтвейв',
+    background: '#2A0D45',
+    route: '#22F3FF',
+    text: '#FFFFFF',
+    decor: 'synthwave',
+    pro: true,
+  },
+  {
+    id: 'pro-topo',
+    name: 'Изолинии',
+    background: '#11283A',
+    route: '#E8C468',
+    text: '#F7F1E1',
+    decor: 'topo',
+    pro: true,
+  },
+  {
+    id: 'pro-peach',
+    name: 'Персик',
+    background: '#F7A79F',
+    route: '#3B1E54',
+    text: '#2B1638',
+    decor: 'peach',
+    pro: true,
+  },
+  {
+    id: 'pro-emerald',
+    name: 'Изумруд',
+    background: '#064E3B',
+    route: '#D9F99D',
+    text: '#ECFDF5',
+    decor: 'emerald',
+    pro: true,
+  },
+  {
+    id: 'pro-glacier',
+    name: 'Ледник',
+    background: '#BAE6FD',
+    route: '#0C4A6E',
+    text: '#082F49',
+    decor: 'glacier',
+    pro: true,
+  },
+  {
+    id: 'pro-lava',
+    name: 'Лава',
+    background: '#8E1B5B',
+    route: '#FFF1B8',
+    text: '#FFFFFF',
+    decor: 'lava',
+    pro: true,
+  },
+  {
+    id: 'pro-gold',
+    name: 'Золото',
+    background: '#1A1A1A',
+    route: '#E3C35A',
+    text: '#F5E6B8',
+    decor: 'gold',
+    pro: true,
+  },
+];
+
+const ALL_PRESETS = [...PRO_COLOR_PRESETS, ...SHARE_COLOR_PRESETS];
+
 export function findSharePreset(id: string | null): ShareColorPreset | undefined {
-  return id ? SHARE_COLOR_PRESETS.find((preset) => preset.id === id) : undefined;
+  return id ? ALL_PRESETS.find((preset) => preset.id === id) : undefined;
 }
 
+/** Пресет по цветам и фону-оформлению (после ручной смены цвета — тот же ли пресет). */
 export function findSharePresetByColors(colors: {
   background: string;
   route: string;
   text: string;
+  decor?: string | null;
 }): ShareColorPreset | undefined {
   const isSame = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
-  return SHARE_COLOR_PRESETS.find(
+  return ALL_PRESETS.find(
     (preset) =>
+      (preset.decor ?? null) === (colors.decor ?? null) &&
       isSame(preset.background, colors.background) &&
       isSame(preset.route, colors.route) &&
       isSame(preset.text, colors.text),
