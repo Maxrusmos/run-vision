@@ -36,9 +36,9 @@ export async function verifyPassword(password: string, stored: string): Promise<
 let dummyHash: Promise<string> | null = null
 
 /**
- * Хэш-«пустышка» для входа с несуществующим логином: проверяем пароль против него, чтобы
+ * Хэш-«пустышка» для входа с несуществующим email: проверяем пароль против него, чтобы
  * ответ шёл столько же времени, сколько для существующего, — иначе по времени ответа
- * можно было бы узнать, какие логины заняты.
+ * можно было бы узнать, какие email зарегистрированы.
  */
 export function getDummyHash(): Promise<string> {
   dummyHash ??= hashPassword(randomBytes(16).toString('hex'))

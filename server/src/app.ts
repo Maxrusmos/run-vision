@@ -4,6 +4,7 @@ import Fastify, { type FastifyError, type FastifyInstance } from 'fastify'
 import type { Config } from './config.js'
 import type { Db } from './db.js'
 import { ApiError, errors } from './lib/errors.js'
+import { createMailer, type Mailer } from './lib/mailer.js'
 import { registerAuthenticate } from './modules/auth/authenticate.js'
 import { authRoutes } from './modules/auth/routes.js'
 import { AuthService } from './modules/auth/service.js'
@@ -17,9 +18,11 @@ export interface BuildAppOptions {
   db: Db
   /** false — без логов (тесты). */
   logger?: boolean
+  /** Отправка писем; по умолчанию — из конфига (SMTP или лог). В тестах — в память. */
+  mailer?: Mailer
 }
 
-export async function buildApp({ config, db, logger = true }: BuildAppOptions): Promise<FastifyInstance> {
+export async function buildApp({ config, db, logger = true, mailer }: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     logger: logger ? { level: config.logLevel } : false,
     // За прокси хостинга настоящий IP клиента — в X-Forwarded-For (нужен для лимита попыток).
@@ -73,7 +76,13 @@ export async function buildApp({ config, db, logger = true }: BuildAppOptions): 
     errorResponseBuilder: () => errors.rateLimited(),
   })
 
-  const authService = new AuthService(db, config.sessionTtlDays)
+  const authService = new AuthService(db, {
+    sessionTtlDays: config.sessionTtlDays,
+    mailer: mailer ?? createMailer({ smtpUrl: config.smtpUrl, from: config.mailFrom }, (msg) => app.log.info(msg)),
+    appUrl: config.appUrl,
+    passwordResetTtlMinutes: config.passwordResetTtlMinutes,
+    logError: (err) => app.log.error({ err }, 'Письмо не отправлено'),
+  })
   registerAuthenticate(app, authService)
 
   app.get('/api/health', async () => ({ ok: true }))

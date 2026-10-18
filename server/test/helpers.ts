@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach } from 'vitest'
 import { buildApp } from '../src/app.js'
 import { loadConfig, type Config } from '../src/config.js'
 import { createPool, type Db } from '../src/db.js'
+import { createMemoryMailer } from '../src/lib/mailer.js'
 import { runMigrations } from '../src/migrate.js'
 
 // Тесты ходят в настоящую PostgreSQL, в отдельную тестовую базу: её таблицы очищаются.
@@ -15,7 +16,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
 
 /** Подключает БД и миграции на файл, чистит таблицы и пересоздаёт приложение перед каждым тестом. */
 export function useTestApp(overrides: Partial<Config> = {}) {
-  const ctx = {} as { db: Db; app: FastifyInstance }
+  const ctx = {} as { db: Db; app: FastifyInstance; mailer: ReturnType<typeof createMemoryMailer> }
 
   beforeAll(async () => {
     ctx.db = createPool(TEST_DATABASE_URL)
@@ -23,9 +24,10 @@ export function useTestApp(overrides: Partial<Config> = {}) {
   })
 
   beforeEach(async () => {
-    await ctx.db.query('TRUNCATE users, sessions, templates CASCADE')
+    await ctx.db.query('TRUNCATE users, sessions, templates, password_resets CASCADE')
     await ctx.app?.close()
-    ctx.app = await buildApp({ config: testConfig(overrides), db: ctx.db, logger: false })
+    ctx.mailer = createMemoryMailer()
+    ctx.app = await buildApp({ config: testConfig(overrides), db: ctx.db, logger: false, mailer: ctx.mailer })
   })
 
   afterAll(async () => {

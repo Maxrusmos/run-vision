@@ -16,6 +16,12 @@ const envSchema = z.object({
   // true — доверять X-Forwarded-For (сервер за прокси хостинга), число — сколько прокси.
   TRUST_PROXY: z.string().default('false'),
   LOG_LEVEL: z.string().default('info'),
+  // Адрес фронта для ссылок в письмах (сброс пароля): …/run-vision/ — дальше #/reset-password.
+  APP_URL: z.string().url('APP_URL: ожидается адрес фронта').default('http://localhost:5173/run-vision/'),
+  // Почта. Без SMTP_URL письма не отправляются, а пишутся в лог (разработка).
+  SMTP_URL: z.string().default(''),
+  MAIL_FROM: z.string().default('RunVision <no-reply@localhost>'),
+  PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().min(5).max(24 * 60).default(60),
 })
 
 export interface Config {
@@ -28,6 +34,12 @@ export interface Config {
   logLevel: string
   /** Сколько запросов в минуту с одного IP пускать на register/login. */
   authRateLimitPerMinute: number
+  /** Адрес фронта (со слэшем на конце) — для ссылок в письмах. */
+  appUrl: string
+  /** smtp(s)://логин:пароль@хост:порт; пусто — письма в лог. */
+  smtpUrl: string
+  mailFrom: string
+  passwordResetTtlMinutes: number
 }
 
 function parseTrustProxy(value: string): boolean | number {
@@ -57,5 +69,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     trustProxy: parseTrustProxy(e.TRUST_PROXY),
     logLevel: e.LOG_LEVEL,
     authRateLimitPerMinute: 10,
+    appUrl: e.APP_URL.endsWith('/') ? e.APP_URL : `${e.APP_URL}/`,
+    smtpUrl: e.SMTP_URL.trim(),
+    mailFrom: e.MAIL_FROM,
+    passwordResetTtlMinutes: e.PASSWORD_RESET_TTL_MINUTES,
   }
 }

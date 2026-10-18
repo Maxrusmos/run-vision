@@ -5,7 +5,7 @@ import { configureApiAuth, isApiError } from '@/shared/api';
 import { readStorage, writeStorage } from '@/shared/lib/storage/safe-storage';
 import {
   authApi,
-  normalizeLogin,
+  normalizeEmail,
   type AccessLevel,
   type AuthCredentials,
   type AuthResponse,
@@ -97,20 +97,39 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(credentials: AuthCredentials) {
     const response = await authApi.login({
-      login: normalizeLogin(credentials.login),
+      email: normalizeEmail(credentials.email),
       password: credentials.password,
     });
     setSession(response);
     return response.user;
   }
 
-  async function register(credentials: AuthCredentials) {
+  /** Регистрация — только с отмеченным согласием на обработку персональных данных. */
+  async function register(credentials: AuthCredentials & { consent: true }) {
     const response = await authApi.register({
-      login: normalizeLogin(credentials.login),
+      email: normalizeEmail(credentials.email),
       password: credentials.password,
+      consent: true,
     });
     setSession(response);
     return response.user;
+  }
+
+  async function requestPasswordReset(email: string) {
+    await authApi.forgotPassword(normalizeEmail(email));
+  }
+
+  /** Новый пароль по ссылке из письма: прежние сессии закрыты, входим с новой. */
+  async function resetPassword(resetToken: string, password: string) {
+    const response = await authApi.resetPassword(resetToken, password);
+    setSession(response);
+    return response.user;
+  }
+
+  /** Удалить аккаунт; после успеха — как выход. */
+  async function deleteAccount(password: string) {
+    await authApi.deleteAccount(password);
+    clearSession();
   }
 
   /** Выход: локально — всегда, сервер — по возможности. */
@@ -136,6 +155,9 @@ export const useAuthStore = defineStore('auth', () => {
     init,
     login,
     register,
+    requestPasswordReset,
+    resetPassword,
+    deleteAccount,
     logout,
   };
 });

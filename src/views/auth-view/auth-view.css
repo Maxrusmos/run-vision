@@ -1,0 +1,139 @@
+/* Общие стили экранов входа, регистрации и смены пароля (AuthView, ForgotPasswordView,
+   ResetPasswordView). Классы с префиксом auth-view__ — глобальные, без scoped. */
+.auth-view {
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: 0;
+  padding: 24px 16px;
+  overflow-y: auto;
+}
+
+.auth-view__content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 400px;
+  margin: auto 0;
+}
+
+.auth-view__title {
+  margin: 0 0 4px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.auth-view__subtitle {
+  margin: 0 0 20px;
+  color: color-mix(in srgb, var(--app-on-surface) 65%, transparent);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.auth-view__note {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* «Забыли пароль?» — справа под полем пароля, ближе к нему, чем к кнопке. */
+.auth-view__forgot {
+  align-self: flex-end;
+  margin-top: -8px;
+  font-size: 14px;
+}
+
+.auth-view__consent .v-selection-control {
+  align-items: flex-start;
+}
+
+.auth-view__consent .v-label {
+  opacity: 1;
+}
+
+.auth-view__consent-label {
+  padding-top: 8px;
+  color: color-mix(in srgb, var(--app-on-surface) 80%, transparent);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.auth-view__form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* iOS приближает страницу, если шрифт поля меньше 16px. */
+.auth-view__form input {
+  font-size: 16px;
+}
+
+/* Автозаполнение красит поле жёлтым (iOS Safari, Chrome), и заливка закрывала подпись
+   на рамке. Заливку перекрываем цветом фона (тень внутрь — её Safari не игнорирует)
+   и откладываем переходом «на вечность», текст — цвета темы; анимация rv-autofill
+   сообщает скрипту, что поле заполнено (см. handleAutofill). */
+.auth-view__form input:-webkit-autofill {
+  -webkit-text-fill-color: var(--app-on-surface);
+  caret-color: var(--app-on-surface);
+  -webkit-box-shadow: 0 0 0 1000px var(--app-background) inset;
+  box-shadow: 0 0 0 1000px var(--app-background) inset;
+  transition:
+    background-color 600000s 0s,
+    color 600000s 0s;
+  animation: rv-autofill 1ms;
+}
+
+.auth-view__form input:autofill {
+  box-shadow: 0 0 0 1000px var(--app-background) inset;
+  transition:
+    background-color 600000s 0s,
+    color 600000s 0s;
+  animation: rv-autofill 1ms;
+}
+
+@keyframes rv-autofill {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Подпись на рамке — всегда поверх поля ввода. */
+.auth-view__form .v-field__outline {
+  z-index: 1;
+}
+
+.auth-view__eye {
+  color: color-mix(in srgb, var(--app-on-surface) 70%, transparent);
+}
+
+.auth-view__alert {
+  margin-bottom: 12px;
+}
+
+.auth-view__submit {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.auth-view__switch {
+  margin: 20px 0 4px;
+  color: color-mix(in srgb, var(--app-on-surface) 65%, transparent);
+  font-size: 14px;
+  text-align: center;
+}
+
+.auth-view__link {
+  color: var(--app-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-view__guest {
+  align-self: center;
+  color: color-mix(in srgb, var(--app-on-surface) 60%, transparent) !important;
+  letter-spacing: 0;
+  text-transform: none;
+}

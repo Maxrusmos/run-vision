@@ -3,16 +3,13 @@ import { errors } from '../../lib/errors.js'
 
 // Правила полей — из docs/api.md.
 
-// Логин: без учёта регистра (храним в нижнем), латиница, цифры и «_ . -».
-const login = z
-  .string({ error: 'Укажите логин' })
+const email = z
+  .string({ error: 'Укажите email' })
   .trim()
   .toLowerCase()
-  .min(1, 'Укажите логин')
-  .min(3, 'Логин должен быть не короче 3 символов')
-  .max(32, 'Логин должен быть не длиннее 32 символов')
-  .regex(/^[a-z0-9._-]+$/, 'Только латинские буквы, цифры и символы _ . -')
-  .regex(/^[a-z0-9]/, 'Логин должен начинаться с буквы или цифры')
+  .min(1, 'Укажите email')
+  .max(254, 'Email слишком длинный')
+  .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Неверный формат email')
 
 // Пробелы по краям пароля не обрезаем — это часть пароля.
 const password = z
@@ -20,9 +17,27 @@ const password = z
   .min(8, 'Пароль должен быть не короче 8 символов')
   .max(128, 'Пароль должен быть не длиннее 128 символов')
 
-export const credentialsSchema = z.object({ login, password })
+export const credentialsSchema = z.object({ email, password })
 
 export type Credentials = z.infer<typeof credentialsSchema>
+
+// Согласие на обработку персональных данных — отдельной галочкой, только явное true.
+export const registerSchema = credentialsSchema.extend({
+  consent: z.literal(true, { error: 'Нужно согласие на обработку персональных данных' }),
+})
+
+export type RegisterInput = z.infer<typeof registerSchema>
+
+export const forgotPasswordSchema = z.object({ email })
+
+export const resetPasswordSchema = z.object({
+  token: z.string({ error: 'Нет токена' }).min(1, 'Нет токена').max(200, 'Неверный токен'),
+  password,
+})
+
+export const deleteAccountSchema = z.object({
+  password: z.string({ error: 'Укажите пароль' }).min(1, 'Укажите пароль').max(128, 'Неверный пароль'),
+})
 
 /** Проверить тело запроса схемой; при ошибке — VALIDATION_ERROR с полями. */
 export function parseBody<T>(schema: z.ZodType<T>, body: unknown): T {

@@ -1,7 +1,8 @@
 import { apiRequest } from '@/shared/api';
 import type { AuthCredentials, AuthResponse, User } from '../model/user.types';
 
-export function register(credentials: AuthCredentials): Promise<AuthResponse> {
+/** Регистрация — только с согласием на обработку персональных данных (`consent: true`). */
+export function register(credentials: AuthCredentials & { consent: true }): Promise<AuthResponse> {
   return apiRequest<AuthResponse>('/api/auth/register', { method: 'POST', body: credentials });
 }
 
@@ -16,6 +17,24 @@ export async function fetchMe(token?: string): Promise<User> {
     token,
   });
   return user;
+}
+
+/** «Забыли пароль»: ответ одинаковый, есть такой аккаунт или нет. */
+export async function forgotPassword(email: string): Promise<void> {
+  await apiRequest<void>('/api/auth/password/forgot', { method: 'POST', body: { email } });
+}
+
+/** Новый пароль по ссылке из письма — сразу входит. */
+export function resetPassword(token: string, password: string): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>('/api/auth/password/reset', {
+    method: 'POST',
+    body: { token, password },
+  });
+}
+
+/** Удалить аккаунт (подтверждение паролем). */
+export async function deleteAccount(password: string): Promise<void> {
+  await apiRequest<void>('/api/auth/account', { method: 'DELETE', auth: true, body: { password } });
 }
 
 /** Удаляет сессию на сервере. */

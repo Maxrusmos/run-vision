@@ -71,7 +71,7 @@ describe('apiRequest', () => {
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Проверьте поля',
-          fields: { login: 'Нужен логин, а не email', junk: 42 },
+          fields: { email: 'Неверный формат email', junk: 42 },
         },
       }),
     );
@@ -80,7 +80,7 @@ describe('apiRequest', () => {
     expect(error.status).toBe(400);
     expect(error.code).toBe('VALIDATION_ERROR');
     expect(error.message).toBe('Проверьте поля');
-    expect(error.fields).toEqual({ login: 'Нужен логин, а не email' });
+    expect(error.fields).toEqual({ email: 'Неверный формат email' });
   });
 
   it('ответ не по контракту — общая ошибка с понятным текстом', async () => {
@@ -134,9 +134,7 @@ describe('apiRequest', () => {
     const onUnauthorized = vi.fn();
     configureApiAuth({ getToken: () => 'tok', onUnauthorized });
     fetchMock.mockResolvedValue(
-      jsonResponse(401, {
-        error: { code: 'INVALID_CREDENTIALS', message: 'Неверный логин или пароль' },
-      }),
+      jsonResponse(401, { error: { code: 'INVALID_CREDENTIALS', message: 'Неверный email' } }),
     );
 
     const error = await catchError(apiRequest('/api/auth/login', { method: 'POST', auth: true }));

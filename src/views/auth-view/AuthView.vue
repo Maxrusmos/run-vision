@@ -6,10 +6,11 @@ import { ROUTE_NAMES } from '@/router/routes';
 import { getSafeRedirect } from '@/router/redirect';
 import { useAuthStore } from '@/stores/auth.store';
 import { isApiError, UNKNOWN_ERROR_MESSAGE } from '@/shared/api';
-import { validateLogin, validatePassword } from '@/entities/user';
+import { validateEmail, validatePassword } from '@/entities/user';
+import { createAutofillHandler } from '@/views/auth-view/autofill';
 
 type AuthMode = 'login' | 'register';
-type FieldName = 'login' | 'password' | 'passwordConfirm';
+type FieldName = 'email' | 'password' | 'passwordConfirm' | 'consent';
 
 const props = defineProps<{ mode: AuthMode }>();
 
@@ -19,17 +20,22 @@ const authStore = useAuthStore();
 
 const isRegister = computed(() => props.mode === 'register');
 
-const form = reactive({ login: '', password: '', passwordConfirm: '' });
+const form = reactive({ email: '', password: '', passwordConfirm: '', consent: false });
 const fieldErrors = reactive<Record<FieldName, string>>({
-  login: '',
+  email: '',
   password: '',
   passwordConfirm: '',
+  consent: '',
 });
 const formError = ref('');
 const isSubmitting = ref(false);
 const isPasswordVisible = ref(false);
 // До первой отправки не ругаемся на недописанные поля.
 const wasSubmitted = ref(false);
+
+// Документы открываются в новой вкладке — ссылкой на hash-маршрут этого же сайта.
+const consentHref = router.resolve({ name: ROUTE_NAMES.consent }).href;
+const privacyHref = router.resolve({ name: ROUTE_NAMES.privacy }).href;
 
 const redirectTarget = computed(() => getSafeRedirect(route.query.redirect));
 // Ссылка на соседнюю форму сохраняет, куда вернуться.
@@ -42,8 +48,7 @@ const texts = computed(() =>
   isRegister.value
     ? {
         title: 'Регистрация',
-        subtitle:
-          'Аккаунт пригодится, чтобы сохранять карточки и настройки. Почта не нужна — только логин и пароль.',
+        subtitle: 'Аккаунт пригодится, чтобы сохранять карточки и настройки.',
         submit: 'Зарегистрироваться',
         switchQuestion: 'Уже есть аккаунт?',
         switchAction: 'Войти',
@@ -58,7 +63,10 @@ const texts = computed(() =>
 );
 
 function validateField(field: FieldName): string {
-  if (field === 'login') return validateLogin(form.login) ?? '';
+  if (field === 'consent') {
+    return !isRegister.value || form.consent ? '' : 'Без согласия зарегистрироваться нельзя';
+  }
+  if (field === 'email') return validateEmail(form.email) ?? '';
   if (field === 'password') {
     // При входе длину не проверяем: пусть сервер скажет «неверный пароль», а не правила.
     if (!isRegister.value) return form.password ? '' : 'Введите пароль';
@@ -70,14 +78,14 @@ function validateField(field: FieldName): string {
 }
 
 function validateAll(): boolean {
-  const fields: FieldName[] = ['login', 'password', 'passwordConfirm'];
+  const fields: FieldName[] = ['email', 'password', 'passwordConfirm', 'consent'];
   for (const field of fields) fieldErrors[field] = validateField(field);
   return fields.every((field) => !fieldErrors[field]);
 }
 
 // После первой отправки ошибки обновляются на ходу (и снимаются серверные).
 watch(
-  () => [form.login, form.password, form.passwordConfirm],
+  () => [form.email, form.password, form.passwordConfirm, form.consent],
   () => {
     formError.value = '';
     if (wasSubmitted.value) validateAll();
@@ -92,35 +100,24 @@ function applyServerError(error: unknown) {
 
   let hasFieldError = false;
   for (const [field, message] of Object.entries(error.fields)) {
-    if (field === 'login' || field === 'password') {
+    if (field === 'email' || field === 'password' || field === 'consent') {
       fieldErrors[field] = message;
       hasFieldError = true;
     }
   }
-  if (error.code === 'LOGIN_TAKEN') {
-    fieldErrors.login = error.message;
+  if (error.code === 'EMAIL_TAKEN') {
+    fieldErrors.email = error.message;
     hasFieldError = true;
   }
 
   if (!hasFieldError) formError.value = error.message;
 }
 
-// Автозаполнение (связка ключей iOS, Google) вставляет значение, иногда не сообщая о нём
-// событием input: подпись оставалась внутри поля поверх текста. Ловим его по анимации
-// из CSS (`rv-autofill`), забираем значение в форму — подпись уходит наверх.
-const AUTOFILL_FIELDS: Record<string, FieldName> = {
-  username: 'login',
+const handleAutofill = createAutofillHandler(form, {
+  email: 'email',
   password: 'password',
   'password-confirm': 'passwordConfirm',
-};
-
-function handleAutofill(event: AnimationEvent) {
-  if (!event.animationName.startsWith('rv-autofill')) return;
-  const input = event.target;
-  if (!(input instanceof HTMLInputElement)) return;
-  const field = AUTOFILL_FIELDS[input.name];
-  if (field && input.value && form[field] !== input.value) form[field] = input.value;
-}
+});
 
 function goBack(fallback: string) {
   // В истории роутера есть предыдущая страница приложения — туда и возвращаемся.
@@ -137,8 +134,8 @@ async function submit() {
 
   isSubmitting.value = true;
   try {
-    const credentials = { login: form.login, password: form.password };
-    if (isRegister.value) await authStore.register(credentials);
+    const credentials = { email: form.email, password: form.password };
+    if (isRegister.value) await authStore.register({ ...credentials, consent: true });
     else await authStore.login(credentials);
 
     await router.replace(redirectTarget.value ?? '/');
@@ -176,19 +173,31 @@ watch(
         @submit.prevent="submit"
         @animationstart="handleAutofill"
       >
+        <!-- Зачем почта — до того, как её попросили. -->
+        <v-alert
+          v-if="isRegister"
+          variant="tonal"
+          density="compact"
+          icon="mdi-email-lock-outline"
+          class="auth-view__note"
+        >
+          Почта нужна только для входа и восстановления пароля. Рассылок нет, третьим лицам для
+          рекламы не передаём.
+        </v-alert>
+
         <v-text-field
-          v-model="form.login"
-          label="Логин"
-          type="text"
-          name="username"
+          v-model="form.email"
+          label="Email"
+          type="email"
+          name="email"
           autocomplete="username"
+          inputmode="email"
           autocapitalize="off"
           autocorrect="off"
           spellcheck="false"
           variant="outlined"
           density="comfortable"
-          :hint="isRegister ? 'Латиница, цифры и _ . - · от 3 до 32 символов' : undefined"
-          :error-messages="fieldErrors.login || undefined"
+          :error-messages="fieldErrors.email || undefined"
           :disabled="isSubmitting"
         />
 
@@ -203,11 +212,7 @@ watch(
           spellcheck="false"
           variant="outlined"
           density="comfortable"
-          :hint="
-            isRegister
-              ? 'От 8 до 128 символов. Запомните его: без почты восстановить пароль нельзя'
-              : undefined
-          "
+          :hint="isRegister ? 'От 8 до 128 символов' : undefined"
           :error-messages="fieldErrors.password || undefined"
           :disabled="isSubmitting"
         >
@@ -225,6 +230,14 @@ watch(
           </template>
         </v-text-field>
 
+        <router-link
+          v-if="!isRegister"
+          :to="{ name: ROUTE_NAMES.forgotPassword, query: form.email ? { email: form.email } : {} }"
+          class="auth-view__link auth-view__forgot"
+        >
+          Забыли пароль?
+        </router-link>
+
         <v-text-field
           v-if="isRegister"
           v-model="form.passwordConfirm"
@@ -240,6 +253,44 @@ watch(
           :error-messages="fieldErrors.passwordConfirm || undefined"
           :disabled="isSubmitting"
         />
+
+        <!-- Согласие — отдельной галочкой, по умолчанию не отмечено; тексты — в новой
+             вкладке, чтобы не потерять заполненную форму. -->
+        <div v-if="isRegister" class="auth-view__consent">
+          <v-checkbox
+            v-model="form.consent"
+            density="compact"
+            color="primary"
+            hide-details="auto"
+            :error-messages="fieldErrors.consent || undefined"
+            :disabled="isSubmitting"
+          >
+            <template #label>
+              <span class="auth-view__consent-label">
+                Даю
+                <a
+                  :href="consentHref"
+                  target="_blank"
+                  rel="noopener"
+                  class="auth-view__link"
+                  @click.stop
+                >
+                  согласие на обработку персональных данных</a
+                >
+                и принимаю
+                <a
+                  :href="privacyHref"
+                  target="_blank"
+                  rel="noopener"
+                  class="auth-view__link"
+                  @click.stop
+                >
+                  политику их обработки</a
+                >
+              </span>
+            </template>
+          </v-checkbox>
+        </div>
 
         <v-alert
           v-if="formError"
@@ -278,115 +329,4 @@ watch(
   </div>
 </template>
 
-<style scoped>
-.auth-view {
-  display: flex;
-  flex: 1 1 auto;
-  justify-content: center;
-  min-height: 0;
-  padding: 24px 16px;
-  overflow-y: auto;
-}
-
-.auth-view__content {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 400px;
-  margin: auto 0;
-}
-
-.auth-view__title {
-  margin: 0 0 4px;
-  font-size: 24px;
-  font-weight: 600;
-}
-
-.auth-view__subtitle {
-  margin: 0 0 20px;
-  color: color-mix(in srgb, var(--app-on-surface) 65%, transparent);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.auth-view__form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* iOS приближает страницу, если шрифт поля меньше 16px. */
-.auth-view__form :deep(input) {
-  font-size: 16px;
-}
-
-/* Автозаполнение красит поле жёлтым (iOS Safari, Chrome), и заливка закрывала подпись
-   на рамке. Заливку перекрываем цветом фона (тень внутрь — её Safari не игнорирует)
-   и откладываем переходом «на вечность», текст — цвета темы; анимация rv-autofill
-   сообщает скрипту, что поле заполнено (см. handleAutofill). */
-.auth-view__form :deep(input:-webkit-autofill) {
-  -webkit-text-fill-color: var(--app-on-surface);
-  caret-color: var(--app-on-surface);
-  -webkit-box-shadow: 0 0 0 1000px var(--app-background) inset;
-  box-shadow: 0 0 0 1000px var(--app-background) inset;
-  transition:
-    background-color 600000s 0s,
-    color 600000s 0s;
-  animation: rv-autofill 1ms;
-}
-
-.auth-view__form :deep(input:autofill) {
-  box-shadow: 0 0 0 1000px var(--app-background) inset;
-  transition:
-    background-color 600000s 0s,
-    color 600000s 0s;
-  animation: rv-autofill 1ms;
-}
-
-@keyframes rv-autofill {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* Подпись на рамке — всегда поверх поля ввода. */
-.auth-view__form :deep(.v-field__outline) {
-  z-index: 1;
-}
-
-.auth-view__eye {
-  color: color-mix(in srgb, var(--app-on-surface) 70%, transparent);
-}
-
-.auth-view__alert {
-  margin-bottom: 12px;
-}
-
-.auth-view__submit {
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.auth-view__switch {
-  margin: 20px 0 4px;
-  color: color-mix(in srgb, var(--app-on-surface) 65%, transparent);
-  font-size: 14px;
-  text-align: center;
-}
-
-.auth-view__link {
-  color: var(--app-primary);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.auth-view__guest {
-  align-self: center;
-  color: color-mix(in srgb, var(--app-on-surface) 60%, transparent) !important;
-  letter-spacing: 0;
-  text-transform: none;
-}
-</style>
+<style src="./auth-view.css"></style>

@@ -79,7 +79,7 @@ describe('saved-templates.store', () => {
     api.list.mockResolvedValue([template('a', '2026-10-01')]);
     const store = useSavedTemplatesStore();
     const auth = useAuthStore();
-    auth.user = { id: 'u1', login: 'abc', plan: 'free', planExpiresAt: null, createdAt: '' };
+    auth.user = { id: 'u1', email: 'a@b.c', plan: 'free', planExpiresAt: null, createdAt: '' };
     await nextTick();
     await store.load();
     expect(store.templates).toHaveLength(1);

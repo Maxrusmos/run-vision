@@ -63,6 +63,29 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
+      path: '/forgot-password',
+      name: ROUTE_NAMES.forgotPassword,
+      component: () => import('@/views/auth-view/ForgotPasswordView.vue'),
+    },
+    {
+      // Ссылка из письма: #/reset-password?token=…
+      path: '/reset-password',
+      name: ROUTE_NAMES.resetPassword,
+      component: () => import('@/views/auth-view/ResetPasswordView.vue'),
+    },
+    {
+      path: '/privacy',
+      name: ROUTE_NAMES.privacy,
+      component: () => import('@/views/legal-view/LegalView.vue'),
+      props: { document: 'privacy' },
+    },
+    {
+      path: '/consent',
+      name: ROUTE_NAMES.consent,
+      component: () => import('@/views/legal-view/LegalView.vue'),
+      props: { document: 'consent' },
+    },
+    {
       path: '/account',
       name: ROUTE_NAMES.account,
       component: () => import('@/views/account-view/AccountView.vue'),

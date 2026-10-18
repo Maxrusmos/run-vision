@@ -84,7 +84,8 @@ PostgreSQL не установлен — поставьте его команд�
 ```
 migrations/001_users_sessions.sql  схема БД (users, sessions)
 migrations/002_templates.sql       сохранённые шаблоны оформления (templates)
-migrations/004_login_instead_of_email.sql  вход по логину: логин из email, email удалён
+migrations/005_consent_password_reset.sql  согласие на обработку ПДн, ссылки сброса пароля
+                                   (004 — отменённый вход по логину — удалена)
 src/
   server.ts          запуск: конфиг → БД → слушаем порт
   app.ts             buildApp(): плагины, обработчик ошибок, маршруты (в тестах — без порта)
@@ -92,12 +93,14 @@ src/
   db.ts              пул PostgreSQL, withTransaction
   migrate.ts         применение миграций
   lib/errors.ts      ApiError и готовые ошибки в формате контракта
+  lib/mailer.ts      отправка писем: SMTP (SMTP_URL) или в лог; в тестах — в память
   modules/auth/
     routes.ts        /api/auth/* — только HTTP
     service.ts       логика: регистрация, вход, сессии, действующий тариф
-    schemas.ts       проверка логина/пароля (zod)
+    schemas.ts       проверка email/пароля (zod)
     password.ts      хэш паролей (scrypt)
-    tokens.ts        токены сессий
+    tokens.ts        токены сессий и ссылок сброса
+    mails.ts         тексты писем (смена пароля)
     authenticate.ts  хук app.authenticate и requirePlan('pro') для закрытых эндпоинтов
   modules/templates/
     routes.ts        /api/templates/* — «Мои шаблоны», только для вошедших
@@ -123,19 +126,24 @@ test/                тесты на настоящей БД
   на другом домене. Для браузера такая кука «сторонняя», а iOS Safari сторонние куки режет —
   вход бы слетал на iPhone. Заголовок работает везде; фронт хранит токен в `localStorage`.
 - Защита от подбора: не больше 10 попыток регистрации/входа в минуту с IP (429), вход
-  с неизвестным логином тратит то же время, что и с известным (по времени ответа не узнать,
-  занят ли логин), ошибка одна — «неверный логин или пароль».
-- **Вход по логину, без email.** Почту (и любые контакты) не собираем — меньше персональных
-  данных. Логин уникален без учёта регистра (хранится в нижнем, `UNIQUE` + `CHECK` в БД).
-  Миграция 004 сделала логины уже зарегистрированным из части email до «@» (совпадения — с
-  номером: `anna`, `anna2`) и удалила колонку `email`. Цена решения — пароль не восстановить
-  по почте (план — коды восстановления, см. `docs/pro-payments.md`).
+  с неизвестным email тратит то же время, что и с известным (по времени ответа не узнать,
+  есть ли такой пользователь), ошибка одна — «неверный email или пароль».
+
+- **Сброс пароля.** `password/forgot` всегда отвечает 204 и шлёт письмо без ожидания
+  (не выдаёт, есть ли аккаунт). Ссылка `APP_URL#/reset-password?token=…` одноразовая,
+  живёт `PASSWORD_RESET_TTL_MINUTES` (60), новая просьба отменяет прежние; в БД — SHA-256.
+  Смена пароля закрывает все сессии. Без `SMTP_URL` письмо пишется в лог сервера — в
+  разработке ссылку берите оттуда.
+- **Согласие и удаление.** Регистрация требует `consent: true`; в `users` пишутся
+  `consent_at` и `consent_version` (`CONSENT_VERSION` в `service.ts`). `DELETE
+  /api/auth/account` с паролем удаляет пользователя каскадом (сессии, шаблоны, ссылки).
+  Что ещё нужно перед продом — `docs/launch-checklist.md`.
 
 Новый закрытый эндпоинт:
 
 ```ts
 app.get('/api/что-то', { preHandler: app.authenticate }, async (request) => {
-  const user = currentUser(request) // { id, login, plan, ... }
+  const user = currentUser(request) // { id, email, plan, ... }
 })
 // только для Pro (иначе 403 PLAN_REQUIRED):
 app.get('/api/pro-фича', { preHandler: [app.authenticate, requirePlan('pro')] }, ...)
@@ -148,11 +156,10 @@ app.get('/api/pro-фича', { preHandler: [app.authenticate, requirePlan('pro')
 `plan = 'pro'` и срок не прошёл. Выдать Pro вручную:
 
 ```sql
-UPDATE users SET plan = 'pro', plan_expires_at = now() + interval '1 month' WHERE login = '...';
+UPDATE users SET plan = 'pro', plan_expires_at = now() + interval '1 month' WHERE email = '...';
 ```
 
-Как продавать Pro (провайдер, таблица платежей, вебхук) — **[`docs/pro-payments.md`](../docs/pro-payments.md)**.
-Кратко, схема вырастет так:
+Как продавать Pro — **[`docs/pro-payments.md`](../docs/pro-payments.md)**. Когда появится оплата, схема вырастет так:
 
 - таблица `subscriptions` (user_id, провайдер — например ЮKassa/Stripe, id подписки у провайдера,
   статус, текущий период, отмена в конце периода);

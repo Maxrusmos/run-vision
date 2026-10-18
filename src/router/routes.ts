@@ -9,6 +9,10 @@ export const ROUTE_NAMES = {
   savedTemplate: 'saved-template',
   login: 'login',
   register: 'register',
+  forgotPassword: 'forgot-password',
+  resetPassword: 'reset-password',
+  privacy: 'privacy',
+  consent: 'consent',
 } as const;
 
 /** Редактор для шаблона «Моих шаблонов»: фото-шаблон — в фото-редакторе, видео — в видео. */

@@ -5,8 +5,9 @@ export type ApiErrorCode =
   | 'UNAUTHORIZED'
   /** 403 — нужен тариф выше. */
   | 'PLAN_REQUIRED'
-  /** 409 — логин уже занят. */
-  | 'LOGIN_TAKEN'
+  | 'EMAIL_TAKEN'
+  /** 400 — ссылка сброса пароля неверная, использована или истекла. */
+  | 'RESET_TOKEN_INVALID'
   /** 409 — достигнут лимит (например, сохранённых шаблонов). */
   | 'LIMIT_REACHED'
   | 'RATE_LIMITED'

@@ -6,7 +6,8 @@ export type ApiErrorCode =
   | 'INVALID_CREDENTIALS'
   | 'UNAUTHORIZED'
   | 'PLAN_REQUIRED'
-  | 'LOGIN_TAKEN'
+  | 'EMAIL_TAKEN'
+  | 'RESET_TOKEN_INVALID'
   | 'LIMIT_REACHED'
   | 'RATE_LIMITED'
   | 'NOT_FOUND'
@@ -17,7 +18,8 @@ const STATUS: Record<ApiErrorCode, number> = {
   INVALID_CREDENTIALS: 401,
   UNAUTHORIZED: 401,
   PLAN_REQUIRED: 403,
-  LOGIN_TAKEN: 409,
+  EMAIL_TAKEN: 409,
+  RESET_TOKEN_INVALID: 400,
   LIMIT_REACHED: 409,
   RATE_LIMITED: 429,
   NOT_FOUND: 404,
@@ -60,10 +62,15 @@ export class ApiError extends Error {
 export const errors = {
   validation: (fields?: Record<string, string>, message = 'Проверьте введённые данные') =>
     new ApiError('VALIDATION_ERROR', message, fields),
-  invalidCredentials: () => new ApiError('INVALID_CREDENTIALS', 'Неверный логин или пароль'),
+  invalidCredentials: () => new ApiError('INVALID_CREDENTIALS', 'Неверный email или пароль'),
   unauthorized: () => new ApiError('UNAUTHORIZED', 'Нужно войти в аккаунт'),
   planRequired: () => new ApiError('PLAN_REQUIRED', 'Доступно только на тарифе Pro'),
-  loginTaken: () => new ApiError('LOGIN_TAKEN', 'Этот логин уже занят'),
+  emailTaken: () => new ApiError('EMAIL_TAKEN', 'Этот email уже зарегистрирован'),
+  resetTokenInvalid: () =>
+    new ApiError(
+      'RESET_TOKEN_INVALID',
+      'Ссылка для смены пароля недействительна или устарела — запросите новую',
+    ),
   limitReached: (message = 'Достигнут лимит сохранённых шаблонов') =>
     new ApiError('LIMIT_REACHED', message),
   rateLimited: () => new ApiError('RATE_LIMITED', 'Слишком много попыток, попробуйте через минуту'),
