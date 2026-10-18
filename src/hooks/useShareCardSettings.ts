@@ -478,6 +478,12 @@ export function useShareCardSettings(
     settings.value.videoDot = { ...settings.value.videoDot, style };
   }
 
+  /** null — цвет трека. */
+  function setVideoDotColor(color: string | null) {
+    if (color !== null && !HEX_COLOR_PATTERN.test(color)) return;
+    settings.value.videoDot = { ...settings.value.videoDot, color };
+  }
+
   /** Фото «пузырьком» вместо точки. */
   function setVideoDotPhoto(file: File) {
     if (!file.type.startsWith('image/')) return;
@@ -572,6 +578,7 @@ export function useShareCardSettings(
     removeBackgroundImage,
     removeProFeatures,
     setVideoDotStyle,
+    setVideoDotColor,
     setVideoDotPhoto,
     removeVideoDotPhoto,
     undo: history.undo,

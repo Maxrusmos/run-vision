@@ -7,7 +7,10 @@ import type {
   ShareRouteStyle,
   ShareVideoDotStyle,
 } from '@/entities/activity/model/activity-share/activity-share.types';
-import { VIDEO_DOT_STYLES } from '@/entities/activity/model/activity-share/video-dot';
+import {
+  VIDEO_DOT_STYLES,
+  getVideoDotColor,
+} from '@/entities/activity/model/activity-share/video-dot';
 import {
   PRO_ROUTE_STYLES,
   SHARE_ROUTE_STYLES,
@@ -54,6 +57,8 @@ const emit = defineEmits<{
   setRoutePitch: [pitch: ShareRoutePitch];
   setRouteFlags: [value: boolean];
   setVideoDotStyle: [style: ShareVideoDotStyle];
+  /** null — цвет трека. */
+  setVideoDotColor: [color: string | null];
   setVideoDotPhoto: [file: File];
   removeVideoDotPhoto: [];
 }>();
@@ -69,6 +74,16 @@ const targetOptions = [
 ];
 
 const dot = computed(() => props.settings.videoDot);
+const dotColor = computed(() => getVideoDotColor(dot.value, props.settings.routeColor));
+
+// Свой цвет выбирается плиткой «Цвет»; эта кнопка возвращает цвет трека.
+const dotColorSource = computed({
+  get: () => (dot.value.color ? 'own' : 'route'),
+  set: () => emit('setVideoDotColor', null),
+});
+const dotColorSourceOptions = [
+  { value: 'route' as const, label: 'Цвет трека', title: 'Цвет точки как у трека' },
+];
 
 function handleDotPhotoChange(event: Event) {
   const input = event.target as HTMLInputElement;
@@ -137,6 +152,12 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
         group-label="Флажки на треке"
         @toggle="emit('setRouteFlags', !settings.routeFlags)"
       />
+      <SegmentedGroup
+        v-if="video && target === 'dot'"
+        v-model="dotColorSource"
+        :options="dotColorSourceOptions"
+        group-label="Цвет точки"
+      />
     </div>
 
     <!-- Поворот — такой же ползунок, как перемотка видео; края — по линии рядов выше и ниже. -->
@@ -179,9 +200,18 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
       </button>
     </div>
 
-    <!-- Точка видео (всегда цвета трека): фото «пузырьком» и стили. Под фото стиль не
-         виден — плитки неактивны (как цвет фона под фото в «Фоне»). -->
+    <!-- Точка видео: цвет, фото «пузырьком» и стили. Под фото стиль не виден — плитки
+         неактивны (как цвет фона под фото в «Фоне»). -->
     <OptionTileRow v-if="video && target === 'dot'">
+      <template #fixed>
+        <ColorOptionTile
+          label="Цвет"
+          input-label="Цвет точки"
+          :color="dotColor"
+          @change="emit('setVideoDotColor', $event)"
+        />
+      </template>
+
       <!-- Фото: тап — загрузить или заменить, крестик — удалить. -->
       <OptionTile tag="label" label="Фото" :active="Boolean(dot.photo)">
         <template #preview>
@@ -231,11 +261,11 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
             <VideoDotMark
               :x="0"
               :y="0"
-              :route-color="settings.routeColor"
+              :route-color="dotColor"
               :ring-color="settings.textColor"
               :background-color="settings.backgroundColor"
               :unit="DOT_PREVIEW_UNIT"
-              :dot="{ style: style.id, photo: null }"
+              :dot="{ style: style.id, color: dot.color, photo: null }"
             />
           </svg>
         </template>
@@ -294,6 +324,7 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
 
 .track-panel__controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 

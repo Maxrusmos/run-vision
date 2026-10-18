@@ -353,7 +353,7 @@ defineExpose({
         v-if="dotPoint"
         :x="dotPoint.x"
         :y="dotPoint.y"
-        :route-color="routeColor"
+        :route-color="videoDot?.color ?? routeColor"
         :ring-color="textColor"
         :background-color="backgroundColor"
         :dot="videoDot"

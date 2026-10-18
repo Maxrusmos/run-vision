@@ -439,7 +439,7 @@ function handleWheel(event: WheelEvent) {
         v-if="dotPoint"
         :x="dotPoint.x"
         :y="dotPoint.y"
-        :route-color="color"
+        :route-color="videoDot?.color ?? color"
         :ring-color="textColor"
         :background-color="backgroundColor"
         :dot="videoDot"

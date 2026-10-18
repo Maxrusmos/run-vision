@@ -50,13 +50,4 @@ describe('normalizeShareCardSettings', () => {
     const old = { title: null, telemetry: null } as unknown as ShareCardSettings;
     expect(normalizeShareCardSettings(old).videoDot).toEqual(DEFAULT_VIDEO_DOT);
   });
-
-  it('свой цвет точки у старых черновиков и шаблонов отбрасывается', () => {
-    const old = {
-      title: null,
-      telemetry: null,
-      videoDot: { style: 'neon', color: '#ff0000', photo: null },
-    } as unknown as ShareCardSettings;
-    expect(normalizeShareCardSettings(old).videoDot).toEqual({ style: 'neon', photo: null });
-  });
 });
