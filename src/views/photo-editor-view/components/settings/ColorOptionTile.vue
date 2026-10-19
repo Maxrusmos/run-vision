@@ -1,23 +1,38 @@
 <script setup lang="ts">
 import OptionTile from '@/views/photo-editor-view/components/settings/OptionTile.vue';
 
-defineProps<{
+const props = defineProps<{
   color: string;
   label: string;
   /** Для экранного диктора: что именно красим. */
   inputLabel: string;
   active?: boolean;
   disabled?: boolean;
+  /**
+   * Есть вариант «цвет трека» (график, виджеты, точка видео): плитка делится на две части —
+   * сверху выбор цвета, снизу кнопка «Цвет трека». true — сейчас цвет как у трека.
+   */
+  trackColor?: boolean;
 }>();
 
 const emit = defineEmits<{
   change: [color: string];
+  /** Нижняя часть плитки: вернуть цвет трека. */
+  useTrackColor: [];
 }>();
+
+const hasTrackColor = props.trackColor !== undefined;
 </script>
 
 <template>
   <!-- Тап по плитке открывает системную палитру. -->
-  <OptionTile tag="label" :label="label" :active="active" :disabled="disabled">
+  <OptionTile
+    v-if="!hasTrackColor"
+    tag="label"
+    :label="label"
+    :active="active"
+    :disabled="disabled"
+  >
     <template #preview>
       <span class="color-tile__swatch" :style="{ background: color }">
         <v-icon icon="mdi-eyedropper-variant" size="18" />
@@ -31,6 +46,36 @@ const emit = defineEmits<{
       @input="emit('change', ($event.target as HTMLInputElement).value)"
     />
   </OptionTile>
+
+  <!-- Две кнопки в одной плитке: label с палитрой и отдельная кнопка — не вложены друг
+       в друга, иначе тап по «Цвет трека» открывал бы палитру. -->
+  <div
+    v-else
+    class="color-tile"
+    :class="{ 'color-tile--own': !trackColor, 'color-tile--disabled': disabled }"
+  >
+    <label class="color-tile__pick" :title="label">
+      <span class="color-tile__swatch" :style="{ background: color }">
+        <v-icon icon="mdi-eyedropper-variant" size="18" />
+      </span>
+      <input
+        class="visually-hidden"
+        type="color"
+        :value="color"
+        :aria-label="inputLabel"
+        @input="emit('change', ($event.target as HTMLInputElement).value)"
+      />
+    </label>
+    <button
+      type="button"
+      class="color-tile__track"
+      :class="{ 'color-tile__track--active': trackColor }"
+      :aria-pressed="trackColor"
+      @click="emit('useTrackColor')"
+    >
+      Цвет трека
+    </button>
+  </div>
 </template>
 
 <style scoped>
@@ -44,5 +89,65 @@ const emit = defineEmits<{
 
 .color-tile__swatch :deep(.v-icon) {
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / 70%));
+}
+
+/* Размеры — как у OptionTile: та же высота ряда. */
+.color-tile {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 4px;
+  width: 80px;
+  padding: 5px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+}
+
+.color-tile--own {
+  border-color: var(--app-primary);
+  background: var(--app-primary-bg);
+}
+
+.color-tile--disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.color-tile__pick {
+  display: block;
+  height: 46px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.color-tile__pick:has(:focus-visible),
+.color-tile__track:focus-visible {
+  outline: 2px solid var(--app-primary);
+  outline-offset: 2px;
+}
+
+/* Нижняя часть — на месте подписи, той же высоты. */
+.color-tile__track {
+  height: 15px;
+  padding: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--app-on-surface) 75%, transparent);
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 15px;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.color-tile__track--active {
+  color: var(--app-primary);
+  background: var(--app-primary-bg);
 }
 </style>

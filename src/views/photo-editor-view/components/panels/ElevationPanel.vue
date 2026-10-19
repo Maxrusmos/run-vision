@@ -51,15 +51,6 @@ const sizeOptions = SHARE_ELEVATION_SIZES.map((option) => ({
   title: `Высота графика: ${option.title.toLowerCase()}`,
 }));
 
-// Свой цвет выбирается плиткой «Цвет»; эта кнопка возвращает цвет трека.
-const colorSource = computed({
-  get: () => (props.elevation.color ? 'own' : 'route'),
-  set: () => emit('setColor', null),
-});
-const colorSourceOptions = [
-  { value: 'route' as const, label: 'Цвет трека', title: 'Цвет графика как у трека' },
-];
-
 const labels = computed({
   get: () => (props.elevation.labels ? 'on' : 'off'),
   set: (value: 'on' | 'off') => emit('setLabels', value === 'on'),
@@ -74,11 +65,6 @@ const labelOptions = [
   <div class="elevation-panel">
     <div class="elevation-panel__controls">
       <SegmentedGroup v-model="size" :options="sizeOptions" group-label="Высота графика" />
-      <SegmentedGroup
-        v-model="colorSource"
-        :options="colorSourceOptions"
-        group-label="Цвет графика"
-      />
       <SegmentedGroup v-model="labels" :options="labelOptions" group-label="Подписи" grow />
     </div>
 
@@ -89,6 +75,8 @@ const labelOptions = [
           input-label="Цвет графика высоты"
           :color="color"
           @change="emit('setColor', $event)"
+          :track-color="!elevation.color"
+          @use-track-color="emit('setColor', null)"
         />
       </template>
 

@@ -76,15 +76,6 @@ const targetOptions = [
 const dot = computed(() => props.settings.videoDot);
 const dotColor = computed(() => getVideoDotColor(dot.value, props.settings.routeColor));
 
-// Свой цвет выбирается плиткой «Цвет»; эта кнопка возвращает цвет трека.
-const dotColorSource = computed({
-  get: () => (dot.value.color ? 'own' : 'route'),
-  set: () => emit('setVideoDotColor', null),
-});
-const dotColorSourceOptions = [
-  { value: 'route' as const, label: 'Цвет трека', title: 'Цвет точки как у трека' },
-];
-
 function handleDotPhotoChange(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -152,12 +143,6 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
         group-label="Флажки на треке"
         @toggle="emit('setRouteFlags', !settings.routeFlags)"
       />
-      <SegmentedGroup
-        v-if="video && target === 'dot'"
-        v-model="dotColorSource"
-        :options="dotColorSourceOptions"
-        group-label="Цвет точки"
-      />
     </div>
 
     <!-- Поворот — такой же ползунок, как перемотка видео; края — по линии рядов выше и ниже. -->
@@ -209,6 +194,8 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
           input-label="Цвет точки"
           :color="dotColor"
           @change="emit('setVideoDotColor', $event)"
+          :track-color="!dot.color"
+          @use-track-color="emit('setVideoDotColor', null)"
         />
       </template>
 

@@ -57,15 +57,6 @@ const sizeOptions = SHARE_ELEVATION_SIZES.map((option) => ({
   title: `Высота виджетов: ${option.title.toLowerCase()}`,
 }));
 
-// Свой цвет выбирается плиткой «Цвет»; эта кнопка возвращает цвет трека.
-const colorSource = computed({
-  get: () => (props.telemetry.color ? 'own' : 'route'),
-  set: () => emit('setColor', null),
-});
-const colorSourceOptions = [
-  { value: 'route' as const, label: 'Цвет трека', title: 'Цвет виджетов как у трека' },
-];
-
 // Как у графика высоты: подписи (сводка в заголовке виджета) или без них.
 const labels = computed({
   get: () => (props.telemetry.labels ? 'on' : 'off'),
@@ -81,11 +72,6 @@ const labelOptions = [
   <div class="widgets-panel">
     <div class="widgets-panel__controls">
       <SegmentedGroup v-model="size" :options="sizeOptions" group-label="Высота виджетов" />
-      <SegmentedGroup
-        v-model="colorSource"
-        :options="colorSourceOptions"
-        group-label="Цвет виджетов"
-      />
       <SegmentedGroup v-model="labels" :options="labelOptions" group-label="Подписи" grow />
     </div>
 
@@ -96,6 +82,8 @@ const labelOptions = [
           input-label="Цвет виджетов"
           :color="color"
           @change="emit('setColor', $event)"
+          :track-color="!telemetry.color"
+          @use-track-color="emit('setColor', null)"
         />
       </template>
 
