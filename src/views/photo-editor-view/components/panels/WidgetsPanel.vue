@@ -82,6 +82,7 @@ const labelOptions = [
           input-label="Цвет виджетов"
           :color="color"
           @change="emit('setColor', $event)"
+          with-track-color
           :track-color="!telemetry.color"
           @use-track-color="emit('setColor', null)"
         />

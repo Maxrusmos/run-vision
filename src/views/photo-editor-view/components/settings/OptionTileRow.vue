@@ -1,11 +1,22 @@
 <script setup lang="ts">
-import { onMounted, useTemplateRef } from 'vue';
+import { nextTick, onMounted, useTemplateRef, watch } from 'vue';
+
+const props = defineProps<{
+  /** Сменился набор плиток в том же ряду (вкладка «Трек / Точка») — снова к выбранной. */
+  centerKey?: string;
+}>();
 
 const scroller = useTemplateRef<HTMLElement>('scroller');
 
 // Меню открывается сразу на выбранной плитке (по центру ряда), без анимации прокрутки:
 // иначе стиль в конце ряда («Изолинии») приходится искать свайпами.
-onMounted(() => {
+onMounted(centerActive);
+watch(
+  () => props.centerKey,
+  () => nextTick(centerActive),
+);
+
+function centerActive() {
   const row = scroller.value;
   const active = row?.querySelector<HTMLElement>('.option-tile--active');
   if (!row || !active) return;
@@ -14,7 +25,7 @@ onMounted(() => {
   const tileRect = active.getBoundingClientRect();
   const left = row.scrollLeft + tileRect.left - rowRect.left - (rowRect.width - tileRect.width) / 2;
   row.scrollTo({ left: Math.max(0, left), behavior: 'instant' });
-});
+}
 </script>
 
 <template>

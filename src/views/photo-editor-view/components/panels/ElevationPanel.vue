@@ -75,6 +75,7 @@ const labelOptions = [
           input-label="Цвет графика высоты"
           :color="color"
           @change="emit('setColor', $event)"
+          with-track-color
           :track-color="!elevation.color"
           @use-track-color="emit('setColor', null)"
         />

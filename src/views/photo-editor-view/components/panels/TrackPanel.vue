@@ -74,6 +74,7 @@ const targetOptions = [
 ];
 
 const dot = computed(() => props.settings.videoDot);
+const isDot = computed(() => props.video && target.value === 'dot');
 const dotColor = computed(() => getVideoDotColor(dot.value, props.settings.routeColor));
 
 function handleDotPhotoChange(event: Event) {
@@ -185,117 +186,113 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
       </button>
     </div>
 
-    <!-- Точка видео: цвет, фото «пузырьком» и стили. Под фото стиль не виден — плитки
-         неактивны (как цвет фона под фото в «Фоне»). -->
-    <OptionTileRow v-if="video && target === 'dot'">
+    <!-- Один ряд на обе вкладки: плитка «Цвет» общая — у точки снизу выезжает «Цвет трека»
+         (с анимацией), у трека прячется. Стили меняются, ряд центруется на выбранном. -->
+    <OptionTileRow :center-key="target">
       <template #fixed>
         <ColorOptionTile
           label="Цвет"
-          input-label="Цвет точки"
-          :color="dotColor"
-          @change="emit('setVideoDotColor', $event)"
+          :input-label="isDot ? 'Цвет точки' : 'Цвет трека'"
+          :color="isDot ? dotColor : settings.routeColor"
+          :with-track-color="isDot"
           :track-color="!dot.color"
+          @change="isDot ? emit('setVideoDotColor', $event) : emit('setRouteColor', $event)"
           @use-track-color="emit('setVideoDotColor', null)"
         />
       </template>
 
-      <!-- Фото: тап — загрузить или заменить, крестик — удалить. -->
-      <OptionTile tag="label" label="Фото" :active="Boolean(dot.photo)">
-        <template #preview>
-          <img v-if="dot.photo" class="track-panel__photo" :src="dot.photo" alt="" />
-          <v-icon v-else icon="mdi-account-box-plus-outline" size="22" />
-        </template>
-        <input
-          class="visually-hidden"
-          type="file"
-          accept="image/*"
-          aria-label="Фото вместо точки"
-          @change="handleDotPhotoChange"
-        />
-        <button
-          v-if="dot.photo"
-          type="button"
-          class="track-panel__remove"
-          aria-label="Убрать фото точки"
-          @click.prevent.stop="emit('removeVideoDotPhoto')"
-        >
-          <v-icon icon="mdi-close" size="14" />
-        </button>
-      </OptionTile>
-
-      <OptionTile
-        v-for="style in VIDEO_DOT_STYLES"
-        :key="style.id"
-        :label="style.name"
-        :active="!dot.photo && dot.style === style.id"
-        :disabled="Boolean(dot.photo)"
-        @click="emit('setVideoDotStyle', style.id)"
-      >
-        <template #preview>
-          <svg
-            class="track-preview"
-            :viewBox="viewBox"
-            :style="{ background: settings.backgroundColor }"
-            aria-hidden="true"
+      <!-- Точка видео: фото «пузырьком» и стили. Под фото стиль не виден — плитки
+           неактивны (как цвет фона под фото в «Фоне»). -->
+      <template v-if="isDot">
+        <!-- Фото: тап — загрузить или заменить, крестик — удалить. -->
+        <OptionTile tag="label" label="Фото" :active="Boolean(dot.photo)">
+          <template #preview>
+            <img v-if="dot.photo" class="track-panel__photo" :src="dot.photo" alt="" />
+            <v-icon v-else icon="mdi-account-box-plus-outline" size="22" />
+          </template>
+          <input
+            class="visually-hidden"
+            type="file"
+            accept="image/*"
+            aria-label="Фото вместо точки"
+            @change="handleDotPhotoChange"
+          />
+          <button
+            v-if="dot.photo"
+            type="button"
+            class="track-panel__remove"
+            aria-label="Убрать фото точки"
+            @click.prevent.stop="emit('removeVideoDotPhoto')"
           >
-            <path
-              :d="DOT_PREVIEW_PATH"
-              fill="none"
-              :stroke="settings.routeColor"
-              stroke-width="3"
-              stroke-linecap="round"
-            />
-            <VideoDotMark
-              :x="0"
-              :y="0"
-              :route-color="dotColor"
-              :ring-color="settings.textColor"
-              :background-color="settings.backgroundColor"
-              :unit="DOT_PREVIEW_UNIT"
-              :dot="{ style: style.id, color: dot.color, photo: null }"
-            />
-          </svg>
-        </template>
-      </OptionTile>
-    </OptionTileRow>
+            <v-icon icon="mdi-close" size="14" />
+          </button>
+        </OptionTile>
 
-    <OptionTileRow v-else>
-      <template #fixed>
-        <ColorOptionTile
-          label="Цвет"
-          input-label="Цвет трека"
-          :color="settings.routeColor"
-          @change="emit('setRouteColor', $event)"
-        />
+        <OptionTile
+          v-for="style in VIDEO_DOT_STYLES"
+          :key="style.id"
+          :label="style.name"
+          :active="!dot.photo && dot.style === style.id"
+          :disabled="Boolean(dot.photo)"
+          @click="emit('setVideoDotStyle', style.id)"
+        >
+          <template #preview>
+            <svg
+              class="track-preview"
+              :viewBox="viewBox"
+              :style="{ background: settings.backgroundColor }"
+              aria-hidden="true"
+            >
+              <path
+                :d="DOT_PREVIEW_PATH"
+                fill="none"
+                :stroke="settings.routeColor"
+                stroke-width="3"
+                stroke-linecap="round"
+              />
+              <VideoDotMark
+                :x="0"
+                :y="0"
+                :route-color="dotColor"
+                :ring-color="settings.textColor"
+                :background-color="settings.backgroundColor"
+                :unit="DOT_PREVIEW_UNIT"
+                :dot="{ style: style.id, color: dot.color, photo: null }"
+              />
+            </svg>
+          </template>
+        </OptionTile>
       </template>
 
-      <OptionTile
-        v-for="style in routeStyles"
-        :key="style.id"
-        :label="style.name"
-        :active="settings.routeStyle === style.id"
-        @click="emit('setRouteStyle', style.id)"
-      >
-        <template #preview>
-          <svg
-            class="track-preview"
-            :viewBox="viewBox"
-            :style="{ background: settings.backgroundColor }"
-            aria-hidden="true"
-          >
-            <RouteStyleLayers
-              :points="points"
-              :start="start"
-              :style-id="style.id"
-              :route-color="settings.routeColor"
-              :text-color="settings.textColor"
-              :background-color="settings.backgroundColor"
-              :unit="PREVIEW_UNIT"
-            />
-          </svg>
-          <ProTileBadge v-if="style.pro" />
-        </template>
-      </OptionTile>
+      <template v-else>
+        <OptionTile
+          v-for="style in routeStyles"
+          :key="style.id"
+          :label="style.name"
+          :active="settings.routeStyle === style.id"
+          @click="emit('setRouteStyle', style.id)"
+        >
+          <template #preview>
+            <svg
+              class="track-preview"
+              :viewBox="viewBox"
+              :style="{ background: settings.backgroundColor }"
+              aria-hidden="true"
+            >
+              <RouteStyleLayers
+                :points="points"
+                :start="start"
+                :style-id="style.id"
+                :route-color="settings.routeColor"
+                :text-color="settings.textColor"
+                :background-color="settings.backgroundColor"
+                :unit="PREVIEW_UNIT"
+              />
+            </svg>
+            <ProTileBadge v-if="style.pro" />
+          </template>
+        </OptionTile>
+      </template>
     </OptionTileRow>
   </div>
 </template>
