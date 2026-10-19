@@ -4,6 +4,7 @@ import type { RoutePoint } from '@/entities/activity/lib/route-projection';
 import type { ShareRouteStyle } from '@/entities/activity/model/activity-share/activity-share.types';
 import {
   findRouteStyle,
+  resolveRouteLayerColor,
   type RouteLayerColor,
   type RouteStrokeLayer,
 } from '@/entities/activity/model/activity-share/activity-share-route-styles';
@@ -53,11 +54,12 @@ const gradients = computed(() =>
   }),
 );
 
-function resolveColor(color: RouteLayerColor = 'route'): string {
-  if (color === 'route') return props.routeColor;
-  if (color === 'text') return props.textColor;
-  if (color === 'background') return props.backgroundColor;
-  return color;
+function resolveColor(color?: RouteLayerColor): string {
+  return resolveRouteLayerColor(color, {
+    route: props.routeColor,
+    text: props.textColor,
+    background: props.backgroundColor,
+  });
 }
 
 function layerTransform(layer: RouteStrokeLayer): string {

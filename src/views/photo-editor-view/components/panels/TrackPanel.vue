@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, useTemplateRef } from 'vue';
 import type { ITrackPoint } from '@/entities/activity/model/activity.types';
 import type {
   ShareCardSettings,
@@ -14,6 +14,7 @@ import {
 import {
   PRO_ROUTE_STYLES,
   SHARE_ROUTE_STYLES,
+  findRouteStyle,
 } from '@/entities/activity/model/activity-share/activity-share-route-styles';
 import { SHARE_ROUTE_PITCHES } from '@/entities/activity/model/activity-share/activity-share-map';
 import {
@@ -29,6 +30,7 @@ import ColorOptionTile from '@/views/photo-editor-view/components/settings/Color
 import ProTileBadge from '@/views/photo-editor-view/components/settings/ProTileBadge.vue';
 import RouteStyleLayers from '@/views/photo-editor-view/components/artwork/RouteStyleLayers.vue';
 import VideoDotMark from '@/views/photo-editor-view/components/artwork/VideoDotMark.vue';
+import ColorResetDialog from '@/views/photo-editor-view/components/ColorResetDialog.vue';
 
 /** Превью трека в плитке: размер области и масштаб эффектов. */
 const PREVIEW = { width: 70, height: 46, padding: 9 };
@@ -48,6 +50,8 @@ const props = defineProps<{
   track: ITrackPoint[];
   /** Видео: в ряду с наклоном и флажками — выбор, чьи плитки внизу: трека или точки. */
   video?: boolean;
+  /** Стиль трека шаблона: на него переходит трек со своими цветами перед своим цветом. */
+  templateRouteStyle: ShareRouteStyle;
 }>();
 
 const emit = defineEmits<{
@@ -74,6 +78,25 @@ const targetOptions = [
 ];
 
 const dot = computed(() => props.settings.videoDot);
+
+// Стиль со своими цветами («Радуга»): свой цвет трека его сбросит — сначала предупредить.
+const colorTile = useTemplateRef<{ openPicker: () => void }>('colorTile');
+const ownColorsStyle = computed(() => {
+  const style = findRouteStyle(props.settings.routeStyle);
+  return style.ownColors ? style : null;
+});
+const isColorResetOpen = ref(false);
+const colorResetText = computed(
+  () =>
+    `«${ownColorsStyle.value?.name}» рисует трек своими цветами. Чтобы выбрать цвет, трек ` +
+    `станет «${findRouteStyle(props.templateRouteStyle).name}» — стиль шаблона.`,
+);
+
+function confirmColorReset() {
+  isColorResetOpen.value = false;
+  emit('setRouteStyle', props.templateRouteStyle);
+  colorTile.value?.openPicker();
+}
 const isDot = computed(() => props.video && target.value === 'dot');
 const dotColor = computed(() => getVideoDotColor(dot.value, props.settings.routeColor));
 
@@ -191,11 +214,14 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
     <OptionTileRow :center-key="target">
       <template #fixed>
         <ColorOptionTile
+          ref="colorTile"
           label="Цвет"
           :input-label="isDot ? 'Цвет точки' : 'Цвет трека'"
           :color="isDot ? dotColor : settings.routeColor"
           :with-track-color="isDot"
           :track-color="!dot.color"
+          :guarded="!isDot && Boolean(ownColorsStyle)"
+          @guarded="isColorResetOpen = true"
           @change="isDot ? emit('setVideoDotColor', $event) : emit('setRouteColor', $event)"
           @use-track-color="emit('setVideoDotColor', null)"
         />
@@ -294,6 +320,13 @@ const viewBox = `${-PREVIEW.width / 2} ${-PREVIEW.height / 2} ${PREVIEW.width} $
         </OptionTile>
       </template>
     </OptionTileRow>
+
+    <ColorResetDialog
+      v-model="isColorResetOpen"
+      title="Цвета задаёт стиль трека"
+      :text="colorResetText"
+      @confirm="confirmColorReset"
+    />
   </div>
 </template>
 

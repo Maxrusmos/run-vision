@@ -1,7 +1,17 @@
 import type { ShareRouteStyle } from './activity-share.types';
 
-/** Цвет слоя: из оформления карточки или фиксированный (#rrggbb). */
-export type RouteLayerColor = 'route' | 'text' | 'background' | `#${string}`;
+/**
+ * Оттенок от цвета трека: сдвиг тона (градусы) и светлоты (−1…1, доля пути к чёрному или
+ * белому). Так Pro-стили с переливами («Закат», «Пламя», «Голограмма») следуют выбранному
+ * цвету трека, а не задают свои.
+ */
+export type RouteColorShift = { hue?: number; light?: number };
+
+/** Цвет слоя: из оформления карточки, оттенок цвета трека или фиксированный (#rrggbb). */
+export type RouteLayerColor =
+  'route' | 'text' | 'background' | `#${string}` | { shift: RouteColorShift };
+
+export type RouteLayerPalette = { route: string; text: string; background: string };
 
 /**
  * Один слой трека — копия линии со своими сдвигом, масштабом, толщиной,
@@ -35,6 +45,12 @@ export type ShareRouteStyleOption = {
   name: string;
   /** Только с подпиской Pro (без неё — посмотреть с водяными знаками, сохранить нельзя). */
   pro?: boolean;
+  /**
+   * Свои цвета, цвет трека не используется («Радуга», «Шоссе», «Хром»): смена цвета трека
+   * сначала предупреждает и переводит трек на стиль шаблона. Новые стили так не делать —
+   * пусть следуют цвету трека (`route`, `{ shift }`), как «Стена» и «Призрак».
+   */
+  ownColors?: boolean;
   /** Слои снизу вверх; последний — основной, на нём точка старта. */
   layers: readonly RouteStrokeLayer[];
 };
@@ -127,6 +143,13 @@ const RAINBOW = [
   '#AF52DE',
 ] as const;
 
+/** Ореол «Пламени»: от светлого и тёплого оттенка трека к тёмному. */
+const FLAME_GLOW: readonly RouteLayerColor[] = [
+  { shift: { hue: 30, light: 0.2 } },
+  'route',
+  { shift: { hue: -15, light: -0.45 } },
+];
+
 /**
  * Pro-стили трека: объём («Стена»), «Призрак», многоцветные градиенты, неон, «шоссе»
  * с разметкой, металл. В меню — после обычных, с короной.
@@ -152,6 +175,7 @@ export const PRO_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
   },
   {
     id: 'pro-rainbow',
+    ownColors: true,
     name: 'Радуга',
     pro: true,
     layers: [
@@ -165,7 +189,15 @@ export const PRO_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
     pro: true,
     layers: [
       { dx: 5, dy: 8, width: 1.3, color: '#000000', opacity: 0.3 },
-      { width: 1.4, gradient: ['#FFD166', '#F78C6B', '#EF476F', '#7B2CBF'] },
+      {
+        width: 1.4,
+        gradient: [
+          { shift: { hue: 45, light: 0.25 } },
+          { shift: { hue: 20, light: 0.1 } },
+          'route',
+          { shift: { hue: -40, light: -0.3 } },
+        ],
+      },
     ],
   },
   {
@@ -173,10 +205,17 @@ export const PRO_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
     name: 'Пламя',
     pro: true,
     layers: [
-      { width: 5, gradient: ['#FFB000', '#FF3D00', '#8B0000'], opacity: 0.16 },
-      { width: 2.8, gradient: ['#FFB000', '#FF3D00', '#8B0000'], opacity: 0.35 },
-      { width: 1.4, gradient: ['#FFF3B0', '#FF9100', '#E53935'] },
-      { width: 0.35, color: '#FFFDE7', opacity: 0.9 },
+      { width: 5, gradient: FLAME_GLOW, opacity: 0.16 },
+      { width: 2.8, gradient: FLAME_GLOW, opacity: 0.35 },
+      {
+        width: 1.4,
+        gradient: [
+          { shift: { hue: 25, light: 0.55 } },
+          { shift: { hue: 12, light: 0.15 } },
+          'route',
+        ],
+      },
+      { width: 0.35, color: { shift: { light: 0.85 } }, opacity: 0.9 },
     ],
   },
   {
@@ -192,6 +231,7 @@ export const PRO_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
   },
   {
     id: 'pro-road',
+    ownColors: true,
     name: 'Шоссе',
     pro: true,
     layers: [
@@ -203,6 +243,7 @@ export const PRO_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
   },
   {
     id: 'pro-chrome',
+    ownColors: true,
     name: 'Хром',
     pro: true,
     layers: [
@@ -217,9 +258,9 @@ export const PRO_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
     name: 'Голограмма',
     pro: true,
     layers: [
-      { dx: -7, dy: 3, width: 1.1, color: '#00F5D4', opacity: 0.55 },
-      { dx: 7, dy: -3, width: 1.1, color: '#F15BB5', opacity: 0.55 },
-      { width: 1.3, gradient: ['#00F5D4', '#9B5DE5', '#F15BB5'] },
+      { dx: -7, dy: 3, width: 1.1, color: { shift: { hue: 70 } }, opacity: 0.55 },
+      { dx: 7, dy: -3, width: 1.1, color: { shift: { hue: -70 } }, opacity: 0.55 },
+      { width: 1.3, gradient: [{ shift: { hue: 70 } }, 'route', { shift: { hue: -70 } }] },
       { width: 0.35, color: '#ffffff', opacity: 0.85 },
     ],
   },
@@ -231,4 +272,66 @@ export function findRouteStyle(id: ShareRouteStyle): ShareRouteStyleOption {
     PRO_ROUTE_STYLES.find((style) => style.id === id) ??
     SHARE_ROUTE_STYLES[0]!
   );
+}
+
+/** Цвет слоя для отрисовки (SVG и превью). */
+export function resolveRouteLayerColor(
+  color: RouteLayerColor | undefined,
+  palette: RouteLayerPalette,
+): string {
+  if (color === undefined || color === 'route') return palette.route;
+  if (color === 'text') return palette.text;
+  if (color === 'background') return palette.background;
+  if (typeof color === 'object') return shiftColor(palette.route, color.shift);
+  return color;
+}
+
+/** Сдвиг тона и светлоты цвета #rrggbb (в HSL); не #rrggbb — как есть. */
+export function shiftColor(hex: string, { hue = 0, light = 0 }: RouteColorShift): string {
+  const match = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!match) return hex;
+  const value = Number.parseInt(match[1]!, 16);
+  const [h, sat, l] = rgbToHsl((value >> 16) & 255, (value >> 8) & 255, value & 255);
+  const lightness = light >= 0 ? l + (1 - l) * light : l * (1 + light);
+  return hslToHex((((h + hue) % 360) + 360) % 360, sat, Math.min(1, Math.max(0, lightness)));
+}
+
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  const [rn, gn, bn] = [r / 255, g / 255, b / 255];
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  let h: number;
+  if (max === rn) h = ((gn - bn) / d) % 6;
+  else if (max === gn) h = (bn - rn) / d + 2;
+  else h = (rn - gn) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r, g, b] =
+    h < 60
+      ? [c, x, 0]
+      : h < 120
+        ? [x, c, 0]
+        : h < 180
+          ? [0, c, x]
+          : h < 240
+            ? [0, x, c]
+            : h < 300
+              ? [x, 0, c]
+              : [c, 0, x];
+  return `#${[r, g, b]
+    .map((channel) =>
+      Math.round((channel + m) * 255)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
 }

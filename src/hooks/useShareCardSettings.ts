@@ -466,14 +466,17 @@ export function useShareCardSettings(
    * Убрать Pro-возможности (сохранить без подписки): Pro-оформление → пресет шаблона,
    * Pro-стиль трека → стиль трека шаблона. Остальные настройки не трогаем.
    */
+  /** Стиль трека шаблона — к нему возвращают «Вернуть обычные» и свой цвет у «Радуги». */
+  const templateRouteStyle: ShareRouteStyle = options.template
+    ? TEMPLATE_STYLES[options.template].route
+    : DEFAULT_ROUTE_STYLE;
+
   function removeProFeatures() {
     if (settings.value.backgroundDecor || findSharePreset(settings.value.presetId)?.pro) {
       applyPreset(initialPreset);
     }
     if (findRouteStyle(settings.value.routeStyle).pro) {
-      settings.value.routeStyle = options.template
-        ? TEMPLATE_STYLES[options.template].route
-        : DEFAULT_ROUTE_STYLE;
+      settings.value.routeStyle = templateRouteStyle;
     }
   }
 
@@ -580,6 +583,7 @@ export function useShareCardSettings(
     setBackgroundImage,
     removeBackgroundImage,
     removeProFeatures,
+    templateRouteStyle,
     setVideoDotStyle,
     setVideoDotColor,
     setVideoDotPhoto,

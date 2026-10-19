@@ -134,6 +134,7 @@ const {
   setRoutePitch,
   setRouteFlags,
   removeProFeatures,
+  templateRouteStyle,
   setVideoDotStyle,
   setVideoDotColor,
   setVideoDotPhoto,
@@ -704,6 +705,7 @@ function goBack() {
             :settings="settings"
             :track="activity.track"
             :video="isVideoMode"
+            :template-route-style="templateRouteStyle"
             @set-route-color="setColor('routeColor', $event)"
             @set-route-style="setRouteStyle"
             @set-route-bearing="setRouteBearing"

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useTemplateRef } from 'vue';
+
 const props = defineProps<{
   color: string;
   label: string;
@@ -13,13 +15,44 @@ const props = defineProps<{
   withTrackColor?: boolean;
   /** Сейчас цвет как у трека (подсвечена «Цвет трека»). */
   trackColor?: boolean;
+  /**
+   * Свой цвет сейчас что-то сбросит (стиль трека со своими цветами, Pro-фон): тап не
+   * открывает палитру, а шлёт `guarded` — родитель предупреждает и сам зовёт `openPicker`.
+   */
+  guarded?: boolean;
 }>();
 
 const emit = defineEmits<{
   change: [color: string];
   /** Нижняя половина плитки: вернуть цвет трека. */
   useTrackColor: [];
+  /** Тап по палитре при `guarded`. */
+  guarded: [];
 }>();
+
+const input = useTemplateRef<HTMLInputElement>('input');
+
+function handlePickClick(event: MouseEvent) {
+  if (!props.guarded) return;
+  event.preventDefault();
+  emit('guarded');
+}
+
+/**
+ * Открыть палитру из кода — после подтверждения в диалоге. Вызывать из обработчика
+ * нажатия (кнопки диалога): палитру браузер открывает только в ответ на жест.
+ */
+function openPicker() {
+  const element = input.value;
+  if (!element) return;
+  try {
+    element.showPicker();
+  } catch {
+    element.click();
+  }
+}
+
+defineExpose({ openPicker });
 </script>
 
 <template>
@@ -34,11 +67,12 @@ const emit = defineEmits<{
     }"
   >
     <!-- Тап открывает системную палитру. -->
-    <label class="color-tile__pick">
+    <label class="color-tile__pick" @click="handlePickClick">
       <span class="color-tile__swatch" :style="{ background: color }">
         <v-icon icon="mdi-eyedropper-variant" size="18" />
       </span>
       <input
+        ref="input"
         class="visually-hidden"
         type="color"
         :value="color"

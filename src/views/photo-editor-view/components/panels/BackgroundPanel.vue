@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, ref, useTemplateRef } from 'vue';
 import type {
   ShareBackgroundPattern,
   ShareCardSettings,
@@ -8,6 +9,11 @@ import BackgroundPattern from '@/views/photo-editor-view/components/artwork/Back
 import OptionTile from '@/views/photo-editor-view/components/settings/OptionTile.vue';
 import OptionTileRow from '@/views/photo-editor-view/components/settings/OptionTileRow.vue';
 import ColorOptionTile from '@/views/photo-editor-view/components/settings/ColorOptionTile.vue';
+import ColorResetDialog from '@/views/photo-editor-view/components/ColorResetDialog.vue';
+import {
+  getProDesignInUse,
+  isDecorVisible,
+} from '@/entities/activity/model/activity-share/activity-share-pro';
 
 const props = defineProps<{
   settings: ShareCardSettings;
@@ -20,6 +26,22 @@ const emit = defineEmits<{
   removeBackgroundImage: [];
   setPattern: [pattern: ShareBackgroundPattern];
 }>();
+
+// Pro-оформление: фон — градиент с узором; свой цвет фона его уберёт — сначала предупредить.
+const colorTile = useTemplateRef<{ openPicker: () => void }>('colorTile');
+const isColorResetOpen = ref(false);
+const hasDecor = computed(() => isDecorVisible(props.settings));
+const colorResetText = computed(() => {
+  const name = getProDesignInUse(props.settings)?.name;
+  return `${name ? `Фон оформления «${name}»` : 'Этот фон'} — градиент с узором. Свой цвет фона заменит его сплошным цветом.`;
+});
+
+function confirmColorReset() {
+  isColorResetOpen.value = false;
+  // Узор убираем сразу (тем же цветом): иначе, если палитру закрыли, тап снова звал бы диалог.
+  emit('setBackgroundColor', props.settings.backgroundColor);
+  colorTile.value?.openPicker();
+}
 
 function handleFileChange(event: Event) {
   const input = event.target as HTMLInputElement;
@@ -38,6 +60,9 @@ function handleFileChange(event: Event) {
          Под фото цвет фона не виден, поэтому плитка неактивна. -->
     <template #fixed>
       <ColorOptionTile
+        ref="colorTile"
+        :guarded="hasDecor"
+        @guarded="isColorResetOpen = true"
         label="Цвет"
         input-label="Цвет фона"
         :color="settings.backgroundColor"
@@ -111,6 +136,13 @@ function handleFileChange(event: Event) {
       </template>
     </OptionTile>
   </OptionTileRow>
+
+  <ColorResetDialog
+    v-model="isColorResetOpen"
+    title="Фон задаёт оформление"
+    :text="colorResetText"
+    @confirm="confirmColorReset"
+  />
 </template>
 
 <style scoped>
