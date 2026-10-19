@@ -56,7 +56,7 @@ const hasTrackColor = props.trackColor !== undefined;
   >
     <label class="color-tile__pick" :title="label">
       <span class="color-tile__swatch" :style="{ background: color }">
-        <v-icon icon="mdi-eyedropper-variant" size="18" />
+        <v-icon icon="mdi-eyedropper-variant" size="16" />
       </span>
       <input
         class="visually-hidden"
@@ -115,7 +115,8 @@ const hasTrackColor = props.trackColor !== undefined;
 
 .color-tile__pick {
   display: block;
-  height: 46px;
+  /* Палитра и «Цвет трека» делят плитку пополам (высота ряда — как у OptionTile: 46+4+15). */
+  flex: 1 1 0;
   overflow: hidden;
   border: 1px solid rgb(255 255 255 / 12%);
   border-radius: 8px;
@@ -129,18 +130,17 @@ const hasTrackColor = props.trackColor !== undefined;
   outline-offset: 2px;
 }
 
-/* Нижняя часть — на месте подписи, той же высоты. */
+/* Нижняя половина — заметная кнопка с рамкой, как у палитры сверху. */
 .color-tile__track {
-  height: 15px;
+  flex: 1 1 0;
   padding: 0;
   overflow: hidden;
-  color: color-mix(in srgb, var(--app-on-surface) 75%, transparent);
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
+  color: color-mix(in srgb, var(--app-on-surface) 85%, transparent);
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-on-surface) 6%, transparent);
   font-size: 11px;
-  font-weight: 500;
-  line-height: 15px;
+  font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -148,6 +148,7 @@ const hasTrackColor = props.trackColor !== undefined;
 
 .color-tile__track--active {
   color: var(--app-primary);
+  border-color: var(--app-primary);
   background: var(--app-primary-bg);
 }
 </style>
