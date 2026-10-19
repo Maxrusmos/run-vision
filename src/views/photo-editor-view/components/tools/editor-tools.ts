@@ -18,13 +18,13 @@ export const EDITOR_TOOLS: readonly EditorTool[] = [
 
 /**
  * Шаблон с картой: фон — всегда карта, вместо «Фона» — её настройки;
- * после «Трека» — график высоты.
+ * после «Трека» — график высоты (пункт «Виджеты» со значком, как в «Телеметрии»).
  */
 export const MAP_EDITOR_TOOLS: readonly EditorTool[] = EDITOR_TOOLS.flatMap(
   (tool): EditorTool[] => {
     if (tool.id === 'background') return [{ id: 'map', icon: 'mdi-map-outline', label: 'Карта' }];
     if (tool.id === 'track') {
-      return [tool, { id: 'elevation', icon: 'mdi-chart-areaspline-variant', label: 'График' }];
+      return [tool, { id: 'elevation', icon: 'mdi-view-dashboard-outline', label: 'Виджеты' }];
     }
     return [tool];
   },

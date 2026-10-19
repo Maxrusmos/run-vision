@@ -34,15 +34,18 @@ function handleFileChange(event: Event) {
 
 <template>
   <OptionTileRow>
-    <!-- Под фото цвет фона не виден, поэтому плитка неактивна. -->
-    <ColorOptionTile
-      label="Цвет"
-      input-label="Цвет фона"
-      :color="settings.backgroundColor"
-      :active="!settings.transparentBackground && !settings.backgroundImage"
-      :disabled="Boolean(settings.backgroundImage)"
-      @change="emit('setBackgroundColor', $event)"
-    />
+    <!-- Цвет закреплён слева, как в других меню; прокручиваются фото, прозрачный и узоры.
+         Под фото цвет фона не виден, поэтому плитка неактивна. -->
+    <template #fixed>
+      <ColorOptionTile
+        label="Цвет"
+        input-label="Цвет фона"
+        :color="settings.backgroundColor"
+        :active="!settings.transparentBackground && !settings.backgroundImage"
+        :disabled="Boolean(settings.backgroundImage)"
+        @change="emit('setBackgroundColor', $event)"
+      />
+    </template>
 
     <!-- Фото: тап — загрузить или заменить, крестик — удалить. -->
     <OptionTile tag="label" label="Фото" :active="Boolean(settings.backgroundImage)">
@@ -86,29 +89,27 @@ function handleFileChange(event: Event) {
       </template>
     </OptionTile>
 
-    <!-- «Телеметрия»: узоры-разметка, как на приборной панели (поверх цвета и фото). -->
-    <template v-if="settings.telemetry">
-      <OptionTile
-        v-for="pattern in SHARE_BACKGROUND_PATTERNS"
-        :key="pattern.id"
-        :label="pattern.name"
-        :active="settings.telemetry.pattern === pattern.id"
-        @click="emit('setPattern', pattern.id)"
-      >
-        <template #preview>
-          <span class="background-panel__pattern" :style="{ background: settings.backgroundColor }">
-            <BackgroundPattern :pattern="pattern.id" :color="settings.textColor" :unit="14" />
-            <v-icon
-              v-if="pattern.id === 'none'"
-              icon="mdi-cancel"
-              size="18"
-              :color="settings.textColor"
-              class="background-panel__none"
-            />
-          </span>
-        </template>
-      </OptionTile>
-    </template>
+    <!-- Узоры-разметка, как на приборной панели (поверх цвета и фото), — во всех шаблонах. -->
+    <OptionTile
+      v-for="pattern in SHARE_BACKGROUND_PATTERNS"
+      :key="pattern.id"
+      :label="pattern.name"
+      :active="settings.backgroundPattern === pattern.id"
+      @click="emit('setPattern', pattern.id)"
+    >
+      <template #preview>
+        <span class="background-panel__pattern" :style="{ background: settings.backgroundColor }">
+          <BackgroundPattern :pattern="pattern.id" :color="settings.textColor" :unit="14" />
+          <v-icon
+            v-if="pattern.id === 'none'"
+            icon="mdi-cancel"
+            size="18"
+            :color="settings.textColor"
+            class="background-panel__none"
+          />
+        </span>
+      </template>
+    </OptionTile>
   </OptionTileRow>
 </template>
 

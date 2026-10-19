@@ -1,5 +1,8 @@
-import type { ShareCardSettings } from './activity-share.types';
-import { normalizeTelemetrySettings } from './activity-share-widgets';
+import type {
+  ShareBackgroundPattern,
+  ShareCardSettings,
+  ShareTelemetrySettings,
+} from './activity-share.types';
 import { DEFAULT_VIDEO_DOT } from './video-dot';
 
 /**
@@ -7,10 +10,32 @@ import { DEFAULT_VIDEO_DOT } from './video-dot';
  * поля, которые с тех пор поменялись, переводятся в новые.
  */
 export function normalizeShareCardSettings(settings: ShareCardSettings): ShareCardSettings {
-  const withFlags = normalizeBackgroundDecor(normalizeVideoDot(normalizeRouteFlags(settings)));
-  return withFlags.telemetry
-    ? { ...withFlags, telemetry: normalizeTelemetrySettings(withFlags.telemetry) }
-    : withFlags;
+  return normalizeBackgroundPattern(
+    normalizeBackgroundDecor(normalizeVideoDot(normalizeRouteFlags(settings))),
+  );
+}
+
+type LegacyTelemetryPattern = { pattern?: ShareBackgroundPattern; grid?: boolean };
+
+/**
+ * Узор фона был только у «Телеметрии» (`telemetry.pattern`, а ещё раньше флажок
+ * `telemetry.grid`), стал общим — `backgroundPattern`. Без него — без узора.
+ */
+function normalizeBackgroundPattern(settings: ShareCardSettings): ShareCardSettings {
+  const legacy = settings.telemetry as (ShareTelemetrySettings & LegacyTelemetryPattern) | null;
+  const hasLegacy = Boolean(legacy && ('pattern' in legacy || 'grid' in legacy));
+  if (settings.backgroundPattern !== undefined && !hasLegacy) return settings;
+
+  let pattern: ShareBackgroundPattern = settings.backgroundPattern ?? 'none';
+  let telemetry = settings.telemetry;
+  if (legacy && hasLegacy) {
+    const { pattern: legacyPattern, grid, ...rest } = legacy;
+    if (settings.backgroundPattern === undefined) {
+      pattern = legacyPattern ?? (grid === false ? 'none' : 'grid');
+    }
+    telemetry = rest;
+  }
+  return { ...settings, telemetry, backgroundPattern: pattern };
 }
 
 type LegacyRouteFlags = { routeKmMarkers?: boolean; routeStartFinish?: boolean };

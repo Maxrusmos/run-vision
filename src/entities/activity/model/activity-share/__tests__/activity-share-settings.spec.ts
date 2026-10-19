@@ -4,23 +4,35 @@ import type { ShareCardSettings } from '../activity-share.types';
 import { normalizeShareCardSettings } from '../activity-share-settings';
 import { createShareTelemetrySettings } from '../activity-share-widgets';
 
-function withTelemetry(telemetry: Record<string, unknown> | null) {
+function withTelemetry(telemetry: Record<string, unknown> | null, extra = {}) {
   return {
     title: null,
     telemetry,
     videoDot: { ...DEFAULT_VIDEO_DOT },
     backgroundDecor: null,
+    ...extra,
   } as unknown as ShareCardSettings;
 }
 
 describe('normalizeShareCardSettings', () => {
-  it('старый флажок grid превращается в узор', () => {
-    const { pattern: _pattern, ...base } = createShareTelemetrySettings(false);
+  it('старый флажок grid превращается в общий узор фона', () => {
+    const base = createShareTelemetrySettings(false);
     const on = normalizeShareCardSettings(withTelemetry({ ...base, grid: true }));
     const off = normalizeShareCardSettings(withTelemetry({ ...base, grid: false }));
-    expect(on.telemetry?.pattern).toBe('grid');
-    expect(off.telemetry?.pattern).toBe('none');
-    expect(off.telemetry).not.toHaveProperty('grid');
+    expect(on.backgroundPattern).toBe('grid');
+    expect(off.backgroundPattern).toBe('none');
+    expect(off.telemetry).toEqual(base);
+  });
+
+  it('узор «Телеметрии» переезжает в общий узор фона', () => {
+    const base = createShareTelemetrySettings(true);
+    const result = normalizeShareCardSettings(withTelemetry({ ...base, pattern: 'radar' }));
+    expect(result.backgroundPattern).toBe('radar');
+    expect(result.telemetry).toEqual(base);
+  });
+
+  it('у старых карточек без «Телеметрии» — без узора', () => {
+    expect(normalizeShareCardSettings(withTelemetry(null)).backgroundPattern).toBe('none');
   });
 
   it('две старые кнопки флажков становятся одной', () => {
@@ -40,9 +52,10 @@ describe('normalizeShareCardSettings', () => {
   });
 
   it('новые настройки и карточки без «Телеметрии» не меняются', () => {
-    const telemetry = { ...createShareTelemetrySettings(true), pattern: 'radar' };
-    expect(normalizeShareCardSettings(withTelemetry(telemetry)).telemetry).toEqual(telemetry);
-    const plain = withTelemetry(null);
+    const telemetry = createShareTelemetrySettings(true);
+    const card = withTelemetry(telemetry, { backgroundPattern: 'radar' });
+    expect(normalizeShareCardSettings(card)).toBe(card);
+    const plain = withTelemetry(null, { backgroundPattern: 'none' });
     expect(normalizeShareCardSettings(plain)).toBe(plain);
   });
 

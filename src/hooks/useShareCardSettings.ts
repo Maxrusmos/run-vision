@@ -6,6 +6,7 @@ import type {
   ShareColorKey,
   ShareColorPreset,
   ShareElevationSettings,
+  ShareBackgroundPattern,
   ShareTelemetrySettings,
   ShareWidgetKind,
   ShareWidget,
@@ -122,6 +123,8 @@ function createSettings(
     telemetry: withTelemetry ? createShareTelemetrySettings(options.hasHeartRate ?? false) : null,
     videoDot: { ...DEFAULT_VIDEO_DOT },
     backgroundDecor: null,
+    // «Телеметрия» — «как приборная панель»: сетка-разметка; остальные — без узора.
+    backgroundPattern: withTelemetry ? 'grid' : 'none',
   };
 }
 
@@ -514,8 +517,8 @@ export function useShareCardSettings(
     updateTelemetry({ labels });
   }
 
-  function setBackgroundPattern(pattern: ShareTelemetrySettings['pattern']) {
-    updateTelemetry({ pattern });
+  function setBackgroundPattern(pattern: ShareBackgroundPattern) {
+    settings.value.backgroundPattern = pattern;
   }
 
   /**

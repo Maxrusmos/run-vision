@@ -476,10 +476,10 @@ function removeRoute() {
 
     <ProWatermark v-if="showProWatermark" />
 
-    <!-- «Телеметрия»: тонкая сетка-разметка, как на приборной панели. -->
+    <!-- Узор-разметка фона (в «Телеметрии» по умолчанию — сетка, как на приборной панели). -->
     <BackgroundPattern
-      v-if="settings.telemetry"
-      :pattern="settings.telemetry.pattern"
+      v-if="settings.backgroundPattern !== 'none'"
+      :pattern="settings.backgroundPattern"
       :color="settings.textColor"
     />
 

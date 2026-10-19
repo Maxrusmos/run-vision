@@ -108,11 +108,9 @@ export type ShareTelemetrySettings = {
   color: string | null;
   /** Сводка в заголовке виджета (средний, лучший и т.п.). */
   labels: boolean;
-  /** Узор на фоне карточки, как разметка приборной панели (меню «Фон»). */
-  pattern: ShareBackgroundPattern;
 };
 
-/** Узор фона «Телеметрии»: сетка, миллиметровка, точки, развёртка, радар и т.п. */
+/** Узор фона (меню «Фон»): сетка, миллиметровка, точки, развёртка, радар и т.п. */
 export type ShareBackgroundPattern =
   'none' | 'grid' | 'graph' | 'dots' | 'crosses' | 'scanlines' | 'radar' | 'hatch';
 
@@ -261,6 +259,8 @@ export type ShareCardSettings = {
    * Под фото, прозрачным фоном и картой во весь фон не виден.
    */
   backgroundDecor: ShareBackgroundDecor | null;
+  /** Узор-разметка поверх фона (меню «Фон», все шаблоны, кроме «Топографии»). */
+  backgroundPattern: ShareBackgroundPattern;
 };
 
 export type ShareStatOption = {
