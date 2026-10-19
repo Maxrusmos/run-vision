@@ -60,12 +60,14 @@ export type ShareRouteStyle =
   | 'tube'
   | 'ribbon'
   // Pro (`PRO_ROUTE_STYLES`)
+  | 'pro-monogram'
+  | 'pro-relief'
+  | 'pro-float'
+  | 'pro-double'
+  | 'pro-sketch'
   | 'pro-rainbow'
-  | 'pro-sunset'
-  | 'pro-fire'
   | 'pro-plasma'
   | 'pro-road'
-  | 'pro-chrome'
   | 'pro-hologram';
 
 /** Ячейка показателя в сетке из 6 колонок: строка и первая колонка. */

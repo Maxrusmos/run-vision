@@ -95,15 +95,6 @@ export const SHARE_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
     name: 'Стопка',
     layers: [{ dy: 39, opacity: 0.15 }, { dy: 26, opacity: 0.3 }, { dy: 13, opacity: 0.55 }, {}],
   },
-  {
-    id: 'glitch',
-    name: 'Глитч',
-    layers: [
-      { dx: -6, color: '#ff2d55', opacity: 0.85 },
-      { dx: 6, color: '#00e5ff', opacity: 0.85 },
-      {},
-    ],
-  },
   { id: 'gradient', name: 'Градиент', layers: [{ width: 1.2, gradient: true }] },
   { id: 'dashed', name: 'Пунктир', layers: [{ dash: 'dash' }] },
   { id: 'dotted', name: 'Точки', layers: [{ width: 1.4, dash: 'dot' }] },
@@ -143,16 +134,22 @@ const RAINBOW = [
   '#AF52DE',
 ] as const;
 
-/** Ореол «Пламени»: от светлого и тёплого оттенка трека к тёмному. */
-const FLAME_GLOW: readonly RouteLayerColor[] = [
-  { shift: { hue: 30, light: 0.2 } },
-  'route',
-  { shift: { hue: -15, light: -0.45 } },
-];
+/**
+ * «Монограмма»: копии трека вокруг основного (масштаб от центра), тонкие и прозрачнее к
+ * краям. Толщина делится на масштаб — у всех копий линия одной толщины.
+ */
+function monogram(): RouteStrokeLayer[] {
+  return [0.85, 0.9, 0.95, 1.05, 1.1, 1.15].map((scale) => ({
+    scale,
+    width: 0.4 / scale,
+    opacity: 0.6 - Math.abs(1 - scale) * 3,
+  }));
+}
 
 /**
- * Pro-стили трека: объём («Стена»), «Призрак», многоцветные градиенты, неон, «шоссе»
- * с разметкой, металл. В меню — после обычных, с короной.
+ * Pro-стили трека: объём («Стена»), «Призрак», «Монограмма» и другие копии линии цвета
+ * трека, «Радуга», «Плазма», «Шоссе» с разметкой, «Голограмма», «Глитч». В меню — после
+ * обычных, с короной. Новые — только от цвета трека (см. `ownColors`).
  */
 export const PRO_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
   {
@@ -174,6 +171,66 @@ export const PRO_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
     layers: [{ scale: 1.14, opacity: 0.15 }, { scale: 1.07, opacity: 0.32 }, {}],
   },
   {
+    id: 'pro-monogram',
+    name: 'Монограмма',
+    pro: true,
+    // Флажки и старт — у основной линии (последний слой), копии без них.
+    layers: [...monogram(), { width: 1.1 }],
+  },
+  {
+    id: 'pro-relief',
+    name: 'Рельеф',
+    pro: true,
+    // Линии над и под треком, как горизонтали на карте.
+    layers: [
+      { dy: -36, width: 0.4, opacity: 0.2 },
+      { dy: -24, width: 0.45, opacity: 0.35 },
+      { dy: -12, width: 0.5, opacity: 0.55 },
+      { dy: 12, width: 0.5, opacity: 0.55 },
+      { dy: 24, width: 0.45, opacity: 0.35 },
+      { dy: 36, width: 0.4, opacity: 0.2 },
+      {},
+    ],
+  },
+  {
+    id: 'pro-float',
+    name: 'Парение',
+    pro: true,
+    // Трек висит над карточкой: мягкая тень далеко внизу, сверху блик.
+    layers: [
+      { dy: 42, width: 3.4, color: '#000000', opacity: 0.08 },
+      { dy: 42, width: 2.2, color: '#000000', opacity: 0.14 },
+      { dy: 42, width: 1.1, color: '#000000', opacity: 0.22 },
+      { width: 1.2 },
+      { dy: -2, width: 0.35, color: '#ffffff', opacity: 0.8 },
+    ],
+  },
+  {
+    id: 'pro-double',
+    name: 'Двойной',
+    pro: true,
+    // Полый контур с тонкой линией внутри и мягким ореолом.
+    layers: [
+      { width: 4.4, opacity: 0.14 },
+      { width: 3 },
+      { width: 2.1, color: 'background' },
+      { width: 0.5 },
+    ],
+  },
+  {
+    id: 'pro-sketch',
+    name: 'Эскиз',
+    pro: true,
+    // Несколько чуть сдвинутых тонких линий — как набросок карандашом.
+    layers: [
+      { dx: -9, dy: 6, width: 0.35, opacity: 0.7 },
+      { dx: 8, dy: -5, width: 0.35, opacity: 0.7 },
+      { dx: 4, dy: 10, width: 0.3, opacity: 0.5 },
+      { dx: -6, dy: -9, width: 0.3, opacity: 0.5 },
+      { width: 0.6 },
+    ],
+  },
+  {
     id: 'pro-rainbow',
     ownColors: true,
     name: 'Радуга',
@@ -181,41 +238,6 @@ export const PRO_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
     layers: [
       { width: 3.2, gradient: RAINBOW, opacity: 0.18 },
       { width: 1.3, gradient: RAINBOW },
-    ],
-  },
-  {
-    id: 'pro-sunset',
-    name: 'Закат',
-    pro: true,
-    layers: [
-      { dx: 5, dy: 8, width: 1.3, color: '#000000', opacity: 0.3 },
-      {
-        width: 1.4,
-        gradient: [
-          { shift: { hue: 45, light: 0.25 } },
-          { shift: { hue: 20, light: 0.1 } },
-          'route',
-          { shift: { hue: -40, light: -0.3 } },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'pro-fire',
-    name: 'Пламя',
-    pro: true,
-    layers: [
-      { width: 5, gradient: FLAME_GLOW, opacity: 0.16 },
-      { width: 2.8, gradient: FLAME_GLOW, opacity: 0.35 },
-      {
-        width: 1.4,
-        gradient: [
-          { shift: { hue: 25, light: 0.55 } },
-          { shift: { hue: 12, light: 0.15 } },
-          'route',
-        ],
-      },
-      { width: 0.35, color: { shift: { light: 0.85 } }, opacity: 0.9 },
     ],
   },
   {
@@ -242,18 +264,6 @@ export const PRO_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
     ],
   },
   {
-    id: 'pro-chrome',
-    ownColors: true,
-    name: 'Хром',
-    pro: true,
-    layers: [
-      { dx: 4, dy: 7, width: 2, color: '#000000', opacity: 0.35 },
-      { width: 2, color: '#5F6670' },
-      { width: 1.5, gradient: ['#F5F7FA', '#9AA4B1', '#E9EDF2', '#7C8794'] },
-      { dy: -2, width: 0.4, color: '#ffffff', opacity: 0.9 },
-    ],
-  },
-  {
     id: 'pro-hologram',
     name: 'Голограмма',
     pro: true,
@@ -264,7 +274,28 @@ export const PRO_ROUTE_STYLES: readonly ShareRouteStyleOption[] = [
       { width: 0.35, color: '#ffffff', opacity: 0.85 },
     ],
   },
+  {
+    id: 'glitch',
+    name: 'Глитч',
+    pro: true,
+    // Основная линия — цвета трека, сдвинутые копии — «сбой» RGB.
+    layers: [
+      { dx: -6, color: '#ff2d55', opacity: 0.85 },
+      { dx: 6, color: '#00e5ff', opacity: 0.85 },
+      {},
+    ],
+  },
 ];
+
+/**
+ * Убранные стили (черновики, шаблоны в аккаунте) → ближайшие: «Пламя» — как «Плазма»,
+ * «Закат» — «Градиент», «Хром» — «Лента».
+ */
+export const REMOVED_ROUTE_STYLES: Readonly<Record<string, ShareRouteStyle>> = {
+  'pro-fire': 'pro-plasma',
+  'pro-sunset': 'gradient',
+  'pro-chrome': 'ribbon',
+};
 
 export function findRouteStyle(id: ShareRouteStyle): ShareRouteStyleOption {
   return (

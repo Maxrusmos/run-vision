@@ -4,15 +4,24 @@ import type {
   ShareTelemetrySettings,
 } from './activity-share.types';
 import { DEFAULT_VIDEO_DOT } from './video-dot';
+import { REMOVED_ROUTE_STYLES } from './activity-share-route-styles';
 
 /**
  * Приводит сохранённые настройки (черновик, шаблон из аккаунта) к текущему виду:
  * поля, которые с тех пор поменялись, переводятся в новые.
  */
 export function normalizeShareCardSettings(settings: ShareCardSettings): ShareCardSettings {
-  return normalizeBackgroundPattern(
-    normalizeBackgroundDecor(normalizeVideoDot(normalizeRouteFlags(settings))),
+  return normalizeRouteStyle(
+    normalizeBackgroundPattern(
+      normalizeBackgroundDecor(normalizeVideoDot(normalizeRouteFlags(settings))),
+    ),
   );
+}
+
+/** Убранные стили трека («Пламя», «Закат», «Хром») — на ближайшие оставшиеся. */
+function normalizeRouteStyle(settings: ShareCardSettings): ShareCardSettings {
+  const replacement = REMOVED_ROUTE_STYLES[settings.routeStyle];
+  return replacement ? { ...settings, routeStyle: replacement } : settings;
 }
 
 type LegacyTelemetryPattern = { pattern?: ShareBackgroundPattern; grid?: boolean };

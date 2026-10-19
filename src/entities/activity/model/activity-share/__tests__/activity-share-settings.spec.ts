@@ -64,3 +64,14 @@ describe('normalizeShareCardSettings', () => {
     expect(normalizeShareCardSettings(old).videoDot).toEqual(DEFAULT_VIDEO_DOT);
   });
 });
+
+describe('убранные стили трека', () => {
+  it('«Пламя», «Закат», «Хром» переходят на ближайшие', () => {
+    const card = (routeStyle: string) =>
+      ({ ...withTelemetry(null), routeStyle }) as unknown as ShareCardSettings;
+    expect(normalizeShareCardSettings(card('pro-fire')).routeStyle).toBe('pro-plasma');
+    expect(normalizeShareCardSettings(card('pro-sunset')).routeStyle).toBe('gradient');
+    expect(normalizeShareCardSettings(card('pro-chrome')).routeStyle).toBe('ribbon');
+    expect(normalizeShareCardSettings(card('ghost')).routeStyle).toBe('ghost');
+  });
+});
